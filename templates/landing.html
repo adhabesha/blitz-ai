@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Blitz AI – Get found in AI search</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet"><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap">
+<nav><div class="logo"><i></i>Blitz AI</div><button class="btn" id="login">Login with Google</button></nav>
+<section class="hero"><h1>Get Found Faster<br>Through <em>AI Search</em></h1>
+<p>Track how ChatGPT, Gemini and Perplexity mention your brand, fix content gaps, and watch your visibility grow.</p>
+<button class="btn" id="start">Start free</button></section>
+<div class="grid">
+<div class="card"><h3>AI visibility</h3><p>See where your brand shows up in AI answers.</p></div>
+<div class="card"><h3>Competitor tracking</h3><p>Compare citations and share of voice.</p></div>
+<div class="card"><h3>Content fixes</h3><p>Actionable tips to get cited more often.</p></div></div>
+<h2><em>Frequently</em> asked questions</h2>
+<details><summary>Can I analyze my competitors?</summary><p>Yes, add any domain and compare scores.</p></details>
+<details><summary>Which AI platforms are supported?</summary><p>Major AI assistants and AI search engines.</p></details>
+<details><summary>Does it help improve SEO?</summary><p>Yes, GEO and SEO share many signals.</p></details>
+<div class="cta"><h2 style="margin-top:0">Get Found Everywhere <em>AI Search</em> Matters Most</h2><button class="btn" id="start2">Book a demo</button></div>
+<footer>© 2026 Blitz AI</footer></div>
+<script type="module">import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";const app=initializeApp({apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}});const auth=getAuth(app);
+const go=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider());location.href="/dashboard"}catch(e){alert(e.message)}};
+for(const id of["login","start","start2"])document.getElementById(id).onclick=go;</script></body></html>

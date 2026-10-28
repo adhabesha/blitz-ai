@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet"><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="wrap">
+<nav><div class="logo"><i></i>Blitz AI</div><button class="btn ghost" id="out">Sign out</button></nav>
+<h2 style="margin-top:20px">Welcome back, <em id="name"></em></h2>
+<div class="card"><h3>Check a website</h3><div class="row"><input id="d" placeholder="example.com"><button class="btn" id="add">Analyze</button></div>
+<p id="msg" style="color:var(--o);margin:0 0 10px"></p>
+<div style="overflow-x:auto"><table><thead><tr><th>Domain</th><th>AI visibility</th><th>Insights</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<footer>Scores are AI estimates from Gemini, not live search data</footer></div>
+<script type="module">import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";const app=initializeApp({apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}});const auth=getAuth(app);
+
+let tok;const rows=document.getElementById("rows"),msg=document.getElementById("msg");
+const api=async(m,b)=>{const r=await fetch("/api/projects",{method:m,headers:{Authorization:"Bearer "+tok},body:b&&JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json()};
+const draw=l=>{rows.innerHTML="";for(const p of l){const tr=rows.insertRow();tr.insertCell().textContent=p.domain;const s=tr.insertCell();s.textContent=p.score+"/100";s.className="score";
+const c=tr.insertCell();const t=document.createElement("div");t.textContent=p.summary||"";c.appendChild(t);const ul=document.createElement("ul");for(const x of(p.tips||[])){const li=document.createElement("li");li.textContent=x;ul.appendChild(li)}c.appendChild(ul)}};
+onAuthStateChanged(auth,async u=>{if(!u){location.href="/";return}
+document.getElementById("name").textContent=(u.displayName||"").split(" ")[0];
+tok=await u.getIdToken();try{draw(await api("GET"))}catch(e){msg.textContent=e.message}});
+document.getElementById("add").onclick=async()=>{const i=document.getElementById("d"),b=document.getElementById("add");if(!i.value)return;
+msg.textContent="";b.disabled=true;b.textContent="Analyzing...";
+try{tok=await auth.currentUser.getIdToken();await api("POST",{domain:i.value});i.value="";draw(await api("GET"))}catch(e){msg.textContent=e.message}
+b.disabled=false;b.textContent="Analyze"};
+document.getElementById("out").onclick=()=>signOut(auth);</script></body></html>

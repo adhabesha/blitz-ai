@@ -1,0 +1,4 @@
+app
+.env
+render-env.txt
+*adminsdk*.json
