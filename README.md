@@ -1,9 +1,9 @@
-# Blitz AI – free-tier SaaS (Go + Firebase + Gemini + Render)
-Easiest: run `powershell -ExecutionPolicy Bypass -File .\deploy.ps1` and follow the prompts.
+# Blitz AI v2 – website, social and app evaluator
+Measured KPIs, charts, prioritized fixes and printable reports. Free tiers only (Go + Firebase + Gemini + Render).
 
-Stack: Go app on Render free, Firebase Auth + Firestore (Spark, no expiry), Gemini API free tier, GitHub, optional Cloudflare for a custom domain (CNAME to your onrender.com URL, proxied).
+- Website: live audit (HTTPS, speed, title/meta/H1, canonical, alt text, sitemap, robots, AI-crawler access, JSON-LD, llms.txt), Google PageSpeed (Core Web Vitals) and an AI-visibility test.
+- Social: engagement, reach, growth, consistency, bio and caption checks vs size/platform benchmarks, plus a 90-day projection. Social networks have no free public data API, so you enter the numbers.
+- App: Apple App Store data fetched automatically; Google Play numbers entered by hand.
 
-Notes
-- Gemini free tier is rate-limited, not unlimited. The app caps each user at 5 analyses/day. Change `GEMINI_MODEL` in Render env if a model ID is retired (copy IDs from AI Studio).
-- Free-tier Gemini inputs may be used by Google to improve models; don't send private data.
-- Render free sleeps after ~15 min idle; ping /healthz with UptimeRobot.
+Optional env var in Render: PSI_API_KEY (free Google API key with PageSpeed Insights API enabled) for reliable speed tests.
+Limits per user per day: 20 evaluations, 6 with AI.
