@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"math"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,6 +46,24 @@ type Chart struct {
 	Datasets []Dataset `json:"datasets" firestore:"datasets"`
 }
 
+type Row struct {
+	Cells []string `json:"cells" firestore:"cells"`
+}
+
+type Table struct {
+	Title   string   `json:"title" firestore:"title"`
+	Columns []string `json:"columns" firestore:"columns"`
+	Rows    []Row    `json:"rows" firestore:"rows"`
+}
+
+type PlanItem struct {
+	Title  string `json:"title" firestore:"title"`
+	Why    string `json:"why" firestore:"why"`
+	Impact int    `json:"impact" firestore:"impact"`
+	Effort int    `json:"effort" firestore:"effort"`
+	Auto   string `json:"auto" firestore:"auto"` // e.g. optimize-video:<id>
+}
+
 type AIInsights struct {
 	Summary      string   `json:"summary" firestore:"summary"`
 	Strengths    []string `json:"strengths" firestore:"strengths"`
@@ -59,6 +81,8 @@ type Report struct {
 	KPIs       []KPI          `json:"kpis" firestore:"kpis"`
 	Checks     []Check        `json:"checks" firestore:"checks"`
 	Charts     []Chart        `json:"charts" firestore:"charts"`
+	Tables     []Table        `json:"tables" firestore:"tables"`
+	Plan       []PlanItem     `json:"plan" firestore:"plan"`
 	AI         *AIInsights    `json:"ai,omitempty" firestore:"ai,omitempty"`
 	Notes      []string       `json:"notes" firestore:"notes"`
 	AIUsed     bool           `json:"aiUsed" firestore:"aiUsed"`
@@ -84,6 +108,10 @@ type evalIn struct {
 	Bio           string  `json:"bio"`
 	Captions      string  `json:"captions"`
 	Goal          string  `json:"goal"`
+	// google (connected) and youtube
+	Site     string `json:"site"`
+	Property string `json:"property"`
+	Channel  bool   `json:"channel"`
 	// app
 	Store     string  `json:"store"`
 	Query     string  `json:"query"`
@@ -176,4 +204,125 @@ func (r *Report) finish() {
 	if tw > 0 {
 		r.Score = int(ts/tw*100 + 0.5)
 	}
+}
+
+func human(v float64) string {
+	a := math.Abs(v)
+	switch {
+	case a >= 1e6:
+		return fmt.Sprintf("%.1fM", v/1e6)
+	case a >= 1e4:
+		return fmt.Sprintf("%.1fK", v/1e3)
+	}
+	return fmt.Sprintf("%.0f", v)
+}
+
+func atof(s string) float64 {
+	v, _ := strconv.ParseFloat(s, 64)
+	return v
+}
+
+func delta(cur, prev float64) float64 {
+	if prev == 0 {
+		return 0
+	}
+	return (cur - prev) / prev * 100
+}
+
+func median(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	c := append([]float64(nil), v...)
+	sort.Float64s(c)
+	n := len(c)
+	if n%2 == 1 {
+		return c[n/2]
+	}
+	return (c[n/2-1] + c[n/2]) / 2
+}
+
+func trunc(s string, n int) string {
+	rs := []rune(s)
+	if len(rs) > n {
+		return string(rs[:n-1]) + "\u2026"
+	}
+	return s
+}
+
+// forecast fits a straight line to y and projects it forward (standard trend projection).
+func forecast(y []float64, days int) (fitted []float64, total, r2 float64) {
+	n := float64(len(y))
+	if n < 7 {
+		return nil, 0, 0
+	}
+	var sx, sy, sxx, sxy float64
+	for i, v := range y {
+		x := float64(i)
+		sx += x
+		sy += v
+		sxx += x * x
+		sxy += x * v
+	}
+	den := n*sxx - sx*sx
+	if den == 0 {
+		return nil, 0, 0
+	}
+	b := (n*sxy - sx*sy) / den
+	a := (sy - b*sx) / n
+	mean := sy / n
+	var ssTot, ssRes float64
+	for i, v := range y {
+		f := a + b*float64(i)
+		ssRes += (v - f) * (v - f)
+		ssTot += (v - mean) * (v - mean)
+	}
+	if ssTot > 0 {
+		r2 = 1 - ssRes/ssTot
+	}
+	for i := 0; i < len(y)+days; i++ {
+		f := math.Max(0, a+b*float64(i))
+		fitted = append(fitted, math.Round(f*10)/10)
+		if i >= len(y) {
+			total += f
+		}
+	}
+	return
+}
+
+// lineForecast builds an "actual + trend/forecast" chart. dates are YYYY-MM-DD.
+func lineForecast(title string, dates []string, y []float64, days int) (Chart, float64, float64, bool) {
+	fit, total, r2 := forecast(y, days)
+	if fit == nil || len(dates) != len(y) {
+		return Chart{}, 0, 0, false
+	}
+	ch := Chart{Title: title, Type: "line"}
+	for _, d := range dates {
+		if len(d) >= 10 {
+			ch.Labels = append(ch.Labels, d[5:10])
+		} else {
+			ch.Labels = append(ch.Labels, d)
+		}
+	}
+	if last, err := time.Parse("2006-01-02", dates[len(dates)-1]); err == nil {
+		for k := 1; k <= days; k++ {
+			ch.Labels = append(ch.Labels, last.AddDate(0, 0, k).Format("01-02"))
+		}
+	} else {
+		for k := 1; k <= days; k++ {
+			ch.Labels = append(ch.Labels, fmt.Sprintf("+%dd", k))
+		}
+	}
+	ch.Datasets = []Dataset{{Name: "Actual", Data: y}, {Name: "Trend + " + strconv.Itoa(days) + "-day forecast", Data: fit}}
+	return ch, total, r2, true
+}
+
+func confidence(r2 float64) string {
+	switch {
+	case r2 >= 0.6:
+		return "high"
+	case r2 >= 0.25:
+		return "medium"
+	}
+	return "low"
 }

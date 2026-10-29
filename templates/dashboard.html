@@ -6,10 +6,23 @@
 <nav><div class="logo"><i></i>Blitz AI</div><button class="btn ghost" id="out">Sign out</button></nav>
 <h2 style="margin:10px 0 0">Welcome back, <em id="name"></em></h2>
 <p class="mut">Evaluate a website, a social account or an app and see exactly what to improve.</p>
-<div class="tabs"><button class="tab on" data-kind="website">Website</button><button class="tab" data-kind="social">Social account</button><button class="tab" data-kind="app">App</button></div>
+<div class="tabs"><button class="tab on" data-kind="website">Website</button><button class="tab" data-kind="youtube">YouTube (auto)</button><button class="tab" data-kind="google">Connected Google</button><button class="tab" data-kind="social">Other social</button><button class="tab" data-kind="app">App</button><button class="tab" data-kind="optimizer">Optimizer &amp; Publish</button></div>
 
 <div class="card" id="formbox">
 <div class="form" id="f-website"><label class="wide">Website address<input id="w-url" placeholder="example.com"></label></div>
+
+<div class="form" id="f-youtube" hidden><label class="wide">YouTube channel link or @handle<input id="y-url" placeholder="https://www.youtube.com/@channel"></label>
+<p class="mut wide">Reads public data for any channel: stats, last 30 videos, upload rhythm, titles, tags, projections and a prioritized plan.</p></div>
+
+<div class="form" id="f-google" hidden>
+<div class="wide" id="g-setup" hidden><b>One-time setup needed.</b> Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and BASE_URL in Render &gt; Environment (steps are in SETUP.md).</div>
+<div class="wide" id="g-connect"><button class="btn" id="g-btn">Connect Google</button> <span class="mut">Search Console + Analytics (GA4) + YouTube, read-only except YouTube editing for the Optimizer.</span></div>
+<div class="form wide" id="g-connected" hidden>
+<label>Search Console site<select id="g-site"><option value="">None</option></select></label>
+<label>GA4 property<select id="g-prop"><option value="">None</option></select></label>
+<label>My YouTube channel<span><input type="checkbox" id="g-chan"> <span id="g-chname" class="mut"></span></span></label>
+<div class="wide"><button class="btn ghost" id="g-off">Disconnect Google</button> <span id="g-errs" class="mut"></span></div>
+</div></div>
 
 <div class="form" id="f-social" hidden>
 <label>Platform<select id="s-platform"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="youtube">YouTube</option><option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option></select></label>
@@ -37,11 +50,22 @@
 <label>Description length (chars)<input id="a-desc" type="number" min="0"></label><label>Screenshots<input id="a-shots" type="number" min="0"></label>
 </div></div>
 
-<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="ai" checked> Include AI insights and AI-visibility test (uses the free AI quota)</label>
-<button class="btn" id="run">Evaluate</button> <span id="busy" class="mut"></span>
+<div class="form" id="f-optimizer" hidden>
+<label>Platform<select id="o-platform"><option value="youtube">YouTube</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="website">Website page (SEO)</option></select></label>
+<label>YouTube video ID (optional, to apply)<input id="o-vid" placeholder="e.g. dQw4w9WgXcQ"></label>
+<label class="wide">Title<input id="o-title" maxlength="150"></label>
+<label class="wide">Description / caption<textarea id="o-desc" rows="4" maxlength="1500"></textarea></label>
+<label class="wide">Tags (comma separated)<input id="o-tags"></label>
+<label>Topic<input id="o-topic" maxlength="200"></label><label>Audience<input id="o-aud" maxlength="150"></label><label>Goal<input id="o-goal" maxlength="150"></label>
+<div class="wide"><button class="btn" id="o-go">Generate optimized content</button> <span id="o-msg" class="mut"></span></div>
+</div>
+
+<div id="runbox"><label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="ai" checked> Include AI insights and AI-visibility test (uses the free AI quota)</label>
+<button class="btn" id="run">Evaluate</button> <span id="busy" class="mut"></span></div>
 <p id="msg" style="color:var(--bad);margin:10px 0 0"></p>
 </div>
 
+<div id="optres" class="stack" hidden></div>
 <div id="result" class="stack" hidden></div>
 <h2>Past evaluations</h2><div class="card" id="hist"></div>
 <footer>Measured data where possible; AI parts are estimates. Social benchmarks are approximate.</footer></div>

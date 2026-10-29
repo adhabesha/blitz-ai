@@ -74,6 +74,14 @@ func main() {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/evaluate", s.evaluate)
 	mux.HandleFunc("/api/reports", s.reports)
+	mux.HandleFunc("/auth/google/callback", s.googleCallback)
+	mux.HandleFunc("/api/google/start", s.googleStart)
+	mux.HandleFunc("/api/google/status", s.googleStatus)
+	mux.HandleFunc("/api/google/assets", s.googleAssets)
+	mux.HandleFunc("/api/google/token", s.googleToken)
+	mux.HandleFunc("/api/google/disconnect", s.googleDisconnect)
+	mux.HandleFunc("/api/optimize", s.optimize)
+	mux.HandleFunc("/api/youtube/apply", s.applyYouTube)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -183,6 +191,10 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalSocial(ctx, in)
 	case "app":
 		rep, err = s.evalApp(ctx, in)
+	case "youtube":
+		rep, err = s.evalYouTube(ctx, in)
+	case "google":
+		rep, err = s.evalGoogle(ctx, uid, in)
 	default:
 		err = userErr("Unknown evaluation type")
 	}
