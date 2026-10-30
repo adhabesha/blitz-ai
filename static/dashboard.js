@@ -5,7 +5,9 @@ import{renderReport,destroyCharts}from"./report.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
-let kind="website",hist=[],timer,current=null,gA=null;
+let kind="website",hist=[],timer,current=null,gA=null,showAll=false;
+const session={};
+const tabOf=k=>k==="social_connected"?"socialc":k;
 
 // theme
 const setTheme=t=>{document.documentElement.dataset.theme=t;try{localStorage.setItem("bz-theme",t)}catch(e){}document.querySelectorAll(".bz-theme button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(current)show(current,false)};
@@ -17,9 +19,14 @@ function setKind(k){
   kind=k;
   document.querySelectorAll(".bz-nav").forEach(x=>x.classList.toggle("on",x.dataset.kind===k));
   document.querySelectorAll("#formbox>.form").forEach(f=>f.hidden=f.id!=="f-"+k);
-  $("runbox").hidden=(k==="optimizer"||k==="google");
+  $("runbox").hidden=(k==="optimizer");
+  $("runrow").hidden=(k==="google"||k==="socialc");
+  $("optres").hidden=(k!=="optimizer");
   $("msg").textContent="";
+  if(session[k]){current=session[k];renderReport($("result"),current,hist)}else{current=null;destroyCharts();$("result").hidden=true;$("result").innerHTML=""}
+  drawHistory();
   if(k==="google")loadGoogle(true).catch(e=>{$("msg").textContent=e.message});
+  if(k==="socialc")loadSocial().catch(e=>{$("msg").textContent=e.message});
 }
 document.querySelectorAll(".bz-nav").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
 $("a-store").onchange=()=>{const a=$("a-store").value==="android";$("a-manual").hidden=!a;$("a-ios").hidden=a};
@@ -91,7 +98,11 @@ function busy(on){
   let i=0;const s=STEPS[kind]||["Working…"];$("busy").textContent=s[0];
   timer=setInterval(()=>{i=Math.min(i+1,s.length-1);$("busy").textContent=s[i]},4000);
 }
-function show(r,scroll){current=r;renderReport($("result"),r,hist);if(scroll)$("result").scrollIntoView({behavior:"smooth"})}
+function show(r,scroll){
+  const t=tabOf(r.kind);session[t]=r;
+  if(t!==kind){setKind(t)}else{current=r;renderReport($("result"),r,hist)}
+  if(scroll)$("result").scrollIntoView({behavior:"smooth"});
+}
 $("run").onclick=async()=>{
   const b=collect();if(!b)return;
   busy(true);
@@ -157,12 +168,43 @@ function uploadCard(t,d,g){
 
 function drawHistory(){
   const box=$("hist");box.innerHTML="";
-  if(!hist.length){box.appendChild(h("p","bz-mut","No evaluations yet."));return}
-  for(const r of hist){
+  const list=hist.filter(r=>showAll||tabOf(r.kind)===kind);
+  $("hist-toggle").textContent=showAll?"Show this tab only":"Show all tabs";
+  if(!list.length){box.appendChild(h("p","bz-mut",showAll?"No evaluations yet.":"No evaluations in this tab yet."));return}
+  for(const r of list){
     const row=h("div","bz-hist");
-    add(row,h("span","bz-score "+(r.score>=75?"pass":r.score>=50?"warn":"fail"),String(r.score)),h("b",null,r.target),h("span","bz-mut",r.kind+" \u00b7 "+new Date(r.createdAt).toLocaleDateString()));
+    add(row,h("span","bz-score "+(r.score>=75?"pass":r.score>=50?"warn":"fail"),String(r.score)),h("b",null,r.target),h("span","bz-mut",r.kind.replace("_"," ")+" \u00b7 "+new Date(r.createdAt).toLocaleDateString()));
     row.onclick=()=>show(r,true);box.appendChild(row);
   }
+}
+$("hist-toggle").onclick=()=>{showAll=!showAll;drawHistory()};
+
+// ---------- Connected social (Instagram, Facebook, TikTok) ----------
+const PROV=[["instagram","Instagram","Business or Creator account"],["facebook","Facebook","A Facebook Page you manage"],["tiktok","TikTok","Your own TikTok account"]];
+const NA=[["X (Twitter)","X's API is paid for new developers, so it can't be connected for free."],["LinkedIn","LinkedIn only gives analytics API access to approved partners."],["Pinterest","Needs Pinterest's own API approval; planned after the three above."],["YouTube","Use the YouTube (auto) and Connected Google tabs."]];
+async function loadSocial(){
+  const st=await api("GET","/api/social/status"),box=$("sc-cards");box.innerHTML="";
+  for(const[id,name,sub]of PROV){
+    const s=(st.providers||{})[id]||{},c=h("div","bz-card s4");
+    add(c,h("h3",null,name),h("p","bz-mut",sub));
+    if(!s.configured)c.appendChild(h("p","bz-note","Owner setup needed: add this platform's keys in Render (see SETUP-SOCIAL.md)."));
+    else if(!s.connected){const b=h("button","bz-btn","Connect & Analyze");b.onclick=()=>connectSocial(id);c.appendChild(b)}
+    else{const b=h("button","bz-btn","Analyze now"),d=h("button","bz-btn ghost","Disconnect");d.style.marginLeft="8px";b.onclick=()=>analyzeSocial(id,name);
+      d.onclick=async()=>{if(!confirm("Disconnect "+name+"?"))return;await api("POST","/api/social/disconnect",{provider:id});loadSocial()};add(c,b,d)}
+    box.appendChild(c);
+  }
+  for(const[name,why]of NA){const c=h("div","bz-card s4");add(c,h("h3",null,name),h("p","bz-mut",why));box.appendChild(c)}
+}
+async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});location.href=r.url}catch(e){$("msg").textContent=e.message}}
+async function analyzeSocial(id,name){
+  const ol=$("sc-steps");ol.hidden=false;
+  const S=[["Connected to "+name,"done"],["Reading your profile and recent posts","active"],["Calculating KPIs, charts and fixes","wait"],["Ready","wait"]];
+  const draw=()=>{ol.innerHTML="";for(const x of S){const li=h("li","bz-step "+x[1]);add(li,h("i"),h("span",null,x[0]));ol.appendChild(li)}};
+  draw();
+  try{
+    const r=await api("POST","/api/evaluate",{kind:"social_connected",query:id,useAI:$("ai").checked});
+    hist.unshift(r);S[1][1]="done";S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();show(r,true);
+  }catch(e){const i=S.findIndex(x=>x[1]==="active");if(i>=0){S[i][1]="fail";S[i][0]=e.message}draw()}
 }
 
 onAuthStateChanged(auth,async u=>{
@@ -173,5 +215,8 @@ onAuthStateChanged(auth,async u=>{
   const g=new URLSearchParams(location.search).get("google");
   if(g==="ok"){setKind("google");history.replaceState(null,"","/dashboard");autoAnalyze()}
   else if(g){setKind("google");$("msg").textContent="Google connection failed. Try Connect & Analyze again."}
+  const qp=new URLSearchParams(location.search),sc=qp.get("social"),sp=qp.get("p");
+  if(sc==="ok"&&sp){setKind("socialc");history.replaceState(null,"","/dashboard");const pv=PROV.find(x=>x[0]===sp);analyzeSocial(sp,pv?pv[1]:sp)}
+  else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");$("msg").textContent="Connection failed. Check the keys and redirect URL in SETUP-SOCIAL.md, then try again."}
 });
 $("out").onclick=()=>signOut(auth);

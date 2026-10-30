@@ -11,7 +11,8 @@
 <button class="bz-nav on" data-kind="website" data-icon="globe">Website</button>
 <button class="bz-nav" data-kind="youtube" data-icon="play">YouTube (auto)</button>
 <button class="bz-nav" data-kind="google" data-icon="link">Connected Google</button>
-<button class="bz-nav" data-kind="social" data-icon="users">Other social</button>
+<button class="bz-nav" data-kind="socialc" data-icon="share">Connected social</button>
+<button class="bz-nav" data-kind="social" data-icon="users">Other social (manual)</button>
 <button class="bz-nav" data-kind="app" data-icon="phone">App</button>
 <button class="bz-nav" data-kind="optimizer" data-icon="zap">Optimizer &amp; Publish</button>
 </aside>
@@ -40,6 +41,12 @@
 <p id="g-errs" class="bz-mut"></p>
 </div>
 <ol class="bz-steps wide" id="g-steps" hidden></ol>
+</div>
+
+<div class="form" id="f-socialc" hidden>
+<div class="wide"><p class="bz-mut" style="margin:0 0 12px">Connect an account once, then Blitz AI reads your real posts, followers and engagement from the platform's official API and builds the full report with ready-to-use fixes.</p></div>
+<div class="wide bz-grid" id="sc-cards" style="margin:0"></div>
+<ol class="bz-steps wide" id="sc-steps" hidden></ol>
 </div>
 
 <div class="form" id="f-social" hidden>
@@ -79,13 +86,13 @@
 </div>
 
 <div id="runbox"><label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin:6px 0 12px"><input type="checkbox" id="ai" checked> Include AI insights and AI-visibility test (uses the free AI quota)</label>
-<button class="bz-btn" id="run">Evaluate</button> <span id="busy" class="bz-mut"></span></div>
+<span id="runrow"><button class="bz-btn" id="run">Evaluate</button> <span id="busy" class="bz-mut"></span></span></div>
 <p id="msg" class="bz-err" style="margin:10px 0 0"></p>
 </section>
 
 <section id="optres" hidden></section>
 <section id="result" hidden></section>
-<div class="bz-sec"><h2>Past evaluations</h2></div><div id="hist"></div>
+<div class="bz-sec"><h2>Past evaluations</h2><button class="bz-mini" id="hist-toggle">Show all tabs</button></div><div id="hist"></div>
 <footer>Measured data where possible; AI parts are estimates. Social benchmarks are approximate.</footer>
 </main></div>
 <script type="module" src="/static/dashboard.js"></script></body></html>

@@ -208,6 +208,7 @@ export function fixFromText(text,r){
 }
 export function fixFromPlan(p,r){
   if(p.auto&&p.auto.startsWith("optimize-video:")){const id=p.auto.split(":")[1];return(c,rr)=>videoFix(c,rr,{videoId:id})}
+  if(p.auto==="calendar")return calendar;
   if(p.auto==="draft:meta"||p.auto==="draft:seo-content")return queriesFix;
   return fixFromText(p.title,r);
 }

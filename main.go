@@ -81,6 +81,12 @@ func main() {
 	mux.HandleFunc("/api/google/token", s.googleToken)
 	mux.HandleFunc("/api/google/disconnect", s.googleDisconnect)
 	mux.HandleFunc("/api/optimize", s.optimize)
+	mux.HandleFunc("/api/social/status", s.socialStatus)
+	mux.HandleFunc("/api/social/start", s.socialStart)
+	mux.HandleFunc("/api/social/disconnect", s.socialDisconnect)
+	for _, p := range providers {
+		mux.HandleFunc("/auth/"+p.ID+"/callback", s.socialCallback(p.ID))
+	}
 	mux.HandleFunc("/api/youtube/apply", s.applyYouTube)
 
 	port := os.Getenv("PORT")
@@ -195,6 +201,8 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalYouTube(ctx, in)
 	case "google":
 		rep, err = s.evalGoogle(ctx, uid, in)
+	case "social_connected":
+		rep, err = s.evalConnectedSocial(ctx, uid, in)
 	default:
 		err = userErr("Unknown evaluation type")
 	}
