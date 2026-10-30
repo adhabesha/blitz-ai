@@ -658,7 +658,7 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 		return nil, userErr("Could not read data from Google. " + strings.Join(errs, " | ") + " (Check that the APIs are enabled in Google Cloud and that you own the selected items.)")
 	}
 
-	r := &Report{Target: "Integrated report"}
+	r := &Report{Target: "Integrated report", Meta: map[string]string{"site": site}}
 	if site != "" && gsc != nil {
 		r.Target = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(site, "sc-domain:"), "https://"), "http://")
 		r.Target = strings.TrimSuffix(r.Target, "/")
@@ -715,10 +715,24 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 			}
 		}
 		if len(strike) > 0 {
+			var qn []string
+			for i, q := range strike {
+				if i < 8 {
+					qn = append(qn, clip(q.Keys[0], 60))
+				}
+			}
+			r.Meta["queries"] = strings.Join(qn, ", ")
 			r.Tables = append(r.Tables, ts)
 			plan(PlanItem{Title: fmt.Sprintf("Improve %d keywords stuck on positions 4-20", len(strike)), Why: fmt.Sprintf("Moving them to the top 3 could add roughly %s clicks per month (estimate using a ~10%% CTR at position 3).", human(totalExtra)), Impact: 5, Effort: 3, Auto: "draft:seo-content"})
 		}
 		if len(lowctr) > 0 {
+			var ln []string
+			for i, q := range lowctr {
+				if i < 8 {
+					ln = append(ln, clip(q.Keys[0], 60))
+				}
+			}
+			r.Meta["lowCtr"] = strings.Join(ln, ", ")
 			tl := Table{Title: "High-ranking queries with low CTR \u2013 rewrite title and meta", Columns: []string{"Query", "Position", "Impressions", "CTR"}}
 			for i, q := range lowctr {
 				if i >= 8 {

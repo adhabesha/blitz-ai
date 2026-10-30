@@ -150,6 +150,7 @@ func (s *server) evalSocial(ctx context.Context, in evalIn) (*Report, error) {
 		r.Charts = append(r.Charts, ch)
 	}
 	r.Notes = append(r.Notes, "Benchmarks are approximate rules of thumb adjusted for platform and account size. Social networks don't offer free public data, so these numbers come from what you entered.")
+	r.Meta = map[string]string{"platform": pl, "handle": handle, "bio": clip(bio, 300), "goal": clip(in.Goal, 150), "perWeek": fmt.Sprintf("%.1f", pw)}
 	r.finish()
 	if in.UseAI {
 		r.AI = s.insights(ctx, r, fmt.Sprintf("Platform %s, followers %.0f. Goal: %s. Bio: %s. Recent captions: %s", pl, f, clip(in.Goal, 150), clip(bio, 200), clip(in.Captions, 500)))

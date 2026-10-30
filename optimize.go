@@ -37,6 +37,11 @@ var platformRules = map[string]string{
 	"x":         "Posts under 260 characters, one idea, strong first words, at most 2 hashtags, an invitation to reply.",
 	"linkedin":  "A hook in the first line (before the 'see more' cut), short paragraphs, a concrete lesson or story, a question at the end, 3 hashtags.",
 	"facebook":  "A conversational opener, 1-3 short paragraphs, a clear call to action, at most 3 hashtags.",
+	"app":       "App store listing: title under 30 characters (brand + one keyword), a 30-character subtitle, a 100-character keyword list, and a description whose first 3 lines sell the main benefit, then features, social proof and a call to action.",
+	"bio":       "Give 5 bio options under 150 characters: who you help, the result they get, one call to action and a prompt to use the link. No emojis spam, no invented facts.",
+	"ideas":     "Give 8 specific content ideas for the next 4 weeks. Each idea is a ready-to-use title or hook. Mix educational, story, opinion and proof content, and build on the topic that already works.",
+	"howto":     "Turn the task into numbered, concrete implementation steps a beginner can follow today with free tools. Add 3 ready-to-use examples or templates.",
+	"faq":       "Write 5 questions real buyers ask about this business and a concise, factual 2-sentence answer for each, in the same order. Do not invent prices, awards or statistics.",
 	"website":   "SEO title under 60 characters with the main keyword first, meta description 140-155 characters with a benefit and call to action, plus one H1 suggestion in the notes.",
 }
 
@@ -93,12 +98,16 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Add a topic, a title or a description first", 400)
 		return
 	}
-	if !takeBudget(uid, 15) {
-		http.Error(w, "Daily optimizer limit reached (15). Try again tomorrow.", 429)
+	if !takeBudget(uid, 25) {
+		http.Error(w, "Daily optimizer limit reached (25). Try again tomorrow.", 429)
 		return
 	}
-	prompt := fmt.Sprintf("You are an expert %s growth strategist. Optimise the content below for maximum reach and clicks using the platform's published best practices, and never invent facts about the creator.\nRules: %s\nCurrent title: %s\nCurrent description or caption: %s\nCurrent tags: %s\nTopic: %s\nAudience: %s\nGoal: %s\nReturn JSON only with keys: titles (5 distinct options; for non-video platforms 5 caption openers), description (the final improved full description or caption, ready to paste), tags (keywords without #; empty list if the platform doesn't use tags), hashtags (with #), hooks (3 strong opening lines), ideas (3 thumbnail or visual ideas), notes (3 short A/B testing tips).",
-		pl, rules, clip(title, 150), clip(desc, 1500), clip(strings.Join(tags, ", "), 400), clip(in.Topic, 200), clip(in.Audience, 150), clip(in.Goal, 150))
+	n := 5
+	if pl == "ideas" {
+		n = 8
+	}
+	prompt := fmt.Sprintf("You are an expert %s growth strategist. Optimise the content below for maximum reach and clicks using the platform's published best practices, and never invent facts about the creator.\nRules: %s\nCurrent title: %s\nCurrent description or caption: %s\nCurrent tags: %s\nTopic: %s\nAudience: %s\nGoal: %s\nReturn JSON only with keys: titles (%d distinct options; for non-video platforms caption openers; for ideas the content ideas; for faq the questions; for bio the bio options), description (the final improved full description, caption or bio, ready to paste; for howto the numbered steps; for faq a one-line summary), tags (keywords without #; empty list if the platform doesn't use tags), hashtags (with #), hooks (3 strong opening lines; for faq the matching answers in the same order as titles; for howto 3 ready-to-use examples), ideas (3 thumbnail or visual ideas), notes (3 short A/B testing tips).",
+		pl, rules, clip(title, 150), clip(desc, 1500), clip(strings.Join(tags, ", "), 400), clip(in.Topic, 400), clip(in.Audience, 150), clip(in.Goal, 150), n)
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	txt, err := s.gemini(ctx, prompt)

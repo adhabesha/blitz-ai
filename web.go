@@ -271,7 +271,7 @@ func (s *server) evalWebsite(ctx context.Context, in evalIn) (*Report, error) {
 	}
 	wg.Wait()
 
-	r := &Report{Target: domain}
+	r := &Report{Target: domain, Meta: map[string]string{"title": clip(title, 200), "description": clip(desc, 400), "url": target, "domain": domain}}
 	add := func(c Check) { r.Checks = append(r.Checks, c) }
 	const T, S, C, P, A = "Technical", "On-page SEO", "Crawl & AI readiness", "Performance", "Accessibility"
 

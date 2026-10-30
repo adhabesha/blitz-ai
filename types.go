@@ -85,6 +85,7 @@ type Report struct {
 	Plan       []PlanItem     `json:"plan" firestore:"plan"`
 	AI         *AIInsights    `json:"ai,omitempty" firestore:"ai,omitempty"`
 	Notes      []string       `json:"notes" firestore:"notes"`
+	Meta       map[string]string `json:"meta" firestore:"meta"`
 	AIUsed     bool           `json:"aiUsed" firestore:"aiUsed"`
 	CreatedAt  time.Time      `json:"createdAt" firestore:"createdAt"`
 }

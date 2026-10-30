@@ -1,2 +1,2 @@
-# Blitz AI v3
-Website audit, YouTube analysis by link, connected Google (Search Console, GA4, YouTube Analytics) with trend forecasts, tables and an action plan, social/app evaluators, and an Optimizer that writes titles, descriptions, tags and captions, applies them to your YouTube videos, and uploads new videos. See SETUP.md for the one-time Google setup.
+# Blitz AI v4
+Professional dashboard UI (dark / slate / light), one-click Connect & Analyze for Google, and a fix center: every issue and every 30-day plan step opens ready-to-use content (current vs suggested text, code snippets, hashtags, content calendar with .ics download) with copy buttons, plus Apply-to-YouTube. See SETUP.md for the one-time Google setup.

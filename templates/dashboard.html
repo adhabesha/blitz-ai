@@ -1,28 +1,46 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet"><link rel="stylesheet" href="/static/style.css">
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script></head><body>
-<div class="wrap">
-<nav><div class="logo"><i></i>Blitz AI</div><button class="btn ghost" id="out">Sign out</button></nav>
-<h2 style="margin:10px 0 0">Welcome back, <em id="name"></em></h2>
-<p class="mut">Evaluate a website, a social account or an app and see exactly what to improve.</p>
-<div class="tabs"><button class="tab on" data-kind="website">Website</button><button class="tab" data-kind="youtube">YouTube (auto)</button><button class="tab" data-kind="google">Connected Google</button><button class="tab" data-kind="social">Other social</button><button class="tab" data-kind="app">App</button><button class="tab" data-kind="optimizer">Optimizer &amp; Publish</button></div>
+<script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"dark"}catch(e){}</script>
+</head><body class="bz">
+<div class="bz-shell">
+<aside class="bz-side">
+<div class="bz-logo"><i></i>Blitz AI</div>
+<button class="bz-nav on" data-kind="website" data-icon="globe">Website</button>
+<button class="bz-nav" data-kind="youtube" data-icon="play">YouTube (auto)</button>
+<button class="bz-nav" data-kind="google" data-icon="link">Connected Google</button>
+<button class="bz-nav" data-kind="social" data-icon="users">Other social</button>
+<button class="bz-nav" data-kind="app" data-icon="phone">App</button>
+<button class="bz-nav" data-kind="optimizer" data-icon="zap">Optimizer &amp; Publish</button>
+</aside>
+<main class="bz-main">
+<header class="bz-top">
+<div><h1>Welcome back, <em id="name"></em></h1><p>Measure, get the exact fix, copy it or apply it.</p></div>
+<div class="bz-actions"><div class="bz-theme"><button data-t="dark" title="Dark">&#9790;</button><button data-t="slate" title="Slate">&#9681;</button><button data-t="light" title="Light">&#9728;</button></div><button class="bz-btn ghost" id="out">Sign out</button></div>
+</header>
 
-<div class="card" id="formbox">
+<section class="bz-card" id="formbox">
 <div class="form" id="f-website"><label class="wide">Website address<input id="w-url" placeholder="example.com"></label></div>
 
 <div class="form" id="f-youtube" hidden><label class="wide">YouTube channel link or @handle<input id="y-url" placeholder="https://www.youtube.com/@channel"></label>
-<p class="mut wide">Reads public data for any channel: stats, last 30 videos, upload rhythm, titles, tags, projections and a prioritized plan.</p></div>
+<p class="bz-mut wide" style="margin:0">Reads public data for any channel: stats, last 30 videos, upload rhythm, titles, tags, projections and a plan with ready-to-use fixes.</p></div>
 
 <div class="form" id="f-google" hidden>
-<div class="wide" id="g-setup" hidden><b>One-time setup needed.</b> Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and BASE_URL in Render &gt; Environment (steps are in SETUP.md).</div>
-<div class="wide" id="g-connect"><button class="btn" id="g-btn">Connect Google</button> <span class="mut">Search Console + Analytics (GA4) + YouTube, read-only except YouTube editing for the Optimizer.</span></div>
-<div class="form wide" id="g-connected" hidden>
+<div class="wide bz-note" id="g-setup" hidden><b>One-time owner setup needed.</b> Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and BASE_URL in Render &gt; Environment (see SETUP.md).</div>
+<div class="wide" id="g-connect"><button class="bz-btn" id="g-btn">Connect &amp; Analyze</button><p class="bz-mut">One click: approve access on Google's screen, then Blitz AI finds your channel, Search Console sites and Analytics properties and builds the report by itself.</p></div>
+<div class="wide" id="g-connected" hidden>
+<div id="g-src"></div>
+<button class="bz-btn" id="g-run">Analyze now</button> <button class="bz-btn ghost" id="g-off">Disconnect Google</button>
+<details class="bz-adv"><summary>Choose sources manually</summary><div class="form">
 <label>Search Console site<select id="g-site"><option value="">None</option></select></label>
 <label>GA4 property<select id="g-prop"><option value="">None</option></select></label>
-<label>My YouTube channel<span><input type="checkbox" id="g-chan"> <span id="g-chname" class="mut"></span></span></label>
-<div class="wide"><button class="btn ghost" id="g-off">Disconnect Google</button> <span id="g-errs" class="mut"></span></div>
-</div></div>
+<label>My YouTube channel<span><input type="checkbox" id="g-chan"> <span id="g-chname" class="bz-mut"></span></span></label></div></details>
+<p id="g-errs" class="bz-mut"></p>
+</div>
+<ol class="bz-steps wide" id="g-steps" hidden></ol>
+</div>
 
 <div class="form" id="f-social" hidden>
 <label>Platform<select id="s-platform"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="youtube">YouTube</option><option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option></select></label>
@@ -38,7 +56,7 @@
 <label class="wide">Bio<input id="s-bio" maxlength="300"></label>
 <label class="wide">Recent captions (separate posts with a blank line)<textarea id="s-captions" rows="4" maxlength="3000"></textarea></label>
 <label class="wide">Your goal (e.g. sell a course, grow to 10k)<input id="s-goal" maxlength="150"></label>
-<div class="live wide" id="live"></div>
+<div class="bz-live wide" id="live"></div>
 </div>
 
 <div class="form" id="f-app" hidden>
@@ -57,16 +75,17 @@
 <label class="wide">Description / caption<textarea id="o-desc" rows="4" maxlength="1500"></textarea></label>
 <label class="wide">Tags (comma separated)<input id="o-tags"></label>
 <label>Topic<input id="o-topic" maxlength="200"></label><label>Audience<input id="o-aud" maxlength="150"></label><label>Goal<input id="o-goal" maxlength="150"></label>
-<div class="wide"><button class="btn" id="o-go">Generate optimized content</button> <span id="o-msg" class="mut"></span></div>
+<div class="wide"><button class="bz-btn" id="o-go">Generate optimized content</button> <span id="o-msg" class="bz-mut"></span></div>
 </div>
 
-<div id="runbox"><label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="ai" checked> Include AI insights and AI-visibility test (uses the free AI quota)</label>
-<button class="btn" id="run">Evaluate</button> <span id="busy" class="mut"></span></div>
-<p id="msg" style="color:var(--bad);margin:10px 0 0"></p>
-</div>
+<div id="runbox"><label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin:6px 0 12px"><input type="checkbox" id="ai" checked> Include AI insights and AI-visibility test (uses the free AI quota)</label>
+<button class="bz-btn" id="run">Evaluate</button> <span id="busy" class="bz-mut"></span></div>
+<p id="msg" class="bz-err" style="margin:10px 0 0"></p>
+</section>
 
-<div id="optres" class="stack" hidden></div>
-<div id="result" class="stack" hidden></div>
-<h2>Past evaluations</h2><div class="card" id="hist"></div>
-<footer>Measured data where possible; AI parts are estimates. Social benchmarks are approximate.</footer></div>
+<section id="optres" hidden></section>
+<section id="result" hidden></section>
+<div class="bz-sec"><h2>Past evaluations</h2></div><div id="hist"></div>
+<footer>Measured data where possible; AI parts are estimates. Social benchmarks are approximate.</footer>
+</main></div>
 <script type="module" src="/static/dashboard.js"></script></body></html>

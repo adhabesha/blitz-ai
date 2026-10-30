@@ -369,6 +369,18 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		r.Plan = append(r.Plan, PlanItem{Title: "Schedule uploads for " + days[bestDay], Why: fmt.Sprintf("Your %s uploads average %s views, your best day so far (small sample).", days[bestDay], human(bestAvg)), Impact: 2, Effort: 1})
 	}
 	r.Notes = append(r.Notes, "Based on public data for the last "+strconv.Itoa(len(vids))+" videos. Projections assume your median video performance continues; they are estimates, not guarantees. Connect Google to unlock watch time, retention and subscriber growth for your own channel.")
+	r.Meta = map[string]string{"channel": c.Snippet.Title, "perWeek": fmt.Sprintf("%.1f", perWeek), "niche": clip(titlesSample(vids), 300)}
+	if len(mature) > 0 {
+		r.Meta["weakId"] = mature[0].ID
+		r.Meta["weakTitle"] = clip(mature[0].Title, 100)
+	}
+	if len(byViews) > 0 {
+		r.Meta["topId"] = byViews[0].ID
+		r.Meta["topTitle"] = clip(byViews[0].Title, 100)
+	}
+	if bestDay >= 0 {
+		r.Meta["bestDay"] = days[bestDay]
+	}
 	r.finish()
 	if in.UseAI {
 		r.AI = s.insights(ctx, r, "YouTube channel "+c.Snippet.Title+". Topics seen in titles: "+titlesSample(vids))
