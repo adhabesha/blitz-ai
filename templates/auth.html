@@ -1,0 +1,24 @@
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Blitz AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"dark"}catch(e){}</script>
+</head><body class="bz"><div class="auth-wrap">
+<div class="auth-card" id="card-auth">
+<div class="auth-logo"><i></i>Blitz AI</div>
+<h1 id="a-title">Welcome back</h1><p id="a-sub">Sign in to measure and grow your website, channel and social accounts.</p>
+<div class="seg"><button class="on" id="t-in">Sign in</button><button id="t-up">Create account</button></div>
+<div class="fld" id="f-name" hidden><label for="i-name">Your name</label><input id="i-name" autocomplete="name" placeholder="Addis"></div>
+<div class="fld"><label for="i-email">Email</label><input id="i-email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+<div class="fld"><label for="i-pass">Password</label><input id="i-pass" type="password" autocomplete="current-password" placeholder="At least 6 characters"></div>
+<div class="auth-msg" id="a-msg"></div>
+<button class="bz-btn auth-btn" id="a-go">Sign in</button>
+<div style="text-align:center;margin-top:12px"><button class="link" id="a-forgot">Forgot password?</button></div>
+<div id="g-box"><div class="or">or</div><button class="bz-btn ghost auth-btn" id="a-google">Continue with Google</button></div>
+</div>
+<div class="auth-card" id="card-ob" hidden>
+<div id="ob-body"></div><div class="ob-dots" id="ob-dots"></div>
+<div class="ob-nav"><button class="bz-btn ghost" id="ob-back">Back</button><button class="bz-btn" id="ob-next">Next</button></div>
+<div style="text-align:center;margin-top:10px"><button class="link" id="ob-skip">Skip</button></div>
+</div></div>
+<script type="module" src="/static/auth.js"></script></body></html>

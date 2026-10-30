@@ -13,7 +13,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -32,18 +31,18 @@ type tokEntry struct {
 var tokCache sync.Map // uid -> tokEntry
 
 func (s *server) redirectURI() string {
-	return strings.TrimRight(os.Getenv("BASE_URL"), "/") + "/auth/google/callback"
+	return strings.TrimRight(env("BASE_URL"), "/") + "/auth/google/callback"
 }
 
 func (s *server) googleConfigured() bool {
-	return os.Getenv("GOOGLE_CLIENT_ID") != "" && os.Getenv("GOOGLE_CLIENT_SECRET") != "" && os.Getenv("BASE_URL") != ""
+	return env("GOOGLE_CLIENT_ID") != "" && env("GOOGLE_CLIENT_SECRET") != "" && env("BASE_URL") != ""
 }
 
 func (s *server) stateSecret() []byte {
-	if v := os.Getenv("STATE_SECRET"); v != "" {
+	if v := env("STATE_SECRET"); v != "" {
 		return []byte(v)
 	}
-	sum := sha256.Sum256([]byte(os.Getenv("FIREBASE_CREDENTIALS")))
+	sum := sha256.Sum256([]byte(env("FIREBASE_CREDENTIALS")))
 	return sum[:]
 }
 
@@ -90,7 +89,7 @@ func (s *server) googleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := url.Values{
-		"client_id":              {os.Getenv("GOOGLE_CLIENT_ID")},
+		"client_id":              {env("GOOGLE_CLIENT_ID")},
 		"redirect_uri":           {s.redirectURI()},
 		"response_type":          {"code"},
 		"scope":                  {googleScopes},
@@ -112,8 +111,8 @@ func (s *server) googleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	form := url.Values{
 		"code":          {code},
-		"client_id":     {os.Getenv("GOOGLE_CLIENT_ID")},
-		"client_secret": {os.Getenv("GOOGLE_CLIENT_SECRET")},
+		"client_id":     {env("GOOGLE_CLIENT_ID")},
+		"client_secret": {env("GOOGLE_CLIENT_SECRET")},
 		"redirect_uri":  {s.redirectURI()},
 		"grant_type":    {"authorization_code"},
 	}
@@ -162,8 +161,8 @@ func (s *server) accessToken(ctx context.Context, uid string) (string, error) {
 	}
 	form := url.Values{
 		"refresh_token": {rt},
-		"client_id":     {os.Getenv("GOOGLE_CLIENT_ID")},
-		"client_secret": {os.Getenv("GOOGLE_CLIENT_SECRET")},
+		"client_id":     {env("GOOGLE_CLIENT_ID")},
+		"client_secret": {env("GOOGLE_CLIENT_SECRET")},
 		"grant_type":    {"refresh_token"},
 	}
 	resp, err := http.PostForm("https://oauth2.googleapis.com/token", form)

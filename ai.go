@@ -24,10 +24,10 @@ func (s *server) gemini(ctx context.Context, prompt string) (string, error) {
 		"contents":         []any{map[string]any{"parts": []any{map[string]string{"text": prompt}}}},
 		"generationConfig": map[string]any{"responseMimeType": "application/json"},
 	})
-	url := "https://generativelanguage.googleapis.com/v1beta/models/" + s.model + ":generateContent"
+	url := "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel() + ":generateContent"
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", s.gkey)
+	req.Header.Set("x-goog-api-key", env("GEMINI_API_KEY"))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err

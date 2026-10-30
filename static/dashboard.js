@@ -208,14 +208,17 @@ async function analyzeSocial(id,name){
 }
 
 onAuthStateChanged(auth,async u=>{
-  if(!u){location.href="/";return}
+  if(!u){location.href="/app";return}
   $("name").textContent=(u.displayName||"").split(" ")[0];
   try{hist=await api("GET","/api/reports")}catch(e){$("msg").textContent=e.message}
   drawHistory();
   const g=new URLSearchParams(location.search).get("google");
   if(g==="ok"){setKind("google");history.replaceState(null,"","/dashboard");autoAnalyze()}
   else if(g){setKind("google");$("msg").textContent="Google connection failed. Try Connect & Analyze again."}
-  const qp=new URLSearchParams(location.search),sc=qp.get("social"),sp=qp.get("p");
+  const qp=new URLSearchParams(location.search),tabp=qp.get("tab");
+  if(tabp&&!qp.get("google")&&!qp.get("social")){setKind(tabp);history.replaceState(null,"","/dashboard")}
+  try{const me=await api("GET","/api/me");if(me.admin)$("admin-link").hidden=false}catch(e){}
+  const sc=qp.get("social"),sp=qp.get("p");
   if(sc==="ok"&&sp){setKind("socialc");history.replaceState(null,"","/dashboard");const pv=PROV.find(x=>x[0]===sp);analyzeSocial(sp,pv?pv[1]:sp)}
   else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");$("msg").textContent="Connection failed. Check the keys and redirect URL in SETUP-SOCIAL.md, then try again."}
 });

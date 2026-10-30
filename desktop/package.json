@@ -1,0 +1,25 @@
+{
+  "name": "blitz-ai-desktop",
+  "version": "1.0.0",
+  "description": "Blitz AI desktop app",
+  "main": "main.js",
+  "author": "Blitz AI",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ai.blitz.desktop",
+    "productName": "Blitz AI",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "offline.html", "build/icon.png"],
+    "win": { "target": ["nsis", "portable"], "icon": "build/icon.png" },
+    "nsis": { "oneClick": true, "perMachine": false, "artifactName": "Blitz-AI-Setup-${version}.${ext}" },
+    "portable": { "artifactName": "Blitz-AI-Portable-${version}.${ext}" }
+  }
+}

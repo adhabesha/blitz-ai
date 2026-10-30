@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -40,8 +39,8 @@ type server struct {
 
 func main() {
 	ctx := context.Background()
-	opt := option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CREDENTIALS")))
-	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: os.Getenv("FIREBASE_PROJECT_ID")}, opt)
+	opt := option.WithCredentialsJSON([]byte(env("FIREBASE_CREDENTIALS")))
+	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: env("FIREBASE_PROJECT_ID")}, opt)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,24 +52,39 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := os.Getenv("GEMINI_MODEL")
+	model := env("GEMINI_MODEL")
 	if model == "" {
 		model = "gemini-3.5-flash-lite"
 	}
 	s := &server{
-		auth: a, db: db, gkey: os.Getenv("GEMINI_API_KEY"), model: model,
+		auth: a, db: db, gkey: env("GEMINI_API_KEY"), model: model,
 		tpl: template.Must(template.ParseFS(assets, "templates/*.html")),
 		cfg: map[string]string{
-			"APIKey":     os.Getenv("FIREBASE_WEB_API_KEY"),
-			"AuthDomain": os.Getenv("FIREBASE_AUTH_DOMAIN"),
-			"ProjectID":  os.Getenv("FIREBASE_PROJECT_ID"),
+			"APIKey":     env("FIREBASE_WEB_API_KEY"),
+			"AuthDomain": env("FIREBASE_AUTH_DOMAIN"),
+			"ProjectID":  env("FIREBASE_PROJECT_ID"),
 		},
 	}
+
+	s.loadConfig(ctx)
+	go func() {
+		for range time.Tick(2 * time.Minute) {
+			c, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			s.loadConfig(c)
+			cancel()
+		}
+	}()
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
 	mux.HandleFunc("/", s.page("landing.html"))
 	mux.HandleFunc("/dashboard", s.page("dashboard.html"))
+	mux.HandleFunc("/app", s.page("auth.html"))
+	mux.HandleFunc("/admin", s.page("admin.html"))
+	mux.HandleFunc("/api/me", s.me)
+	mux.HandleFunc("/api/profile", s.saveProfile)
+	mux.HandleFunc("/api/admin/config", s.adminConfig)
+	mux.HandleFunc("/api/admin/test", s.adminTest)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/evaluate", s.evaluate)
 	mux.HandleFunc("/api/reports", s.reports)
@@ -89,7 +103,7 @@ func main() {
 	}
 	mux.HandleFunc("/api/youtube/apply", s.applyYouTube)
 
-	port := os.Getenv("PORT")
+	port := env("PORT")
 	if port == "" {
 		port = "8080"
 	}

@@ -1,0 +1,48 @@
+name: Build desktop and mobile apps
+on:
+  workflow_dispatch:
+  push:
+    paths: ["desktop/**", "mobile/**", ".github/workflows/build-apps.yml"]
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Build Windows app
+        working-directory: desktop
+        run: |
+          npm install
+          npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blitz-ai-windows
+          path: |
+            desktop/dist/*.exe
+
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Create Android project
+        working-directory: mobile
+        run: |
+          npm install
+          npx cap add android
+          npx capacitor-assets generate --android || echo "icon generation skipped"
+          npx cap sync android
+      - name: Build APK
+        working-directory: mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blitz-ai-android
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk

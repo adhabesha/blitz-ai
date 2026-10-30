@@ -1,0 +1,14 @@
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Admin – Blitz AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"dark"}catch(e){}</script>
+</head><body class="bz"><div class="adm-wrap">
+<div class="bz-top"><div><h1>Admin console</h1><p>Configure the connections behind Blitz AI. Changes apply within seconds, no redeploy.</p></div>
+<div class="bz-actions"><a class="bz-btn ghost bz-nav-link" href="/dashboard">Dashboard</a></div></div>
+<div id="denied" class="bz-card" hidden><h3>Access denied</h3><p class="bz-mut">Your account isn't an admin. Add your email to <b>ADMIN_EMAILS</b> in Render &gt; Environment, make sure the email is verified, then reload.</p></div>
+<div id="main" hidden>
+<div class="bz-card"><h3>Setup progress</h3><div class="bz-bar"><i id="prog" style="width:0"></i></div><p class="bz-mut" id="prog-t"></p></div>
+<div class="bz-card" style="margin-top:16px"><h3>Redirect URLs to register on each platform</h3><div id="redirs"></div></div>
+<div id="groups"></div></div>
+</div><script type="module" src="/static/admin.js"></script></body></html>

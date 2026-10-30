@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -45,15 +44,15 @@ func provOf(id string) *provCfg {
 }
 
 func (p *provCfg) configured() bool {
-	return os.Getenv(p.IDEnv) != "" && os.Getenv(p.SecretEnv) != "" && os.Getenv("BASE_URL") != ""
+	return env(p.IDEnv) != "" && env(p.SecretEnv) != "" && env("BASE_URL") != ""
 }
 
 func provRedirect(id string) string {
-	return strings.TrimRight(os.Getenv("BASE_URL"), "/") + "/auth/" + id + "/callback"
+	return strings.TrimRight(env("BASE_URL"), "/") + "/auth/" + id + "/callback"
 }
 
 func authURL(p *provCfg, state string) string {
-	cid, ru := os.Getenv(p.IDEnv), provRedirect(p.ID)
+	cid, ru := env(p.IDEnv), provRedirect(p.ID)
 	switch p.ID {
 	case "instagram":
 		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"instagram_business_basic,instagram_business_manage_insights"}, "state": {state}}
@@ -102,7 +101,7 @@ type provToken struct {
 }
 
 func exchangeCode(ctx context.Context, p *provCfg, code string) (*provToken, error) {
-	cid, sec, ru := os.Getenv(p.IDEnv), os.Getenv(p.SecretEnv), provRedirect(p.ID)
+	cid, sec, ru := env(p.IDEnv), env(p.SecretEnv), provRedirect(p.ID)
 	now := time.Now().Unix()
 	switch p.ID {
 	case "instagram":
@@ -203,7 +202,7 @@ func (s *server) validToken(ctx context.Context, uid string, p *provCfg) (*provT
 			RefreshToken string `json:"refresh_token"`
 			ExpiresIn    int64  `json:"expires_in"`
 		}
-		form := url.Values{"client_key": {os.Getenv(p.IDEnv)}, "client_secret": {os.Getenv(p.SecretEnv)}, "grant_type": {"refresh_token"}, "refresh_token": {t.Refresh}}
+		form := url.Values{"client_key": {env(p.IDEnv)}, "client_secret": {env(p.SecretEnv)}, "grant_type": {"refresh_token"}, "refresh_token": {t.Refresh}}
 		if postForm(ctx, "https://open.tiktokapis.com/v2/oauth/token/", form, &a) == nil && a.AccessToken != "" {
 			t.Access, t.Exp = a.AccessToken, now+a.ExpiresIn
 			if a.RefreshToken != "" {

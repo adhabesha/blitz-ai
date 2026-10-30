@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -198,7 +197,7 @@ func (s *server) psi(ctx context.Context, target string) psiResult {
 	for _, c := range []string{"performance", "seo", "accessibility", "best-practices"} {
 		q.Add("category", c)
 	}
-	if k := os.Getenv("PSI_API_KEY"); k != "" {
+	if k := env("PSI_API_KEY"); k != "" {
 		q.Set("key", k)
 	}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?"+q.Encode(), nil)

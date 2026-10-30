@@ -7,7 +7,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,7 +25,7 @@ var (
 )
 
 func ytGet(ctx context.Context, path string, q url.Values, out any) error {
-	q.Set("key", os.Getenv("YOUTUBE_API_KEY"))
+	q.Set("key", env("YOUTUBE_API_KEY"))
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/youtube/v3/"+path+"?"+q.Encode(), nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -121,7 +120,7 @@ type ytVid struct {
 }
 
 func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
-	if os.Getenv("YOUTUBE_API_KEY") == "" {
+	if env("YOUTUBE_API_KEY") == "" {
 		return nil, userErr("YouTube lookup isn't set up yet: add YOUTUBE_API_KEY in Render > Environment (see the setup steps).")
 	}
 	q := clip(in.Query, 200)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -88,7 +87,7 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	title, desc, tags := in.Title, in.Description, in.Tags
-	if in.VideoID != "" && pl == "youtube" && title == "" && os.Getenv("YOUTUBE_API_KEY") != "" {
+	if in.VideoID != "" && pl == "youtube" && title == "" && env("YOUTUBE_API_KEY") != "" {
 		var vr ytVideosResp
 		if err := ytGet(r.Context(), "videos", url.Values{"part": {"snippet"}, "id": {in.VideoID}}, &vr); err == nil && len(vr.Items) > 0 {
 			title, desc, tags = vr.Items[0].Snippet.Title, vr.Items[0].Snippet.Description, vr.Items[0].Snippet.Tags

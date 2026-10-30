@@ -1,0 +1,11 @@
+{
+  "appId": "ai.blitz.app",
+  "appName": "Blitz AI",
+  "webDir": "www",
+  "server": {
+    "url": "https://blitz-ai-5ow4.onrender.com/app",
+    "cleartext": false,
+    "allowNavigation": ["blitz-ai-5ow4.onrender.com", "*.googleapis.com", "*.firebaseapp.com", "*.gstatic.com"]
+  },
+  "android": { "backgroundColor": "#050b1f", "appendUserAgent": "BlitzMobile", "allowMixedContent": false }
+}
