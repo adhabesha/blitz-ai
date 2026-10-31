@@ -231,6 +231,7 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rep.Kind = in.Kind
+	layoutReport(rep)
 	rep.Notes = append(rep.Notes, notes...)
 	rep.AIUsed = in.UseAI
 	rep.CreatedAt = time.Now()

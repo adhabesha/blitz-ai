@@ -516,14 +516,15 @@ func (s *server) fetchGA(ctx context.Context, tok, prop string) (*gaData, error)
 }
 
 type ytaData struct {
-	Dates                                  []string
-	Views, Gained, Lost                    []float64
+	Dates                                    []string
+	Views, Gained, Lost, Prev                []float64
 	CurViews, PrevViews, CurWatch, PrevWatch float64
-	CurGained, CurLost, AvgPct             float64
+	CurGained, CurLost, AvgPct, AvgDur       float64
+	ChannelID                                string
 }
 
 func ytaQuery(ctx context.Context, tok, start, end string) ([][]any, error) {
-	q := url.Values{"ids": {"channel==MINE"}, "startDate": {start}, "endDate": {end}, "metrics": {"views,estimatedMinutesWatched,subscribersGained,subscribersLost,averageViewPercentage"}, "dimensions": {"day"}, "sort": {"day"}}
+	q := url.Values{"ids": {"channel==MINE"}, "startDate": {start}, "endDate": {end}, "metrics": {"views,estimatedMinutesWatched,subscribersGained,subscribersLost,averageViewPercentage,averageViewDuration"}, "dimensions": {"day"}, "sort": {"day"}}
 	var d struct {
 		Rows [][]any `json:"rows"`
 	}
@@ -551,31 +552,43 @@ func (s *server) fetchYTA(ctx context.Context, tok string) (*ytaData, error) {
 	}
 	prev, _ := ytaQuery(ctx, tok, isoDay(pStart), isoDay(pEnd))
 	d := &ytaData{}
-	var pctW float64
+	var pctW, durW float64
 	for _, r := range cur {
-		if len(r) < 6 {
+		if len(r) < 7 {
 			continue
 		}
 		day, _ := r[0].(string)
+		v := fnum(r[1])
 		d.Dates = append(d.Dates, day)
-		d.Views = append(d.Views, fnum(r[1]))
+		d.Views = append(d.Views, v)
 		d.Gained = append(d.Gained, fnum(r[3]))
 		d.Lost = append(d.Lost, fnum(r[4]))
-		d.CurViews += fnum(r[1])
+		d.CurViews += v
 		d.CurWatch += fnum(r[2])
 		d.CurGained += fnum(r[3])
 		d.CurLost += fnum(r[4])
-		pctW += fnum(r[5]) * fnum(r[1])
+		pctW += fnum(r[5]) * v
+		durW += fnum(r[6]) * v
 	}
 	if d.CurViews > 0 {
 		d.AvgPct = pctW / d.CurViews
+		d.AvgDur = durW / d.CurViews
 	}
 	for _, r := range prev {
-		if len(r) < 6 {
+		if len(r) < 7 {
 			continue
 		}
+		d.Prev = append(d.Prev, fnum(r[1]))
 		d.PrevViews += fnum(r[1])
 		d.PrevWatch += fnum(r[2])
+	}
+	var chn struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	if gcall(ctx, tok, "GET", "https://www.googleapis.com/youtube/v3/channels?part=id&mine=true", nil, &chn) == nil && len(chn.Items) > 0 {
+		d.ChannelID = chn.Items[0].ID
 	}
 	return d, nil
 }
@@ -675,6 +688,7 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 			ctr = gsc.CurClicks / gsc.CurImpr * 100
 		}
 		k := kpiDelta("Search clicks (28d)", gsc.CurClicks, gsc.PrevClicks, human(gsc.CurClicks))
+		k.Spark = gsc.Clicks
 		r.KPIs = append(r.KPIs, k, kpiDelta("Search impressions", gsc.CurImpr, gsc.PrevImpr, human(gsc.CurImpr)),
 			KPI{Label: "Average CTR", Value: fmt.Sprintf("%.1f%%", ctr), Note: "Good \u2265 3%", Status: rate(ctr, 3, 1.5)},
 			KPI{Label: "Average position", Value: fmt.Sprintf("%.1f", gsc.CurPos), Note: "Lower is better", Status: low(gsc.CurPos, 10, 20)})
@@ -750,6 +764,11 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 		if ga.HasKey {
 			r.KPIs = append(r.KPIs, kpiDelta("Key events (conversions)", ga.KeyEvents, ga.PrevKey, human(ga.KeyEvents)))
 		}
+		for i := range r.KPIs {
+			if r.KPIs[i].Label == "Sessions (28d)" {
+				r.KPIs[i].Spark = ga.Sessions
+			}
+		}
 		add(chk(TR, "Sessions trend", ifs(ga.PrevSess > 0, trendStatus(delta(ga.CurSess, ga.PrevSess)), "warn"), fmt.Sprintf("%+.0f%%", delta(ga.CurSess, ga.PrevSess)), "Traffic is falling. Check campaigns, rankings and tracking.", 5))
 		add(chk(TR, "Engagement rate", rate(ga.CurEng*100, 60, 40), fmt.Sprintf("%.0f%%", ga.CurEng*100), "Improve page speed, make the first screen answer the visitor's question, and add clear next steps.", 4))
 		if ga.HasKey && ga.CurSess > 0 {
@@ -798,19 +817,75 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 
 	if yt != nil {
 		net := yt.CurGained - yt.CurLost
-		r.KPIs = append(r.KPIs, kpiDelta("YouTube views (28d)", yt.CurViews, yt.PrevViews, human(yt.CurViews)), kpiDelta("Watch hours", yt.CurWatch/60, yt.PrevWatch/60, human(yt.CurWatch/60)),
-			KPI{Label: "Net new subscribers", Value: fmt.Sprintf("%+.0f", net), Note: fmt.Sprintf("+%.0f / -%.0f", yt.CurGained, yt.CurLost), Status: ifs(net > 0, "pass", ifs(net == 0, "warn", "fail"))},
-			KPI{Label: "Avg % of video watched", Value: fmt.Sprintf("%.0f%%", yt.AvgPct), Note: "Good \u2265 40%", Status: rate(yt.AvgPct, 40, 25)})
+		yk := func(k KPI) KPI { k.Page = "youtube"; return k }
+		vk := kpiDelta("Views (28d)", yt.CurViews, yt.PrevViews, commas(yt.CurViews))
+		vk.Spark = yt.Views
+		r.KPIs = append(r.KPIs, yk(vk), yk(kpiDelta("Watch time", yt.CurWatch, yt.PrevWatch, fmtHMS(yt.CurWatch*60))),
+			yk(KPI{Label: "Avg view duration", Value: fmtHMS(yt.AvgDur), Note: "per view"}),
+			yk(KPI{Label: "Avg % viewed", Value: fmt.Sprintf("%.1f%%", yt.AvgPct), Note: "Good \u2265 40%", Status: rate(yt.AvgPct, 40, 25)}),
+			yk(KPI{Label: "New subscribers", Value: commas(yt.CurGained), Note: "last 28 days", Status: ifs(yt.CurGained > 0, "pass", "warn")}),
+			yk(KPI{Label: "Lost subscribers", Value: commas(yt.CurLost), Note: fmt.Sprintf("net %+.0f", net), Status: ifs(net >= 0, "pass", "fail")}))
 		add(chk(YT, "Views trend", ifs(yt.PrevViews > 0, trendStatus(delta(yt.CurViews, yt.PrevViews)), "warn"), fmt.Sprintf("%+.0f%%", delta(yt.CurViews, yt.PrevViews)), "Views are falling. Refresh thumbnails/titles and publish consistently.", 5))
 		add(chk(YT, "Audience retention (avg % watched)", rate(yt.AvgPct, 40, 25), fmt.Sprintf("%.0f%%", yt.AvgPct), "Hook viewers in the first 15 seconds and cut slow sections.", 4))
 		add(chk(YT, "Net subscriber change", ifs(net > 0, "pass", ifs(net == 0, "warn", "fail")), fmt.Sprintf("%+.0f", net), "Ask for the subscribe at the moment of value and promise what's coming next.", 3))
-		if ch, total, r2, ok := lineForecast("YouTube views per day + 30-day forecast", yt.Dates, yt.Views, 30); ok {
-			r.Charts = append(r.Charts, ch)
-			r.KPIs = append(r.KPIs, KPI{Label: "Forecast views (next 30d)", Value: human(total), Note: "trend projection, confidence " + confidence(r2)})
+		if len(yt.Prev) > 0 && len(yt.Views) > 0 {
+			pv := make([]float64, len(yt.Views))
+			copy(pv, yt.Prev)
+			r.Charts = append(r.Charts, Chart{Title: "Views: this period vs previous 28 days", Type: "line", Labels: shortDates(yt.Dates), Datasets: []Dataset{{Name: "Views", Data: yt.Views}, {Name: "Views (previous period)", Data: pv}}, Page: "youtube"})
 		}
-		r.Charts = append(r.Charts, Chart{Title: "Subscribers gained vs lost per day", Type: "bar", Labels: shortDates(yt.Dates), Datasets: []Dataset{{Name: "Gained", Data: yt.Gained}, {Name: "Lost", Data: yt.Lost}}})
+		if fc, total, r2, ok := lineForecast("YouTube views per day + 30-day forecast", yt.Dates, yt.Views, 30); ok {
+			fc.Page = "youtube"
+			r.Charts = append(r.Charts, fc)
+			r.KPIs = append(r.KPIs, KPI{Label: "Forecast views (next 30d)", Value: human(total), Note: "trend projection, confidence " + confidence(r2), Page: "youtube"})
+		}
+		sum, cnt := make([]float64, 7), make([]float64, 7)
+		for i, dd := range yt.Dates {
+			if t, err := time.Parse("2006-01-02", dd); err == nil {
+				sum[t.Weekday()] += yt.Views[i]
+				cnt[t.Weekday()]++
+			}
+		}
+		wkc := Chart{Title: "Views by day of week (28-day average)", Type: "bar", Labels: []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}, Datasets: []Dataset{{Name: "Avg views"}}, Page: "youtube"}
+		for i := 0; i < 7; i++ {
+			a := 0.0
+			if cnt[i] > 0 {
+				a = sum[i] / cnt[i]
+			}
+			wkc.Datasets[0].Data = append(wkc.Datasets[0].Data, math.Round(a))
+		}
+		r.Charts = append(r.Charts, wkc, Chart{Title: "Subscribers gained vs lost per day", Type: "bar", Labels: shortDates(yt.Dates), Datasets: []Dataset{{Name: "Gained", Data: yt.Gained}, {Name: "Lost", Data: yt.Lost}}, Page: "youtube"})
 		if yt.AvgPct < 40 {
 			plan(PlanItem{Title: "Improve retention: tighter intros and faster pacing", Why: fmt.Sprintf("Viewers watch %.0f%% of your videos on average (good \u2265 40%%).", yt.AvgPct), Impact: 4, Effort: 2})
+		}
+		if yt.ChannelID != "" && env("YOUTUBE_API_KEY") != "" {
+			if yr, err := s.evalYouTube(ctx, evalIn{Query: yt.ChannelID}); err == nil && yr != nil {
+				for i := range yr.Charts {
+					yr.Charts[i].Page = "youtube"
+				}
+				for i := range yr.Tables {
+					yr.Tables[i].Page = "youtube"
+				}
+				for i := range yr.Items {
+					yr.Items[i].Page = "youtube"
+				}
+				for i := range yr.Checks {
+					yr.Checks[i].Page = "youtube"
+				}
+				r.Charts = append(r.Charts, yr.Charts...)
+				r.Tables = append(r.Tables, yr.Tables...)
+				r.Items = append(r.Items, yr.Items...)
+				r.Checks = append(r.Checks, yr.Checks...)
+				r.Plan = append(r.Plan, yr.Plan...)
+				for k, v := range yr.Meta {
+					r.Meta[k] = v
+				}
+				for _, k := range yr.KPIs {
+					if k.Label == "Subscribers" || k.Label == "Total views" {
+						k.Page = "youtube"
+						r.KPIs = append(r.KPIs, k)
+					}
+				}
+			}
 		}
 	}
 	if len(r.Plan) == 0 {

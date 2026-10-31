@@ -30,7 +30,7 @@ func takeBudget(uid string, max int) bool {
 }
 
 var platformRules = map[string]string{
-	"youtube":   "Titles under 70 characters, main keyword first, with a curiosity or benefit hook. The first 150 characters of the description must contain the main keyword and a hook. Description 800-1500 characters with a call to action and placeholders for links and timestamps. 10-15 tags mixing broad and long-tail keywords, under 450 characters total. 3 hashtags.",
+	"youtube":   "Built for virality. Titles under 70 characters, main keyword first, one curiosity or benefit hook, optionally a number. The first 150 characters of the description contain the main keyword and a hook; description 800-1500 characters with a call to action and placeholders for links and timestamps. Tags in tiers: 3 broad (high-volume), 5 niche (the exact topic), 6 long-tail (3-5 word searches people really type), 4 question tags (how/why/what), 3 trending-style tags for the topic; total under 450 characters, no misleading tags. 3 relevant hashtags. Reuse words and tags that already perform on this channel when they fit. Thumbnail ideas with 2-4 word overlay text.",
 	"instagram": "Caption first line is a hook under 125 characters, then value, then one call to action. 3-8 relevant hashtags mixing niche and mid-size. Under 2200 characters.",
 	"tiktok":    "Caption under 150 characters with a hook and 3-5 hashtags. Hooks must work in the first 3 seconds of video and on-screen text.",
 	"x":         "Posts under 260 characters, one idea, strong first words, at most 2 hashtags, an invitation to reply.",
@@ -63,6 +63,7 @@ type optOut struct {
 	Hooks       []string `json:"hooks"`
 	Ideas       []string `json:"ideas"`
 	Notes       []string `json:"notes"`
+	TagTiers    map[string][]string `json:"tagTiers"`
 }
 
 func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +106,7 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 	if pl == "ideas" {
 		n = 8
 	}
-	prompt := fmt.Sprintf("You are an expert %s growth strategist. Optimise the content below for maximum reach and clicks using the platform's published best practices, and never invent facts about the creator.\nRules: %s\nCurrent title: %s\nCurrent description or caption: %s\nCurrent tags: %s\nTopic: %s\nAudience: %s\nGoal: %s\nReturn JSON only with keys: titles (%d distinct options; for non-video platforms caption openers; for ideas the content ideas; for faq the questions; for bio the bio options), description (the final improved full description, caption or bio, ready to paste; for howto the numbered steps; for faq a one-line summary), tags (keywords without #; empty list if the platform doesn't use tags), hashtags (with #), hooks (3 strong opening lines; for faq the matching answers in the same order as titles; for howto 3 ready-to-use examples), ideas (3 thumbnail or visual ideas), notes (3 short A/B testing tips).",
+	prompt := fmt.Sprintf("You are an expert %s growth strategist. Optimise the content below for maximum reach and clicks using the platform's published best practices, and never invent facts about the creator.\nRules: %s\nCurrent title: %s\nCurrent description or caption: %s\nCurrent tags: %s\nTopic: %s\nAudience: %s\nGoal: %s\nReturn JSON only with keys: titles (%d distinct options; for non-video platforms caption openers; for ideas the content ideas; for faq the questions; for bio the bio options), description (the final improved full description, caption or bio, ready to paste; for howto the numbered steps; for faq a one-line summary), tags (keywords without #; empty list if the platform doesn't use tags), hashtags (with #), hooks (3 strong opening lines; for faq the matching answers in the same order as titles; for howto 3 ready-to-use examples), ideas (3 thumbnail or visual ideas), notes (3 short A/B testing tips), tagTiers (an object with array keys broad, niche, longtail, questions, trending; fill it only for youtube, otherwise use empty arrays).",
 		pl, rules, clip(title, 150), clip(desc, 1500), clip(strings.Join(tags, ", "), 400), clip(in.Topic, 400), clip(in.Audience, 150), clip(in.Goal, 150), n)
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()

@@ -63,7 +63,7 @@ const videoFix=ai((c,o,cur,r,item)=>{
   const sDesc=compare(c,"description",cur.description,o.description,true);
   const sTags=compare(c,"tags",(cur.tags||[]).join(", "),(o.tags||[]).join(", "),true);
   if((o.hashtags||[]).length)c.appendChild(copyBox("Hashtags (put 3 at the end of the description)",o.hashtags.join(" ")));
-  options(c,"More title options",(o.titles||[]).slice(1));options(c,"Opening hooks (first 10 seconds)",o.hooks);options(c,"Thumbnail ideas",o.ideas);
+  tiersBoxes(c,o.tagTiers);options(c,"More title options",(o.titles||[]).slice(1));options(c,"Opening hooks (first 10 seconds)",o.hooks);options(c,"Thumbnail ideas",o.ideas);
   const vid=(item&&item.videoId)||(r.meta||{}).weakId;
   if(vid){const st=h("p","bz-mut"),b=h("button","bz-btn","Apply to my YouTube video");
     b.onclick=async()=>{b.disabled=true;st.textContent="Updating video…";
@@ -132,6 +132,30 @@ function ics(rows,name){
   L.push("END:VCALENDAR");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([L.join("\r\n")],{type:"text/calendar"}));a.download=name+".ics";a.click();
 }
+export function tiersBoxes(c,t){
+  if(!t)return;
+  const defs=[["broad","Broad tags (reach)"],["niche","Niche tags (your exact topic)"],["longtail","Long-tail tags (easier to rank)"],["questions","Question tags (search intent)"],["trending","Trending-style tags"]];
+  const all=[];
+  for(const[k,l]of defs){const a=(t[k]||[]).filter(Boolean);if(a.length){c.appendChild(copyBox(l+" ("+a.length+")",a.join(", ")));all.push(...a)}}
+  if(all.length){const out=[];let len=0;for(const x of all){if(len+x.length+2>450)break;out.push(x);len+=x.length+2}
+    c.appendChild(copyBox("All tags in one line (fits YouTube's 500-character limit)",out.join(", ")))}
+}
+export function renderViral(c,o,cur,videoId){
+  tiersBoxes(c,o.tagTiers);
+  if((o.hashtags||[]).length)c.appendChild(copyBox("Hashtags (3 max, add to the end of the description)",o.hashtags.slice(0,3).join(" ")));
+  c.appendChild(h("h4",null,"Title options"));for(const t of(o.titles||[]))c.appendChild(copyBox("Title ("+t.length+" characters)",t));
+  if(o.description)c.appendChild(copyBox("Description (first 150 characters decide the click)",o.description,true));
+  for(const[l,a]of[["Opening hooks (first 10 seconds)",o.hooks],["Thumbnail ideas + overlay text",o.ideas],["A/B tests to run",o.notes]])if((a||[]).length)c.appendChild(copyBox(l,a.join("\n")));
+  if(videoId){
+    const st=h("p","bz-mut"),b=h("button","bz-btn","Apply these tags to my video");
+    b.onclick=async()=>{b.disabled=true;st.textContent="Updating video…";
+      try{const tiers=o.tagTiers||{},tags=[].concat(tiers.broad||[],tiers.niche||[],tiers.longtail||[],tiers.questions||[],tiers.trending||[],o.tags||[]);
+        await api("POST","/api/youtube/apply",{videoId,title:cur.title||"",description:(cur.description||"")+((o.hashtags||[]).length?"\n\n"+o.hashtags.slice(0,3).join(" "):""),tags});
+        st.textContent="Done. Tags and hashtags were added to the video."}catch(e){st.textContent=e.message}b.disabled=false};
+    add(c,b,st);
+  }
+}
+const viralFix=ai((c,o,cur,r)=>renderViral(c,o,cur,(r.meta||{}).weakId||""),(r)=>({platform:"youtube",videoId:(r.meta||{}).weakId||"",topic:((r.meta||{}).topTitle||(r.meta||{}).niche||"")+" | tags that already work: "+((r.meta||{}).topTags||""),goal:"Maximise reach and click-through"}));
 const calendar=async(c,r)=>{
   const m=M(r),kind=r.kind;
   const cur=parseFloat(m.perWeek)||0;
@@ -209,6 +233,7 @@ export function fixFromText(text,r){
 export function fixFromPlan(p,r){
   if(p.auto&&p.auto.startsWith("optimize-video:")){const id=p.auto.split(":")[1];return(c,rr)=>videoFix(c,rr,{videoId:id})}
   if(p.auto==="calendar")return calendar;
+  if(p.auto==="viral")return viralFix;
   if(p.auto==="draft:meta"||p.auto==="draft:seo-content")return queriesFix;
   return fixFromText(p.title,r);
 }

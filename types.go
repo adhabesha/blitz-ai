@@ -20,6 +20,7 @@ type Check struct {
 	Value    string `json:"value" firestore:"value"`
 	Fix      string `json:"fix" firestore:"fix"`
 	Impact   int    `json:"impact" firestore:"impact"` // 1-5
+	Page     string `json:"page" firestore:"page"`
 }
 
 type KPI struct {
@@ -27,6 +28,8 @@ type KPI struct {
 	Value  string `json:"value" firestore:"value"`
 	Note   string `json:"note" firestore:"note"`
 	Status string `json:"status" firestore:"status"`
+	Page   string    `json:"page" firestore:"page"`
+	Spark  []float64 `json:"spark" firestore:"spark"`
 }
 
 type Point struct {
@@ -44,6 +47,8 @@ type Chart struct {
 	Type     string    `json:"type" firestore:"type"`
 	Labels   []string  `json:"labels" firestore:"labels"`
 	Datasets []Dataset `json:"datasets" firestore:"datasets"`
+	Tips     []string  `json:"tips" firestore:"tips"`
+	Page     string    `json:"page" firestore:"page"`
 }
 
 type Row struct {
@@ -54,6 +59,7 @@ type Table struct {
 	Title   string   `json:"title" firestore:"title"`
 	Columns []string `json:"columns" firestore:"columns"`
 	Rows    []Row    `json:"rows" firestore:"rows"`
+	Page    string   `json:"page" firestore:"page"`
 }
 
 type PlanItem struct {
@@ -62,6 +68,22 @@ type PlanItem struct {
 	Impact int    `json:"impact" firestore:"impact"`
 	Effort int    `json:"effort" firestore:"effort"`
 	Auto   string `json:"auto" firestore:"auto"` // e.g. optimize-video:<id>
+}
+
+type PageDef struct {
+	ID    string `json:"id" firestore:"id"`
+	Title string `json:"title" firestore:"title"`
+}
+
+type Item struct {
+	ID        string             `json:"id" firestore:"id"`
+	Title     string             `json:"title" firestore:"title"`
+	Thumb     string             `json:"thumb" firestore:"thumb"`
+	URL       string             `json:"url" firestore:"url"`
+	Published string             `json:"published" firestore:"published"`
+	Kind      string             `json:"kind" firestore:"kind"`
+	Page      string             `json:"page" firestore:"page"`
+	Metrics   map[string]float64 `json:"metrics" firestore:"metrics"`
 }
 
 type AIInsights struct {
@@ -83,6 +105,8 @@ type Report struct {
 	Charts     []Chart        `json:"charts" firestore:"charts"`
 	Tables     []Table        `json:"tables" firestore:"tables"`
 	Plan       []PlanItem     `json:"plan" firestore:"plan"`
+	Pages      []PageDef      `json:"pages" firestore:"pages"`
+	Items      []Item         `json:"items" firestore:"items"`
 	AI         *AIInsights    `json:"ai,omitempty" firestore:"ai,omitempty"`
 	Notes      []string       `json:"notes" firestore:"notes"`
 	Meta       map[string]string `json:"meta" firestore:"meta"`
@@ -113,6 +137,7 @@ type evalIn struct {
 	Site     string `json:"site"`
 	Property string `json:"property"`
 	Channel  bool   `json:"channel"`
+	ExactSubs float64 `json:"exactSubs"`
 	// app
 	Store     string  `json:"store"`
 	Query     string  `json:"query"`
@@ -207,15 +232,39 @@ func (r *Report) finish() {
 	}
 }
 
-func human(v float64) string {
-	a := math.Abs(v)
-	switch {
-	case a >= 1e6:
-		return fmt.Sprintf("%.1fM", v/1e6)
-	case a >= 1e4:
-		return fmt.Sprintf("%.1fK", v/1e3)
+func commas(v float64) string {
+	n := int64(math.Round(v))
+	neg := n < 0
+	if neg {
+		n = -n
 	}
-	return fmt.Sprintf("%.0f", v)
+	s := strconv.FormatInt(n, 10)
+	var out []byte
+	for i := 0; i < len(s); i++ {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ',')
+		}
+		out = append(out, s[i])
+	}
+	if neg {
+		return "-" + string(out)
+	}
+	return string(out)
+}
+
+func human(v float64) string {
+	if math.Abs(v) >= 1e6 {
+		return fmt.Sprintf("%.2fM", v/1e6)
+	}
+	return commas(v)
+}
+
+func fmtHMS(sec float64) string {
+	s := int64(math.Round(sec))
+	if s < 0 {
+		s = 0
+	}
+	return fmt.Sprintf("%02d:%02d:%02d", s/3600, (s%3600)/60, s%60)
 }
 
 func atof(s string) float64 {

@@ -62,6 +62,7 @@ func itunesLookup(ctx context.Context, q string) (*itunesApp, error) {
 func (s *server) evalApp(ctx context.Context, in evalIn) (*Report, error) {
 	const R, F, L = "Reputation", "Freshness", "Store listing"
 	var name, descText string
+	var shotURLs []string
 	var rating, ratings, days, descLen, shots, langs, curRating, curCount, titleLen float64
 	r := &Report{}
 	ios := in.Store != "android"
@@ -86,6 +87,7 @@ func (s *server) evalApp(ctx context.Context, in evalIn) (*Report, error) {
 		descLen = float64(utf8.RuneCountInString(a.Description))
 		descText = clip(a.Description, 1200)
 		shots = float64(len(a.Screens))
+		shotURLs = a.Screens
 		langs = float64(len(a.Langs))
 		titleLen = float64(utf8.RuneCountInString(a.TrackName))
 		r.KPIs = append(r.KPIs, KPI{Label: "Developer", Value: a.SellerName, Note: a.Genre})
@@ -127,6 +129,12 @@ func (s *server) evalApp(ctx context.Context, in evalIn) (*Report, error) {
 		r.Notes = append(r.Notes, "Android numbers come from what you entered; Google Play has no free public API, so keep them current.")
 	}
 	r.Meta = map[string]string{"name": name, "description": descText, "store": in.Store}
+	for i, u := range shotURLs {
+		if i >= 10 {
+			break
+		}
+		r.Items = append(r.Items, Item{ID: fmt.Sprintf("shot%d", i+1), Title: fmt.Sprintf("Screenshot %d", i+1), Thumb: u, URL: u, Kind: "screenshot", Metrics: map[string]float64{}})
+	}
 	r.finish()
 	if in.UseAI {
 		r.AI = s.insights(ctx, r, "Mobile app store optimization (ASO) for "+name+". Suggest listing, keyword and review-growth improvements.")

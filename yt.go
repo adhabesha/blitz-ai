@@ -22,7 +22,10 @@ var (
 	reHandle  = regexp.MustCompile(`youtube\.com/(@[^/?#\s]+)`)
 	reLegacy  = regexp.MustCompile(`youtube\.com/(?:c|user)/([^/?#\s]+)`)
 	reDur     = regexp.MustCompile(`^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$`)
+	reWord    = regexp.MustCompile(`[\p{L}\p{N}']+`)
 )
+
+var stopWords = map[string]bool{"the": true, "and": true, "for": true, "with": true, "from": true, "this": true, "that": true, "your": true, "you": true, "how": true, "what": true, "why": true, "are": true, "was": true, "not": true, "but": true, "can": true, "all": true, "new": true, "video": true, "part": true, "who": true, "when": true, "will": true, "have": true, "has": true}
 
 func ytGet(ctx context.Context, path string, q url.Values, out any) error {
 	q.Set("key", env("YOUTUBE_API_KEY"))
@@ -98,6 +101,9 @@ type ytVideosResp struct {
 			Description string   `json:"description"`
 			PublishedAt string   `json:"publishedAt"`
 			Tags        []string `json:"tags"`
+			Thumbnails  map[string]struct {
+				URL string `json:"url"`
+			} `json:"thumbnails"`
 		} `json:"snippet"`
 		Statistics struct {
 			Views    string `json:"viewCount"`
@@ -111,17 +117,19 @@ type ytVideosResp struct {
 }
 
 type ytVid struct {
-	ID, Title                string
-	Pub                      time.Time
-	Views, Likes, Comments   float64
-	Dur                      float64
-	Tags, DescLen            int
-	PerDay, Eng              float64
+	ID, Title, Thumb       string
+	Pub                    time.Time
+	Views, Likes, Comments float64
+	Dur, PerDay, Eng       float64
+	Tags                   []string
+	DescLen                int
 }
+
+func (v ytVid) short() bool { return v.Dur > 0 && v.Dur <= 180 }
 
 func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	if env("YOUTUBE_API_KEY") == "" {
-		return nil, userErr("YouTube lookup isn't set up yet: add YOUTUBE_API_KEY in Render > Environment (see the setup steps).")
+		return nil, userErr("YouTube lookup isn't set up yet: add YOUTUBE_API_KEY in the admin console.")
 	}
 	q := clip(in.Query, 200)
 	if q == "" {
@@ -165,7 +173,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 			} `json:"contentDetails"`
 		} `json:"items"`
 	}
-	if err := ytGet(ctx, "playlistItems", url.Values{"part": {"contentDetails"}, "playlistId": {c.ContentDetails.Related.Uploads}, "maxResults": {"30"}}, &pl); err != nil {
+	if err := ytGet(ctx, "playlistItems", url.Values{"part": {"contentDetails"}, "playlistId": {c.ContentDetails.Related.Uploads}, "maxResults": {"50"}}, &pl); err != nil {
 		return nil, err
 	}
 	var ids []string
@@ -183,7 +191,14 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	var vids []ytVid
 	for _, it := range vr.Items {
 		t, _ := time.Parse(time.RFC3339, it.Snippet.PublishedAt)
-		v := ytVid{ID: it.ID, Title: it.Snippet.Title, Pub: t, Views: atof(it.Statistics.Views), Likes: atof(it.Statistics.Likes), Comments: atof(it.Statistics.Comments), Dur: parseDur(it.ContentDetails.Duration), Tags: len(it.Snippet.Tags), DescLen: utf8.RuneCountInString(it.Snippet.Description)}
+		th := it.Snippet.Thumbnails["medium"].URL
+		if th == "" {
+			th = it.Snippet.Thumbnails["high"].URL
+		}
+		if th == "" {
+			th = it.Snippet.Thumbnails["default"].URL
+		}
+		v := ytVid{ID: it.ID, Title: it.Snippet.Title, Thumb: th, Pub: t, Views: atof(it.Statistics.Views), Likes: atof(it.Statistics.Likes), Comments: atof(it.Statistics.Comments), Dur: parseDur(it.ContentDetails.Duration), Tags: it.Snippet.Tags, DescLen: utf8.RuneCountInString(it.Snippet.Description)}
 		age := math.Max(now.Sub(t).Hours()/24, 1)
 		v.PerDay = v.Views / age
 		if v.Views > 0 {
@@ -195,18 +210,28 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	n := float64(len(vids))
 
 	subs := atof(c.Statistics.Subs)
-	var views, engs []float64
-	var sumEng, n30, shorts, withNum, withDesc, withTags, titleLen float64
+	exact := false
+	if in.ExactSubs > 0 {
+		subs, exact = in.ExactSubs, true
+	}
+	var views []float64
+	var sumEng, n30, withNum, withDesc, withTags, titleLen float64
+	var sv, lv, sc, lc, se, le float64
 	wdSum, wdCnt := make([]float64, 7), make([]float64, 7)
 	for _, v := range vids {
 		views = append(views, v.Views)
-		engs = append(engs, v.Eng)
 		sumEng += v.Eng
 		if now.Sub(v.Pub).Hours() <= 24*30 {
 			n30++
 		}
-		if v.Dur > 0 && v.Dur <= 180 {
-			shorts++
+		if v.short() {
+			sv += v.Views
+			sc++
+			se += v.Eng
+		} else {
+			lv += v.Views
+			lc++
+			le += v.Eng
 		}
 		if strings.IndexFunc(v.Title, unicode.IsDigit) >= 0 {
 			withNum++
@@ -214,7 +239,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		if v.DescLen >= 200 {
 			withDesc++
 		}
-		if v.Tags >= 5 {
+		if len(v.Tags) >= 5 {
 			withTags++
 		}
 		titleLen += float64(utf8.RuneCountInString(v.Title))
@@ -223,15 +248,12 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		wdCnt[wd]++
 	}
 	med := median(views)
-	avgViews := 0.0
+	avgViews, maxViews := 0.0, 0.0
 	for _, x := range views {
 		avgViews += x
-	}
-	avgViews /= n
-	maxViews := 0.0
-	for _, x := range views {
 		maxViews = math.Max(maxViews, x)
 	}
+	avgViews /= n
 	avgEng := sumEng / n
 	perWeek := n30 / 4.3
 	daysSince := now.Sub(vids[0].Pub).Hours() / 24
@@ -244,6 +266,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		hit = maxViews / med
 	}
 	avgTitle := titleLen / n
+	shorts := sc
 
 	r := &Report{Target: c.Snippet.Title}
 	add := func(x Check) { r.Checks = append(r.Checks, x) }
@@ -254,12 +277,12 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	}
 	engC := chk(E, "Engagement rate (likes + comments / views)", rate(avgEng, 4, 2), fmt.Sprintf("%.2f%%", avgEng), "Ask one clear question per video, pin a comment, and reply to comments in the first hour.", 5)
 	add(engC)
-	likeRate := 0.0
 	var totalLikes, totalViews float64
 	for _, v := range vids {
 		totalLikes += v.Likes
 		totalViews += v.Views
 	}
+	likeRate := 0.0
 	if totalViews > 0 {
 		likeRate = totalLikes / totalViews * 100
 	}
@@ -270,17 +293,25 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	add(chk(A, "Hit potential (best video / median)", rate(hit, 3, 1.8), fmt.Sprintf("%.1fx", hit), "Study your best video's topic, title and thumbnail, then make variations of it.", 3))
 	add(chk(O, "Title length", ifs(avgTitle >= 35 && avgTitle <= 70, "pass", "warn"), fmt.Sprintf("%.0f characters on average", avgTitle), "Keep titles at 40-70 characters with the main keyword first.", 3))
 	add(chk(O, "Descriptions \u2265 200 characters", rate(withDesc/n*100, 70, 40), fmt.Sprintf("%.0f%% of videos", withDesc/n*100), "Write 200+ character descriptions with keywords, links and a call to action.", 3))
-	add(chk(O, "Videos with 5+ tags", rate(withTags/n*100, 70, 40), fmt.Sprintf("%.0f%% of videos", withTags/n*100), "Add 8-15 relevant tags mixing broad and long-tail keywords.", 2))
+	add(chk(O, "Videos with 5+ tags", rate(withTags/n*100, 70, 40), fmt.Sprintf("%.0f%% of videos", withTags/n*100), "Add 8-15 relevant tags in tiers: broad, niche, long-tail and question tags.", 3))
 	add(chk(O, "Titles with numbers", rate(withNum/n*100, 30, 15), fmt.Sprintf("%.0f%% of videos", withNum/n*100), "Numbers and specifics (e.g. '5 mistakes') often lift click-through.", 1))
 
-	subsLabel := human(subs)
+	subsLabel := commas(subs)
+	subsNote := commas(atof(c.Statistics.VideoCount)) + " videos"
 	if c.Statistics.Hidden {
 		subsLabel = "hidden"
+	} else if !exact {
+		subsNote += " \u00b7 YouTube rounds public counts to 3 digits; enter the exact number to correct it"
 	}
+	var chrono []float64
+	for i := len(vids) - 1; i >= 0; i-- {
+		chrono = append(chrono, vids[i].Views)
+	}
+	medK := KPI{Label: "Median video views", Value: commas(med), Note: fmt.Sprintf("average %s over the last %d videos", commas(avgViews), len(vids)), Spark: chrono}
 	r.KPIs = []KPI{
-		{Label: "Subscribers", Value: subsLabel, Note: human(atof(c.Statistics.VideoCount)) + " videos"},
-		{Label: "Total views", Value: human(atof(c.Statistics.ViewCount)), Note: "lifetime"},
-		{Label: "Median video views", Value: human(med), Note: fmt.Sprintf("avg %s over last %d", human(avgViews), len(vids))},
+		{Label: "Subscribers", Value: subsLabel, Note: subsNote},
+		{Label: "Total views", Value: commas(atof(c.Statistics.ViewCount)), Note: "lifetime"},
+		medK,
 		kpiFrom(engC, "Engagement rate", "Good \u2265 4%"),
 		kpiFrom(cadC, "Uploads per week", "Aim for 1+"),
 		{Label: "Short-form share", Value: fmt.Sprintf("%.0f%%", shorts/n*100), Note: "videos \u2264 3 min"},
@@ -289,13 +320,15 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		r.KPIs = append(r.KPIs, kpiFrom(reachC, "Reach vs subscribers", "Good \u2265 15%"))
 	}
 
-	// Charts (oldest to newest)
+	// charts
 	vc := Chart{Title: "Views per recent video (oldest \u2192 newest)", Type: "bar", Datasets: []Dataset{{Name: "Views"}}}
 	ec := Chart{Title: "Engagement rate per video (%)", Type: "line", Datasets: []Dataset{{Name: "Engagement %"}}}
 	for i := len(vids) - 1; i >= 0; i-- {
-		vc.Labels = append(vc.Labels, trunc(vids[i].Title, 16))
+		vc.Labels = append(vc.Labels, vids[i].Pub.Format("01-02"))
+		vc.Tips = append(vc.Tips, trunc(vids[i].Title, 70))
 		vc.Datasets[0].Data = append(vc.Datasets[0].Data, vids[i].Views)
-		ec.Labels = append(ec.Labels, trunc(vids[i].Title, 16))
+		ec.Labels = append(ec.Labels, vids[i].Pub.Format("01-02"))
+		ec.Tips = append(ec.Tips, trunc(vids[i].Title, 70))
 		ec.Datasets[0].Data = append(ec.Datasets[0].Data, math.Round(vids[i].Eng*100)/100)
 	}
 	days := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
@@ -311,21 +344,42 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 			bestDay, bestAvg = i, a
 		}
 	}
+	cad := Chart{Title: "Uploads per week (last 12 weeks)", Type: "bar", Datasets: []Dataset{{Name: "Videos"}}}
+	wk := make([]float64, 12)
+	for _, v := range vids {
+		w := int(now.Sub(v.Pub).Hours() / (24 * 7))
+		if w >= 0 && w < 12 {
+			wk[11-w]++
+		}
+	}
+	for i := 0; i < 12; i++ {
+		cad.Labels = append(cad.Labels, fmt.Sprintf("%dw", 11-i))
+		cad.Datasets[0].Data = append(cad.Datasets[0].Data, wk[i])
+	}
 	target := math.Max(2, perWeek*1.3)
 	pc := Chart{Title: "Projected cumulative views (next 3 months)", Type: "line", Labels: []string{"Now", "Month 1", "Month 2", "Month 3"}, Datasets: []Dataset{{Name: fmt.Sprintf("Current pace (%.1f/week)", perWeek)}, {Name: fmt.Sprintf("Recommended pace (%.1f/week)", target)}}}
 	for m := 0; m <= 3; m++ {
 		pc.Datasets[0].Data = append(pc.Datasets[0].Data, math.Round(med*perWeek*4.3*float64(m)))
 		pc.Datasets[1].Data = append(pc.Datasets[1].Data, math.Round(med*target*4.3*float64(m)))
 	}
-	r.Charts = []Chart{vc, ec, wc, pc}
+	avgS, avgL := 0.0, 0.0
+	if sc > 0 {
+		avgS = sv / sc
+	}
+	if lc > 0 {
+		avgL = lv / lc
+	}
+	share := Chart{Title: "Views share: short vs long", Type: "doughnut", Labels: []string{"Long videos", "Short videos"}, Datasets: []Dataset{{Name: "Views", Data: []float64{lv, sv}}}}
+	avgc := Chart{Title: "Average views: short vs long", Type: "bar", Labels: []string{"Long videos", "Short videos"}, Datasets: []Dataset{{Name: "Avg views", Data: []float64{math.Round(avgL), math.Round(avgS)}}}}
+	r.Charts = []Chart{vc, ec, share, avgc, wc, cad, pc}
 
-	// Tables
+	// tables
+	cols := []string{"Video", "Views", "Views/day", "Engagement", "Published"}
 	row := func(v ytVid) Row {
-		return Row{Cells: []string{trunc(v.Title, 55), human(v.Views), fmt.Sprintf("%.1f", v.PerDay), fmt.Sprintf("%.2f%%", v.Eng), v.Pub.Format("2006-01-02")}}
+		return Row{Cells: []string{trunc(v.Title, 55), commas(v.Views), fmt.Sprintf("%.1f", v.PerDay), fmt.Sprintf("%.2f%%", v.Eng), v.Pub.Format("2006-01-02")}}
 	}
 	byViews := append([]ytVid(nil), vids...)
 	sort.Slice(byViews, func(i, j int) bool { return byViews[i].Views > byViews[j].Views })
-	cols := []string{"Video", "Views", "Views/day", "Engagement", "Published"}
 	top := Table{Title: "Top performing videos", Columns: cols}
 	for i := 0; i < len(byViews) && i < 5; i++ {
 		top.Rows = append(top.Rows, row(byViews[i]))
@@ -341,20 +395,151 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	for i := 0; i < len(mature) && i < 5; i++ {
 		weak.Rows = append(weak.Rows, row(mature[i]))
 	}
-	r.Tables = []Table{top, weak}
+	avgRow := func(label string, cnt, vw, e float64) Row {
+		a, ae := 0.0, 0.0
+		if cnt > 0 {
+			a, ae = vw/cnt, e/cnt
+		}
+		return Row{Cells: []string{label, commas(cnt), commas(vw), commas(a), fmt.Sprintf("%.2f%%", ae)}}
+	}
+	sl := Table{Title: "Short vs long summary", Columns: []string{"Type", "Videos", "Total views", "Avg views", "Avg engagement"}, Rows: []Row{avgRow("Long videos", lc, lv, le), avgRow("Short videos (\u2264 3 min)", sc, sv, se)}}
+	sla := Table{Title: "Short vs long videos analysis", Columns: []string{"Type", "Video", "Views", "Likes", "Comments", "Engagement"}}
+	for _, v := range byViews {
+		kind := "Long"
+		if v.short() {
+			kind = "Short"
+		}
+		sla.Rows = append(sla.Rows, Row{Cells: []string{kind, trunc(v.Title, 50), commas(v.Views), commas(v.Likes), commas(v.Comments), fmt.Sprintf("%.2f%%", v.Eng)}})
+	}
+	// tag intelligence
+	type tagStat struct {
+		n     int
+		views float64
+	}
+	ts := map[string]*tagStat{}
+	for _, v := range vids {
+		seen := map[string]bool{}
+		for _, t := range v.Tags {
+			k := strings.ToLower(strings.TrimSpace(t))
+			if k == "" || seen[k] {
+				continue
+			}
+			seen[k] = true
+			if ts[k] == nil {
+				ts[k] = &tagStat{}
+			}
+			ts[k].n++
+			ts[k].views += v.Views
+		}
+	}
+	type tk struct {
+		k   string
+		n   int
+		avg float64
+	}
+	var tl []tk
+	multi := 0
+	for k, s := range ts {
+		tl = append(tl, tk{k, s.n, s.views / float64(s.n)})
+		if s.n >= 2 {
+			multi++
+		}
+	}
+	if multi >= 5 {
+		var f []tk
+		for _, t := range tl {
+			if t.n >= 2 {
+				f = append(f, t)
+			}
+		}
+		tl = f
+	}
+	sort.Slice(tl, func(i, j int) bool {
+		if tl[i].avg != tl[j].avg {
+			return tl[i].avg > tl[j].avg
+		}
+		return tl[i].k < tl[j].k
+	})
+	tagT := Table{Title: "Tags that work on your channel", Columns: []string{"Tag", "Videos using it", "Avg views", "vs channel average"}}
+	var topTags []string
+	for i := 0; i < len(tl) && i < 15; i++ {
+		x := 0.0
+		if avgViews > 0 {
+			x = tl[i].avg / avgViews
+		}
+		tagT.Rows = append(tagT.Rows, Row{Cells: []string{tl[i].k, strconv.Itoa(tl[i].n), commas(tl[i].avg), fmt.Sprintf("%.1fx", x)}})
+		topTags = append(topTags, tl[i].k)
+	}
+	if len(tagT.Rows) == 0 {
+		tagT.Rows = append(tagT.Rows, Row{Cells: []string{"No public tags found on your recent videos", "-", "-", "-"}})
+	}
+	type wk2 struct {
+		n int
+		v float64
+	}
+	wm := map[string]*wk2{}
+	half := len(byViews) / 2
+	if half < 3 {
+		half = len(byViews)
+	}
+	for _, v := range byViews[:half] {
+		seen := map[string]bool{}
+		for _, w := range reWord.FindAllString(strings.ToLower(v.Title), -1) {
+			if len([]rune(w)) < 4 || stopWords[w] || seen[w] {
+				continue
+			}
+			seen[w] = true
+			if wm[w] == nil {
+				wm[w] = &wk2{}
+			}
+			wm[w].n++
+			wm[w].v += v.Views
+		}
+	}
+	type wl struct {
+		w   string
+		n   int
+		avg float64
+	}
+	var wlist []wl
+	for w, s := range wm {
+		wlist = append(wlist, wl{w, s.n, s.v / float64(s.n)})
+	}
+	sort.Slice(wlist, func(i, j int) bool {
+		if wlist[i].n != wlist[j].n {
+			return wlist[i].n > wlist[j].n
+		}
+		return wlist[i].avg > wlist[j].avg
+	})
+	wordT := Table{Title: "Words in your best-performing titles", Columns: []string{"Word", "Top videos using it", "Avg views"}}
+	for i := 0; i < len(wlist) && i < 12; i++ {
+		wordT.Rows = append(wordT.Rows, Row{Cells: []string{wlist[i].w, strconv.Itoa(wlist[i].n), commas(wlist[i].avg)}})
+	}
+	r.Tables = []Table{top, weak, sl, sla, tagT, wordT}
 
-	// Prioritized plan (some items can be automated)
+	// content items (real videos)
+	for _, v := range vids {
+		kind := "long"
+		if v.short() {
+			kind = "short"
+		}
+		r.Items = append(r.Items, Item{ID: v.ID, Title: v.Title, Thumb: v.Thumb, URL: "https://www.youtube.com/watch?v=" + v.ID, Published: v.Pub.Format(time.RFC3339), Kind: kind,
+			Metrics: map[string]float64{"views": v.Views, "likes": v.Likes, "comments": v.Comments, "engagement": math.Round(v.Eng*100) / 100, "perDay": math.Round(v.PerDay*10) / 10, "duration": v.Dur, "tags": float64(len(v.Tags)), "descLen": float64(v.DescLen)}})
+	}
+
+	// plan
 	if perWeek < 1 {
-		r.Plan = append(r.Plan, PlanItem{Title: "Publish at least one video every week", Why: fmt.Sprintf("You published %.1f per week recently. Projection: reaching %.1f/week could add roughly %s views over 3 months.", perWeek, target, human(math.Max(0, (target-perWeek)*med*4.3*3))), Impact: 5, Effort: 3})
+		r.Plan = append(r.Plan, PlanItem{Title: "Publish at least one video every week", Why: fmt.Sprintf("You published %.1f per week recently. Projection: reaching %.1f/week could add roughly %s views over 3 months.", perWeek, target, human(math.Max(0, (target-perWeek)*med*4.3*3))), Impact: 5, Effort: 3, Auto: "calendar"})
 	}
 	if len(mature) > 0 {
 		w := mature[0]
-		r.Plan = append(r.Plan, PlanItem{Title: "Rewrite title, description and tags of \"" + trunc(w.Title, 40) + "\"", Why: "It earns the fewest views per day. Better metadata is the fastest low-effort fix.", Impact: 4, Effort: 1, Auto: "optimize-video:" + w.ID})
+		r.Plan = append(r.Plan, PlanItem{Title: "Rewrite title, description and viral tags of \"" + trunc(w.Title, 40) + "\"", Why: "It earns the fewest views per day. Better metadata is the fastest low-effort fix.", Impact: 4, Effort: 1, Auto: "optimize-video:" + w.ID})
 	}
 	if len(byViews) > 0 {
 		t := byViews[0]
-		r.Plan = append(r.Plan, PlanItem{Title: "Make 3 more videos like \"" + trunc(t.Title, 40) + "\"", Why: fmt.Sprintf("It is %.1fx your median video. Repeat the topic, hook and thumbnail style.", hit), Impact: 5, Effort: 3, Auto: "optimize-video:" + t.ID})
+		r.Plan = append(r.Plan, PlanItem{Title: "Make 3 more videos like \"" + trunc(t.Title, 40) + "\"", Why: fmt.Sprintf("It is %.1fx your median video. Repeat the topic, hook and thumbnail style.", hit), Impact: 5, Effort: 3, Auto: "calendar"})
 	}
+	r.Plan = append(r.Plan, PlanItem{Title: "Build a viral tag pack for your next video", Why: "Tiered tags (broad, niche, long-tail, question, trending) built from your own best performers.", Impact: 4, Effort: 1, Auto: "viral"})
 	if withDesc/n*100 < 70 || withTags/n*100 < 70 {
 		r.Plan = append(r.Plan, PlanItem{Title: "Add full descriptions (200+ chars) and 8-15 tags to all videos", Why: fmt.Sprintf("Only %.0f%% have long descriptions and %.0f%% have 5+ tags.", withDesc/n*100, withTags/n*100), Impact: 3, Effort: 2})
 	}
@@ -362,13 +547,13 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		r.Plan = append(r.Plan, PlanItem{Title: "Add a question and a pinned comment to every video", Why: fmt.Sprintf("Engagement is %.2f%% (good \u2265 4%%).", avgEng), Impact: 4, Effort: 1})
 	}
 	if shorts/n < 0.2 {
-		r.Plan = append(r.Plan, PlanItem{Title: "Test short-form videos (\u2264 3 min) to reach new viewers", Why: fmt.Sprintf("Only %.0f%% of your recent uploads are short-form.", shorts/n*100), Impact: 3, Effort: 2})
+		r.Plan = append(r.Plan, PlanItem{Title: "Test short-form videos (\u2264 3 min) to reach new viewers", Why: fmt.Sprintf("Only %.0f%% of your recent uploads are short-form.", shorts/n*100), Impact: 3, Effort: 2, Auto: "calendar"})
 	}
 	if bestDay >= 0 {
-		r.Plan = append(r.Plan, PlanItem{Title: "Schedule uploads for " + days[bestDay], Why: fmt.Sprintf("Your %s uploads average %s views, your best day so far (small sample).", days[bestDay], human(bestAvg)), Impact: 2, Effort: 1})
+		r.Plan = append(r.Plan, PlanItem{Title: "Schedule uploads for " + days[bestDay], Why: fmt.Sprintf("Your %s uploads average %s views, your best day so far (small sample).", days[bestDay], human(bestAvg)), Impact: 2, Effort: 1, Auto: "calendar"})
 	}
 	r.Notes = append(r.Notes, "Based on public data for the last "+strconv.Itoa(len(vids))+" videos. Projections assume your median video performance continues; they are estimates, not guarantees. Connect Google to unlock watch time, retention and subscriber growth for your own channel.")
-	r.Meta = map[string]string{"channel": c.Snippet.Title, "perWeek": fmt.Sprintf("%.1f", perWeek), "niche": clip(titlesSample(vids), 300)}
+	r.Meta = map[string]string{"channel": c.Snippet.Title, "perWeek": fmt.Sprintf("%.1f", perWeek), "niche": clip(titlesSample(vids), 300), "topTags": strings.Join(topTags, ", ")}
 	if len(mature) > 0 {
 		r.Meta["weakId"] = mature[0].ID
 		r.Meta["weakTitle"] = clip(mature[0].Title, 100)
@@ -378,7 +563,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		r.Meta["topTitle"] = clip(byViews[0].Title, 100)
 	}
 	if bestDay >= 0 {
-		r.Meta["bestDay"] = days[bestDay]
+		r.Meta["bestDay"] = [...]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}[bestDay]
 	}
 	r.finish()
 	if in.UseAI {

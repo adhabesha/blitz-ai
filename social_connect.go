@@ -15,7 +15,7 @@ import (
 )
 
 type socialPost struct {
-	ID, Text, URL                  string
+	ID, Text, URL, Thumb           string
 	When                           time.Time
 	Likes, Comments, Shares, Views float64
 }
@@ -331,16 +331,19 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 			Link     string  `json:"permalink"`
 			Likes    float64 `json:"like_count"`
 			Comments float64 `json:"comments_count"`
+			MType    string  `json:"media_type"`
+			MURL     string  `json:"media_url"`
+			Thumb    string  `json:"thumbnail_url"`
 		} `json:"data"`
 	}
-	if err := getJSON(ctx, base+"me/media?"+url.Values{"fields": {"id,caption,timestamp,permalink,like_count,comments_count"}, "limit": {"30"}, "access_token": {tok}}.Encode(), &md); err != nil {
+	if err := getJSON(ctx, base+"me/media?"+url.Values{"fields": {"id,caption,timestamp,permalink,like_count,comments_count,media_type,media_url,thumbnail_url"}, "limit": {"30"}, "access_token": {tok}}.Encode(), &md); err != nil {
 		return nil, err
 	}
 	posts := make([]socialPost, len(md.Data))
 	var wg sync.WaitGroup
 	for i, m := range md.Data {
 		t, _ := time.Parse("2006-01-02T15:04:05-0700", m.Time)
-		posts[i] = socialPost{ID: m.ID, Text: m.Caption, URL: m.Link, When: t, Likes: m.Likes, Comments: m.Comments}
+		posts[i] = socialPost{ID: m.ID, Text: m.Caption, URL: m.Link, When: t, Likes: m.Likes, Comments: m.Comments, Thumb: pickThumb(m.Thumb, m.MURL, m.MType)}
 		if i >= 12 {
 			continue
 		}
@@ -413,6 +416,7 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 			Message string `json:"message"`
 			Created string `json:"created_time"`
 			Link    string `json:"permalink_url"`
+			Picture string `json:"full_picture"`
 			Shares  struct {
 				Count float64 `json:"count"`
 			} `json:"shares"`
@@ -428,13 +432,13 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 			} `json:"comments"`
 		} `json:"data"`
 	}
-	fields := "id,message,created_time,permalink_url,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)"
+	fields := "id,message,created_time,permalink_url,full_picture,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)"
 	if err := getJSON(ctx, base+pg.ID+"/published_posts?"+url.Values{"fields": {fields}, "limit": {"30"}, "access_token": {pg.Token}}.Encode(), &pd); err != nil {
 		return nil, err
 	}
 	for _, p := range pd.Data {
 		t, _ := time.Parse("2006-01-02T15:04:05-0700", p.Created)
-		snap.Posts = append(snap.Posts, socialPost{ID: p.ID, Text: p.Message, URL: p.Link, When: t, Likes: p.Reactions.Summary.Total, Comments: p.Comments.Summary.Total, Shares: p.Shares.Count})
+		snap.Posts = append(snap.Posts, socialPost{ID: p.ID, Text: p.Message, URL: p.Link, Thumb: p.Picture, When: t, Likes: p.Reactions.Summary.Total, Comments: p.Comments.Summary.Total, Shares: p.Shares.Count})
 	}
 	return snap, nil
 }
@@ -477,14 +481,15 @@ func fetchTikTok(ctx context.Context, tok string) (*socialSnap, error) {
 				Comments float64 `json:"comment_count"`
 				Shares   float64 `json:"share_count"`
 				Link     string  `json:"share_url"`
+				Cover    string  `json:"cover_image_url"`
 			} `json:"videos"`
 		} `json:"data"`
 	}
-	if err := gcall(ctx, tok, "POST", "https://open.tiktokapis.com/v2/video/list/?fields=id,title,create_time,view_count,like_count,comment_count,share_count,share_url", map[string]any{"max_count": 20}, &vd); err != nil {
+	if err := gcall(ctx, tok, "POST", "https://open.tiktokapis.com/v2/video/list/?fields=id,title,create_time,view_count,like_count,comment_count,share_count,share_url,cover_image_url", map[string]any{"max_count": 20}, &vd); err != nil {
 		return nil, err
 	}
 	for _, v := range vd.Data.Videos {
-		snap.Posts = append(snap.Posts, socialPost{ID: v.ID, Text: v.Title, URL: v.Link, When: time.Unix(int64(v.Created), 0), Likes: v.Likes, Comments: v.Comments, Shares: v.Shares, Views: v.Views})
+		snap.Posts = append(snap.Posts, socialPost{ID: v.ID, Text: v.Title, URL: v.Link, Thumb: v.Cover, When: time.Unix(int64(v.Created), 0), Likes: v.Likes, Comments: v.Comments, Shares: v.Shares, Views: v.Views})
 	}
 	return snap, nil
 }
@@ -676,6 +681,10 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 	if len(caps) > 0 {
 		r.Meta["niche"] = clip(strings.Join(caps[:minInt(3, len(caps))], " | "), 300)
 	}
+	for _, q := range recent {
+		r.Items = append(r.Items, Item{ID: q.ID, Title: trunc(strings.Join(strings.Fields(q.Text), " "), 110), Thumb: q.Thumb, URL: q.URL, Published: q.When.Format(time.RFC3339), Kind: "post",
+			Metrics: map[string]float64{"views": q.Views, "likes": q.Likes, "comments": q.Comments, "shares": q.Shares, "engagement": eng(q)}})
+	}
 	r.Notes = append(r.Notes, fmt.Sprintf("Data comes straight from %s's official API for your last %d posts. Follower growth appears after a second check at least 20 days later.", p.Name, len(recent)))
 	return r, nil
 }
@@ -696,4 +705,14 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func pickThumb(thumb, media, mtype string) string {
+	if thumb != "" {
+		return thumb
+	}
+	if mtype == "IMAGE" || mtype == "CAROUSEL_ALBUM" {
+		return media
+	}
+	return ""
 }

@@ -1,9 +1,9 @@
-<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title>
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
-<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"dark"}catch(e){}</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"light"}catch(e){}</script>
 </head><body class="bz">
 <div class="bz-shell">
 <aside class="bz-side">
@@ -27,6 +27,7 @@
 <div class="form" id="f-website"><label class="wide">Website address<input id="w-url" placeholder="example.com"></label></div>
 
 <div class="form" id="f-youtube" hidden><label class="wide">YouTube channel link or @handle<input id="y-url" placeholder="https://www.youtube.com/@channel"></label>
+<label>Exact subscriber count (optional)<input id="y-subs" type="number" min="0" placeholder="e.g. 1144"></label>
 <p class="bz-mut wide" style="margin:0">Reads public data for any channel: stats, last 30 videos, upload rhythm, titles, tags, projections and a plan with ready-to-use fixes.</p></div>
 
 <div class="form" id="f-google" hidden>

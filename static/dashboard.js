@@ -12,7 +12,7 @@ const tabOf=k=>k==="social_connected"?"socialc":k;
 // theme
 const setTheme=t=>{document.documentElement.dataset.theme=t;try{localStorage.setItem("bz-theme",t)}catch(e){}document.querySelectorAll(".bz-theme button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(current)show(current,false)};
 document.querySelectorAll(".bz-theme button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
-setTheme(document.documentElement.dataset.theme||"dark");
+setTheme(document.documentElement.dataset.theme||"light");
 document.querySelectorAll(".bz-nav").forEach(b=>b.prepend(icon(b.dataset.icon,18)));
 
 function setKind(k){
@@ -83,7 +83,7 @@ $("g-off").onclick=async()=>{if(!confirm("Disconnect Google?"))return;await api(
 function collect(){
   const ai=$("ai").checked,m=$("msg");m.textContent="";
   if(kind==="website"){const u=$("w-url").value.trim();if(!u){m.textContent="Enter a website address";return}return{kind,url:u,useAI:ai}}
-  if(kind==="youtube"){const u=$("y-url").value.trim();if(!u){m.textContent="Paste a channel link or @handle";return}return{kind,query:u,useAI:ai}}
+  if(kind==="youtube"){const u=$("y-url").value.trim();if(!u){m.textContent="Paste a channel link or @handle";return}return{kind,query:u,exactSubs:num("y-subs"),useAI:ai}}
   if(kind==="social"){
     if(!$("s-handle").value.trim()||!num("s-followers")){m.textContent="Enter the handle and follower count";return}
     return{kind,platform:$("s-platform").value,handle:$("s-handle").value.trim(),followers:num("s-followers"),prevFollowers:num("s-prev"),following:num("s-following"),posts30:num("s-posts"),likes:num("s-likes"),comments:num("s-comments"),shares:num("s-shares"),views:num("s-views"),bio:$("s-bio").value,captions:$("s-captions").value,goal:$("s-goal").value,useAI:ai};
