@@ -22,6 +22,12 @@ function setKind(k){
   $("runbox").hidden=(k==="optimizer");
   $("runrow").hidden=(k==="google"||k==="socialc");
   $("optres").hidden=(k!=="optimizer");
+  if(k==="optimizer"&&!$("optres").children.length){
+    const t=copyBox("Title",$("o-title").value,true),d=copyBox("Description",$("o-desc").value,true),g=copyBox("Tags (comma separated)",$("o-tags").value,true);
+    const c=h("div","bz-card");c.style.marginTop="16px";c.appendChild(h("h3",null,"Write the video details"));
+    c.appendChild(h("p","bz-mut","Type them here, or use Generate above to get optimized ones, then upload below."));add(c,t,d,g);
+    $("optres").appendChild(c);$("optres").appendChild(uploadCard(t,d,g));
+  }
   $("msg").textContent="";
   if(session[k]){current=session[k];renderReport($("result"),current,hist)}else{current=null;destroyCharts();$("result").hidden=true;$("result").innerHTML=""}
   drawHistory();
@@ -141,7 +147,7 @@ function renderOpt(res){
 }
 function uploadCard(t,d,g){
   const c=h("div","bz-card");c.style.marginTop="16px";c.appendChild(h("h3",null,"Publish a new video to YouTube"));
-  c.appendChild(h("p","bz-mut","Requires Connected Google. The file goes from your browser straight to YouTube. New API projects may be limited to private uploads until Google audits them; you can switch to public in YouTube Studio."));
+  c.appendChild(h("p","bz-mut","Requires Connected Google. Choose a file, a visibility and (optional) a date and time: YouTube itself publishes it at that time. Keep this page open until the upload reaches 100%. New API projects may be limited to private uploads until Google audits them; you can switch to public in YouTube Studio."));
   const f=h("div","form"),file=h("input"),pv=h("select"),when=h("input");file.type="file";file.accept="video/*";when.type="datetime-local";
   for(const v of["private","unlisted","public"]){const o=h("option",null,v);o.value=v;pv.appendChild(o)}
   const lab=(x,el)=>{const l=h("label",null,x);l.appendChild(el);return l};
