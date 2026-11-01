@@ -55,6 +55,7 @@ var adminItems = []cfgItem{
 	{"INSTAGRAM_APP_SECRET", "Instagram app secret", "Instagram", "On the same Instagram API setup page.", "", true},
 	{"FACEBOOK_APP_ID", "Facebook app ID", "Facebook", "Meta app > Settings > Basic.", "facebook", false},
 	{"FACEBOOK_APP_SECRET", "Facebook app secret", "Facebook", "Meta app > Settings > Basic.", "", true},
+	{"FACEBOOK_PAGE", "Facebook Page username to post to", "Facebook", "For example sikettc. Leave empty to use the first Page you manage.", "", false},
 	{"TIKTOK_CLIENT_KEY", "TikTok client key", "TikTok", "developers.tiktok.com > your app.", "tiktok", false},
 	{"TIKTOK_CLIENT_SECRET", "TikTok client secret", "TikTok", "developers.tiktok.com > your app.", "", true},
 }

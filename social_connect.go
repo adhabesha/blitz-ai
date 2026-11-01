@@ -394,17 +394,27 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 			ID        string  `json:"id"`
 			Name      string  `json:"name"`
 			Token     string  `json:"access_token"`
+			User      string  `json:"username"`
 			Followers float64 `json:"followers_count"`
 			Fans      float64 `json:"fan_count"`
 		} `json:"data"`
 	}
-	if err := getJSON(ctx, base+"me/accounts?"+url.Values{"fields": {"id,name,access_token,followers_count,fan_count"}, "access_token": {tok}}.Encode(), &acc); err != nil {
+	if err := getJSON(ctx, base+"me/accounts?"+url.Values{"fields": {"id,name,username,access_token,followers_count,fan_count"}, "access_token": {tok}}.Encode(), &acc); err != nil {
 		return nil, err
 	}
 	if len(acc.Data) == 0 {
 		return nil, userErr("No Facebook Page found. You must manage a Facebook Page to connect it.")
 	}
-	pg := acc.Data[0]
+	pick := 0
+	if want := strings.ToLower(strings.TrimSpace(env("FACEBOOK_PAGE"))); want != "" {
+		for i, p := range acc.Data {
+			if strings.ToLower(p.User) == want || strings.ToLower(p.Name) == want {
+				pick = i
+				break
+			}
+		}
+	}
+	pg := acc.Data[pick]
 	f := pg.Followers
 	if f == 0 {
 		f = pg.Fans

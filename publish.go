@@ -423,15 +423,25 @@ func (s *server) fbPage(ctx context.Context, uid string) (string, string, string
 			ID    string `json:"id"`
 			Name  string `json:"name"`
 			Token string `json:"access_token"`
+			User  string `json:"username"`
 		} `json:"data"`
 	}
-	if err := getJSON(ctx, "https://graph.facebook.com/v21.0/me/accounts?"+url.Values{"fields": {"id,name,access_token"}, "access_token": {t.Access}}.Encode(), &acc); err != nil {
+	if err := getJSON(ctx, "https://graph.facebook.com/v21.0/me/accounts?"+url.Values{"fields": {"id,name,username,access_token"}, "access_token": {t.Access}}.Encode(), &acc); err != nil {
 		return "", "", "", err
 	}
 	if len(acc.Data) == 0 {
 		return "", "", "", userErr("No Facebook Page found. You must manage a Facebook Page to post to it.")
 	}
-	return acc.Data[0].ID, acc.Data[0].Token, acc.Data[0].Name, nil
+	pick := 0
+	if want := strings.ToLower(strings.TrimSpace(env("FACEBOOK_PAGE"))); want != "" {
+		for i, p := range acc.Data {
+			if strings.ToLower(p.User) == want || strings.ToLower(p.Name) == want {
+				pick = i
+				break
+			}
+		}
+	}
+	return acc.Data[pick].ID, acc.Data[pick].Token, acc.Data[pick].Name, nil
 }
 
 func (s *server) pubFacebook(ctx context.Context, uid string, sp pubSpec) (string, string, error) {
