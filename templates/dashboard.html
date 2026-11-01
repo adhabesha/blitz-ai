@@ -14,6 +14,7 @@
 <button class="bz-nav" data-kind="socialc" data-icon="share">Connected social</button>
 <button class="bz-nav" data-kind="social" data-icon="users">Other social (manual)</button>
 <button class="bz-nav" data-kind="app" data-icon="phone">App</button>
+<button class="bz-nav" data-kind="publish" data-icon="send">Publish to all</button>
 <button class="bz-nav" data-kind="optimizer" data-icon="zap">Optimizer &amp; Publish</button>
 <a class="bz-nav bz-nav-link" id="admin-link" href="/admin" hidden style="margin-top:auto">Admin console</a>
 </aside>
@@ -76,6 +77,8 @@
 <label>Number of ratings<input id="a-ratings" type="number" min="0"></label><label>Days since last update<input id="a-days" type="number" min="0"></label>
 <label>Description length (chars)<input id="a-desc" type="number" min="0"></label><label>Screenshots<input id="a-shots" type="number" min="0"></label>
 </div></div>
+
+<div class="form" id="f-publish" hidden></div>
 
 <div class="form" id="f-optimizer" hidden>
 <label>Platform<select id="o-platform"><option value="youtube">YouTube</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="website">Website page (SEO)</option></select></label>

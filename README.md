@@ -1,2 +1,2 @@
-# Blitz AI v8
-Reports now open as a full dashboard with left-side tabs per report type (YouTube: Overview, Short vs Long, Videos, Viral tags, Time, Fixes & plan; Website, Google, Social and App have their own tabs), clean scrollable cards, real video/post cards with thumbnails, previous-period comparisons, and viral tag intelligence. Run go.ps1.
+# Blitz AI v9
+New: Publish to all. One upload (Short/Reel, Normal video or Image), pick YouTube, Facebook, Instagram, TikTok, and Blitz AI posts to each connected account. See SETUP-SOCIAL.md for the posting permissions.

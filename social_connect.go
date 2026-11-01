@@ -55,13 +55,13 @@ func authURL(p *provCfg, state string) string {
 	cid, ru := env(p.IDEnv), provRedirect(p.ID)
 	switch p.ID {
 	case "instagram":
-		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"instagram_business_basic,instagram_business_manage_insights"}, "state": {state}}
+		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"instagram_business_basic,instagram_business_manage_insights" + ifs(env("PUBLISH_SCOPES") == "1", ",instagram_business_content_publish", "")}, "state": {state}}
 		return "https://www.instagram.com/oauth/authorize?" + q.Encode()
 	case "facebook":
-		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"pages_show_list,pages_read_engagement,read_insights"}, "state": {state}}
+		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"pages_show_list,pages_read_engagement,read_insights" + ifs(env("PUBLISH_SCOPES") == "1", ",pages_manage_posts", "")}, "state": {state}}
 		return "https://www.facebook.com/v21.0/dialog/oauth?" + q.Encode()
 	}
-	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"user.info.basic,user.info.profile,user.info.stats,video.list"}, "state": {state}}
+	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"user.info.basic,user.info.profile,user.info.stats,video.list" + ifs(env("PUBLISH_SCOPES") == "1", ",video.publish,video.upload", "")}, "state": {state}}
 	return "https://www.tiktok.com/v2/auth/authorize/?" + q.Encode()
 }
 

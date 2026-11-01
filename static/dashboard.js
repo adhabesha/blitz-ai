@@ -2,11 +2,13 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-ap
 import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{$,h,add,icon,setAuth,api,copyBox}from"./ui.js";
 import{renderReport,destroyCharts}from"./report.js";
+import{mountPublish}from"./publish.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
 let kind="website",hist=[],timer,current=null,gA=null,showAll=false;
 const session={};
+let refreshPub=null;
 const tabOf=k=>k==="social_connected"?"socialc":k;
 
 // theme
@@ -19,7 +21,7 @@ function setKind(k){
   kind=k;
   document.querySelectorAll(".bz-nav").forEach(x=>x.classList.toggle("on",x.dataset.kind===k));
   document.querySelectorAll("#formbox>.form").forEach(f=>f.hidden=f.id!=="f-"+k);
-  $("runbox").hidden=(k==="optimizer");
+  $("runbox").hidden=(k==="optimizer"||k==="publish");
   $("runrow").hidden=(k==="google"||k==="socialc");
   $("optres").hidden=(k!=="optimizer");
   if(k==="optimizer"&&!$("optres").children.length){
@@ -32,6 +34,7 @@ function setKind(k){
   if(session[k]){current=session[k];renderReport($("result"),current,hist)}else{current=null;destroyCharts();$("result").hidden=true;$("result").innerHTML=""}
   drawHistory();
   if(k==="google")loadGoogle(true).catch(e=>{$("msg").textContent=e.message});
+  if(k==="publish"&&refreshPub)refreshPub();
   if(k==="socialc")loadSocial().catch(e=>{$("msg").textContent=e.message});
 }
 document.querySelectorAll(".bz-nav").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
@@ -216,6 +219,7 @@ async function analyzeSocial(id,name){
 onAuthStateChanged(auth,async u=>{
   if(!u){location.href="/app";return}
   $("name").textContent=(u.displayName||"").split(" ")[0];
+  refreshPub=mountPublish($("f-publish"),auth);
   try{hist=await api("GET","/api/reports")}catch(e){$("msg").textContent=e.message}
   drawHistory();
   const g=new URLSearchParams(location.search).get("google");

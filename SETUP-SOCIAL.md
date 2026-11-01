@@ -30,3 +30,10 @@ Developer consoles change often. If a screen looks different, send a screenshot.
 ## Important
 - While apps are in development/sandbox mode only accounts you add as testers can connect. Letting any customer connect needs each platform's app review (Meta, TikTok), which can take days to weeks.
 - X and LinkedIn can't be connected for free; use the "Other social (manual)" tab for them.
+
+## Turning on posting (Publish to all)
+Reading and posting use different permissions. Do this once per platform, then in the admin console set **Request posting permissions** to `1`, and disconnect and reconnect each account in Connected social.
+- **Instagram:** Meta app > Instagram > API setup > add the permission `instagram_business_content_publish`. The account must be Business or Creator, and added as an Instagram Tester.
+- **Facebook:** Meta app > add the permission `pages_manage_posts` (with `pages_show_list`, `pages_read_engagement`). Your Facebook login must be an admin of the Page, and added to the app as an admin/tester.
+- **TikTok:** developers.tiktok.com > your app > add the product **Content Posting API** and enable Direct Post, scope `video.publish` (and `video.upload`). In Sandbox keep your TikTok account as a target user. Posts from unaudited apps stay private.
+- **YouTube:** nothing extra. Uploads from a new Google project may stay private until Google audits it.

@@ -43,6 +43,7 @@ type cfgItem struct {
 }
 
 var adminItems = []cfgItem{
+	{"PUBLISH_SCOPES", "Request posting permissions (type 1 to enable)", "Publishing", "Turn this on only after enabling posting permissions in each developer app, then reconnect each account.", "", false},
 	{"BASE_URL", "Public app URL", "Core", "Your Render address, e.g. https://blitz-ai-5ow4.onrender.com (no slash at the end).", "", false},
 	{"GEMINI_API_KEY", "Gemini API key", "AI", "From aistudio.google.com/app/apikey. Use a key from a separate project.", "gemini", true},
 	{"GEMINI_MODEL", "Gemini model (optional)", "AI", "Leave empty for the default. Change it if Google retires a model.", "", false},
