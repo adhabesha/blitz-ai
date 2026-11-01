@@ -9,17 +9,13 @@ Redirect URLs to register (use your own Render address):
 
 Developer consoles change often. If a screen looks different, send a screenshot.
 
-## Instagram (Business or Creator account only)
-1. https://developers.facebook.com/apps > Create app (type: Business). Add the product **Instagram** > **API setup with Instagram login**.
-2. In "Business login settings" add the Instagram redirect URL above.
-3. Copy the **Instagram app ID** and **Instagram app secret** shown on that page (they are NOT the Facebook app ID/secret).
-4. App roles > Roles: add your Instagram account as an **Instagram Tester**, then accept the invite inside Instagram (Settings > Apps and websites > Tester invites).
-5. Render > Environment: `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`.
-
-## Facebook (Pages you manage)
-1. Same Meta app > add **Facebook Login** (or Facebook Login for Business). Add the Facebook redirect URL as a Valid OAuth Redirect URI.
-2. App settings > Basic: copy **App ID** and **App secret**.
-3. Render: `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`.
+## Facebook Page + Instagram (Meta, one app, Facebook Login for Business)
+New Meta apps cannot use the old "Instagram login", so Blitz AI signs in through Facebook and reads Instagram through the Facebook-linked account.
+1. In your Meta app: Instagram > API setup with Unified login > Create another configuration. Include the assets Pages and Instagram accounts, and permissions pages_show_list, pages_read_engagement, pages_manage_posts, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights.
+2. Select the configuration and save both redirect URLs: .../auth/instagram/callback and .../auth/facebook/callback.
+3. Copy the Configuration ID, and the App ID and App secret from App settings > Basic.
+4. Your Instagram must be a Business or Creator account linked to the Facebook Page (Page > Settings > Linked accounts > Instagram).
+5. In the admin console set: Facebook app ID and secret, Instagram configuration ID, Facebook configuration ID (same ID), Facebook Page (sikettc).
 
 ## TikTok (your own account)
 1. https://developers.tiktok.com > Manage apps > Connect an app. Add **Login Kit** and **Display API** with scopes user.info.basic, user.info.profile, user.info.stats, video.list.

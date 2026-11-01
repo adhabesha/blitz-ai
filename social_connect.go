@@ -29,7 +29,7 @@ type socialSnap struct {
 type provCfg struct{ ID, Name, IDEnv, SecretEnv string }
 
 var providers = []provCfg{
-	{"instagram", "Instagram", "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET"},
+	{"instagram", "Instagram", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"},
 	{"facebook", "Facebook", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"},
 	{"tiktok", "TikTok", "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"},
 }
@@ -44,6 +44,9 @@ func provOf(id string) *provCfg {
 }
 
 func (p *provCfg) configured() bool {
+	if p.ID == "instagram" && env("INSTAGRAM_CONFIG_ID") == "" {
+		return false
+	}
 	return env(p.IDEnv) != "" && env(p.SecretEnv) != "" && env("BASE_URL") != ""
 }
 
@@ -54,11 +57,18 @@ func provRedirect(id string) string {
 func authURL(p *provCfg, state string) string {
 	cid, ru := env(p.IDEnv), provRedirect(p.ID)
 	switch p.ID {
-	case "instagram":
-		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"instagram_business_basic,instagram_business_manage_insights" + ifs(env("PUBLISH_SCOPES") == "1", ",instagram_business_content_publish", "")}, "state": {state}}
-		return "https://www.instagram.com/oauth/authorize?" + q.Encode()
-	case "facebook":
-		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"pages_show_list,pages_read_engagement,read_insights" + ifs(env("PUBLISH_SCOPES") == "1", ",pages_manage_posts", "")}, "state": {state}}
+	case "instagram", "facebook":
+		cfg := env("INSTAGRAM_CONFIG_ID")
+		if p.ID == "facebook" {
+			cfg = env("FACEBOOK_CONFIG_ID")
+		}
+		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "state": {state}}
+		if cfg != "" {
+			q.Set("config_id", cfg)
+			q.Set("override_default_response_type", "true")
+		} else {
+			q.Set("scope", "pages_show_list,pages_read_engagement,read_insights"+ifs(env("PUBLISH_SCOPES") == "1", ",pages_manage_posts", ""))
+		}
 		return "https://www.facebook.com/v21.0/dialog/oauth?" + q.Encode()
 	}
 	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"user.info.basic,user.info.profile,user.info.stats,video.list" + ifs(env("PUBLISH_SCOPES") == "1", ",video.publish,video.upload", "")}, "state": {state}}
@@ -104,26 +114,7 @@ func exchangeCode(ctx context.Context, p *provCfg, code string) (*provToken, err
 	cid, sec, ru := env(p.IDEnv), env(p.SecretEnv), provRedirect(p.ID)
 	now := time.Now().Unix()
 	switch p.ID {
-	case "instagram":
-		var a struct {
-			AccessToken string      `json:"access_token"`
-			UserID      json.Number `json:"user_id"`
-		}
-		form := url.Values{"client_id": {cid}, "client_secret": {sec}, "grant_type": {"authorization_code"}, "redirect_uri": {ru}, "code": {code}}
-		if err := postForm(ctx, "https://api.instagram.com/oauth/access_token", form, &a); err != nil {
-			return nil, err
-		}
-		t := &provToken{Access: a.AccessToken, UserID: a.UserID.String(), Exp: now + 3600}
-		var l struct {
-			AccessToken string `json:"access_token"`
-			ExpiresIn   int64  `json:"expires_in"`
-		}
-		u := "https://graph.instagram.com/access_token?" + url.Values{"grant_type": {"ig_exchange_token"}, "client_secret": {sec}, "access_token": {a.AccessToken}}.Encode()
-		if getJSON(ctx, u, &l) == nil && l.AccessToken != "" {
-			t.Access, t.Exp = l.AccessToken, now+l.ExpiresIn
-		}
-		return t, nil
-	case "facebook":
+	case "instagram", "facebook":
 		var a struct {
 			AccessToken string `json:"access_token"`
 		}
@@ -186,7 +177,7 @@ func (s *server) validToken(ctx context.Context, uid string, p *provCfg) (*provT
 		return nil, userErr("Connect " + p.Name + " first")
 	}
 	now := time.Now().Unix()
-	if p.ID == "instagram" && t.Exp > now && t.Exp-now < 7*86400 {
+	if p.ID == "instagram-login" && t.Exp > now && t.Exp-now < 7*86400 {
 		var l struct {
 			AccessToken string `json:"access_token"`
 			ExpiresIn   int64  `json:"expires_in"`
@@ -306,23 +297,58 @@ func (s *server) socialCallback(id string) http.HandlerFunc {
 
 // ---- data fetchers (official APIs) ----
 
+// igAccount finds the Instagram professional account behind a Facebook Login for Business token.
+func igAccount(ctx context.Context, tok string) (string, error) {
+	base := "https://graph.facebook.com/v21.0/"
+	var dbg struct {
+		Data struct {
+			Granular []struct {
+				Scope string   `json:"scope"`
+				IDs   []string `json:"target_ids"`
+			} `json:"granular_scopes"`
+		} `json:"data"`
+	}
+	app := env("FACEBOOK_APP_ID") + "|" + env("FACEBOOK_APP_SECRET")
+	if getJSON(ctx, base+"debug_token?"+url.Values{"input_token": {tok}, "access_token": {app}}.Encode(), &dbg) == nil {
+		for _, g := range dbg.Data.Granular {
+			if strings.HasPrefix(g.Scope, "instagram_") && len(g.IDs) > 0 {
+				return g.IDs[0], nil
+			}
+		}
+	}
+	var acc struct {
+		Data []struct {
+			IG struct {
+				ID string `json:"id"`
+			} `json:"instagram_business_account"`
+		} `json:"data"`
+	}
+	if err := getJSON(ctx, base+"me/accounts?"+url.Values{"fields": {"instagram_business_account"}, "access_token": {tok}}.Encode(), &acc); err == nil {
+		for _, p := range acc.Data {
+			if p.IG.ID != "" {
+				return p.IG.ID, nil
+			}
+		}
+	}
+	return "", userErr("No Instagram professional account found. Make your Instagram a Business or Creator account, link it to your Facebook Page, then reconnect.")
+}
+
 func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
-	base := "https://graph.instagram.com/v21.0/"
+	base := "https://graph.facebook.com/v21.0/"
+	id, err := igAccount(ctx, tok)
+	if err != nil {
+		return nil, err
+	}
 	var me struct {
 		Username  string  `json:"username"`
 		Followers float64 `json:"followers_count"`
 		Follows   float64 `json:"follows_count"`
+		Bio       string  `json:"biography"`
 	}
-	if err := getJSON(ctx, base+"me?"+url.Values{"fields": {"username,followers_count,follows_count"}, "access_token": {tok}}.Encode(), &me); err != nil {
+	if err := getJSON(ctx, base+id+"?"+url.Values{"fields": {"username,followers_count,follows_count,biography"}, "access_token": {tok}}.Encode(), &me); err != nil {
 		return nil, err
 	}
-	snap := &socialSnap{Platform: "instagram", Handle: me.Username, Followers: me.Followers, Following: me.Follows}
-	var bio struct {
-		Biography string `json:"biography"`
-	}
-	if getJSON(ctx, base+"me?"+url.Values{"fields": {"biography"}, "access_token": {tok}}.Encode(), &bio) == nil {
-		snap.Bio = bio.Biography
-	}
+	snap := &socialSnap{Platform: "instagram", Handle: me.Username, Bio: me.Bio, Followers: me.Followers, Following: me.Follows}
 	var md struct {
 		Data []struct {
 			ID       string  `json:"id"`
@@ -336,7 +362,7 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 			Thumb    string  `json:"thumbnail_url"`
 		} `json:"data"`
 	}
-	if err := getJSON(ctx, base+"me/media?"+url.Values{"fields": {"id,caption,timestamp,permalink,like_count,comments_count,media_type,media_url,thumbnail_url"}, "limit": {"30"}, "access_token": {tok}}.Encode(), &md); err != nil {
+	if err := getJSON(ctx, base+id+"/media?"+url.Values{"fields": {"id,caption,timestamp,permalink,like_count,comments_count,media_type,media_url,thumbnail_url"}, "limit": {"30"}, "access_token": {tok}}.Encode(), &md); err != nil {
 		return nil, err
 	}
 	posts := make([]socialPost, len(md.Data))
@@ -348,7 +374,7 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 			continue
 		}
 		wg.Add(1)
-		go func(i int, id string) {
+		go func(i int, mid string) {
 			defer wg.Done()
 			for _, met := range []string{"views,reach,saved,shares", "reach,saved,shares", "reach"} {
 				var in struct {
@@ -359,7 +385,7 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 						} `json:"values"`
 					} `json:"data"`
 				}
-				if getJSON(ctx, base+id+"/insights?"+url.Values{"metric": {met}, "access_token": {tok}}.Encode(), &in) != nil {
+				if getJSON(ctx, base+mid+"/insights?"+url.Values{"metric": {met}, "access_token": {tok}}.Encode(), &in) != nil {
 					continue
 				}
 				for _, d := range in.Data {

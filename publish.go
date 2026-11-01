@@ -545,10 +545,10 @@ func (s *server) pubInstagram(ctx context.Context, uid string, sp pubSpec) (stri
 	if err != nil {
 		return "", "", err
 	}
-	base := "https://graph.instagram.com/v21.0/"
-	id := t.UserID
-	if id == "" {
-		id = "me"
+	base := "https://graph.facebook.com/v21.0/"
+	id, err := igAccount(ctx, t.Access)
+	if err != nil {
+		return "", "", err
 	}
 	form := url.Values{"access_token": {t.Access}, "caption": {cut(sp.Caption, 2200)}}
 	if sp.Type == "image" {
@@ -562,7 +562,7 @@ func (s *server) pubInstagram(ctx context.Context, uid string, sp pubSpec) (stri
 		ID string `json:"id"`
 	}
 	if err := postForm(ctx, base+id+"/media", form, &c); err != nil {
-		return "", "", fmt.Errorf("Instagram refused the media (is instagram_business_content_publish enabled and did you reconnect Instagram?): %s", trunc(err.Error(), 200))
+		return "", "", fmt.Errorf("Instagram refused the media (is instagram_content_publish in your configuration, and did you reconnect Instagram?): %s", trunc(err.Error(), 200))
 	}
 	if c.ID == "" {
 		return "", "", fmt.Errorf("Instagram returned no media container")
