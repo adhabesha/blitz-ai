@@ -52,6 +52,7 @@ var adminItems = []cfgItem{
 	{"GOOGLE_CLIENT_ID", "Google OAuth client ID", "Google & YouTube", "Google Cloud > Credentials > OAuth client (Web application).", "google", false},
 	{"GOOGLE_CLIENT_SECRET", "Google OAuth client secret", "Google & YouTube", "Shown once when you create the OAuth client.", "", true},
 	{"INSTAGRAM_CONFIG_ID", "Instagram login configuration ID", "Instagram", "Meta app > Instagram > API setup with Unified login > Configuration ID. Instagram also uses the Facebook app ID and secret below.", "instagram", false},
+	{"INSTAGRAM_USER_ID", "Instagram account ID (only if sign-in cannot find it)", "Instagram", "Meta Business settings > Accounts > Instagram accounts > click your account > ID.", "", false},
 	{"FACEBOOK_APP_ID", "Facebook app ID", "Facebook", "Meta app > Settings > Basic.", "facebook", false},
 	{"FACEBOOK_APP_SECRET", "Facebook app secret", "Facebook", "Meta app > Settings > Basic.", "", true},
 	{"FACEBOOK_CONFIG_ID", "Facebook login configuration ID (optional)", "Facebook", "Meta app > Facebook Login for Business > Configurations. Leave empty to use classic permissions.", "", false},

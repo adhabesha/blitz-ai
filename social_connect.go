@@ -316,6 +316,9 @@ func (s *server) socialCallback(id string) http.HandlerFunc {
 
 // igAccount finds the Instagram professional account behind a Facebook Login for Business token.
 func igAccount(ctx context.Context, tok string) (string, error) {
+	if id := strings.TrimSpace(env("INSTAGRAM_USER_ID")); id != "" {
+		return id, nil
+	}
 	base := "https://graph.facebook.com/v21.0/"
 	var dbg struct {
 		Data struct {
@@ -326,8 +329,11 @@ func igAccount(ctx context.Context, tok string) (string, error) {
 		} `json:"data"`
 	}
 	app := env("FACEBOOK_APP_ID") + "|" + env("FACEBOOK_APP_SECRET")
-	if getJSON(ctx, base+"debug_token?"+url.Values{"input_token": {tok}, "access_token": {app}}.Encode(), &dbg) == nil {
+	var seen []string
+	derr := getJSON(ctx, base+"debug_token?"+url.Values{"input_token": {tok}, "access_token": {app}}.Encode(), &dbg)
+	if derr == nil {
 		for _, g := range dbg.Data.Granular {
+			seen = append(seen, fmt.Sprintf("%s:%d", g.Scope, len(g.IDs)))
 			if strings.HasPrefix(g.Scope, "instagram_") && len(g.IDs) > 0 {
 				return g.IDs[0], nil
 			}
@@ -347,7 +353,11 @@ func igAccount(ctx context.Context, tok string) (string, error) {
 			}
 		}
 	}
-	return "", userErr("No Instagram professional account found. Make your Instagram a Business or Creator account, link it to your Facebook Page, then reconnect.")
+	detail := "Meta granted scopes: " + strings.Join(seen, ", ")
+	if derr != nil {
+		detail = "token check failed: " + trunc(derr.Error(), 120)
+	}
+	return "", userErr("Could not find the Instagram account id (" + detail + "). Set INSTAGRAM_USER_ID in the admin console (Business settings > Instagram accounts > aceaddiss > ID), then try again.")
 }
 
 func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
