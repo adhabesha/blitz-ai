@@ -44,6 +44,9 @@ func provOf(id string) *provCfg {
 }
 
 func (p *provCfg) configured() bool {
+	if p.ID == "facebook" && env("FACEBOOK_CONFIG_ID") == "" {
+		return false
+	}
 	if p.ID == "instagram" && env("INSTAGRAM_CONFIG_ID") == "" {
 		return false
 	}
@@ -133,6 +136,20 @@ func exchangeCode(ctx context.Context, p *provCfg, code string) (*provToken, err
 			t.Exp = now + 5184000
 			if l.ExpiresIn > 0 {
 				t.Exp = now + l.ExpiresIn
+			}
+		}
+		// System-user tokens never expire; ask Meta for the real expiry.
+		var dbg struct {
+			Data struct {
+				ExpiresAt int64 `json:"expires_at"`
+				IsValid   bool  `json:"is_valid"`
+			} `json:"data"`
+		}
+		if getJSON(ctx, "https://graph.facebook.com/v21.0/debug_token?"+url.Values{"input_token": {t.Access}, "access_token": {cid + "|" + sec}}.Encode(), &dbg) == nil && dbg.Data.IsValid {
+			if dbg.Data.ExpiresAt == 0 {
+				t.Exp = now + 10*365*86400
+			} else {
+				t.Exp = dbg.Data.ExpiresAt
 			}
 		}
 		return t, nil

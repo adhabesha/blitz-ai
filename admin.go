@@ -222,7 +222,14 @@ func (s *server) adminTest(w http.ResponseWriter, r *http.Request) {
 	case "instagram", "facebook", "tiktok":
 		p := provOf(in.Target)
 		ok = p != nil && p.configured()
-		msg = ifs(ok, "Keys are present. Test by connecting an account in the dashboard.", "Missing app keys or BASE_URL.")
+		used := ""
+		switch in.Target {
+		case "instagram":
+			used = env("INSTAGRAM_CONFIG_ID")
+		case "facebook":
+			used = env("FACEBOOK_CONFIG_ID")
+		}
+		msg = ifs(ok, "Keys are present. Configuration ID in use: "+ifs(used == "", "(none)", used)+". Test by connecting an account in the dashboard.", "Missing app keys, configuration ID or BASE_URL.")
 	default:
 		http.Error(w, "unknown test", 400)
 		return
