@@ -230,6 +230,6 @@ onAuthStateChanged(auth,async u=>{
   try{const me=await api("GET","/api/me");if(me.admin)$("admin-link").hidden=false}catch(e){}
   const sc=qp.get("social"),sp=qp.get("p");
   if(sc==="ok"&&sp){setKind("socialc");history.replaceState(null,"","/dashboard");const pv=PROV.find(x=>x[0]===sp);analyzeSocial(sp,pv?pv[1]:sp)}
-  else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");$("msg").textContent="Connection failed. Check the keys and redirect URL in SETUP-SOCIAL.md, then try again."}
+  else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");{const why=qp.get("why");$("msg").textContent="Connection failed"+(why?": "+why:".")+" (setup help: SETUP-SOCIAL.md)"}}
 });
 $("out").onclick=()=>signOut(auth);

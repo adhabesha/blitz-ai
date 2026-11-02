@@ -43,11 +43,20 @@ func provOf(id string) *provCfg {
 	return nil
 }
 
+// fbConfigID: Facebook uses its own configuration if set, otherwise the Instagram one
+// (a single Meta configuration that includes Pages + Instagram works for both).
+func fbConfigID() string {
+	if v := env("FACEBOOK_CONFIG_ID"); v != "" {
+		return v
+	}
+	return env("INSTAGRAM_CONFIG_ID")
+}
+
 func (p *provCfg) configured() bool {
-	if p.ID == "facebook" && env("FACEBOOK_CONFIG_ID") == "" {
+	if p.ID == "instagram" && env("INSTAGRAM_CONFIG_ID") == "" {
 		return false
 	}
-	if p.ID == "instagram" && env("INSTAGRAM_CONFIG_ID") == "" {
+	if p.ID == "facebook" && fbConfigID() == "" {
 		return false
 	}
 	return env(p.IDEnv) != "" && env(p.SecretEnv) != "" && env("BASE_URL") != ""
@@ -63,7 +72,7 @@ func authURL(p *provCfg, state string) string {
 	case "instagram", "facebook":
 		cfg := env("INSTAGRAM_CONFIG_ID")
 		if p.ID == "facebook" {
-			cfg = env("FACEBOOK_CONFIG_ID")
+			cfg = fbConfigID()
 		}
 		q := url.Values{"client_id": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "state": {state}}
 		if cfg != "" {
@@ -288,24 +297,49 @@ func (s *server) socialDisconnect(w http.ResponseWriter, r *http.Request) {
 func (s *server) socialCallback(id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := provOf(id)
-		v, ok := s.checkState(r.URL.Query().Get("state"))
+		fail := func(why string) {
+			log.Println("social connect failed:", id, why)
+			http.Redirect(w, r, "/dashboard?social=error&p="+url.QueryEscape(id)+"&why="+url.QueryEscape(trunc(why, 240)), http.StatusFound)
+		}
+		q := r.URL.Query()
+		if e := q.Get("error"); e != "" {
+			d := q.Get("error_description")
+			if d == "" {
+				d = q.Get("error_reason")
+			}
+			fail("the platform refused the login (" + e + "): " + d)
+			return
+		}
+		v, ok := s.checkState(q.Get("state"))
 		parts := strings.SplitN(v, "~", 2)
-		code := strings.TrimSuffix(r.URL.Query().Get("code"), "#_")
-		if p == nil || !ok || len(parts) != 2 || parts[1] != id || code == "" {
-			http.Redirect(w, r, "/dashboard?social=error&p="+id, http.StatusFound)
+		code := strings.TrimSuffix(q.Get("code"), "#_")
+		if p == nil {
+			fail("unknown platform")
+			return
+		}
+		if !ok || len(parts) != 2 || parts[1] != id {
+			fail("the sign-in link expired or was altered (it lasts 15 minutes). Click Connect again")
+			return
+		}
+		if code == "" {
+			fail("the platform did not return a login code")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 		t, err := exchangeCode(ctx, p, code)
 		if err != nil {
-			log.Println("social exchange:", id, err)
-			http.Redirect(w, r, "/dashboard?social=error&p="+id, http.StatusFound)
+			// Only show the platform's own answer; network errors can contain request URLs with secrets.
+			why := "could not reach " + p.Name + " to finish the login"
+			if m := err.Error(); strings.HasPrefix(m, "status ") || strings.HasPrefix(m, "no token") {
+				why = "token exchange failed: " + m
+			}
+			fail(why)
 			return
 		}
 		if err := s.saveTok(ctx, parts[0], id, t); err != nil {
 			log.Println("social save:", err)
-			http.Redirect(w, r, "/dashboard?social=error&p="+id, http.StatusFound)
+			fail("login worked but saving the connection failed")
 			return
 		}
 		http.Redirect(w, r, "/dashboard?social=ok&p="+id, http.StatusFound)

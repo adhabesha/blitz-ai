@@ -33,3 +33,12 @@ Reading and posting use different permissions. Do this once per platform, then i
 - **Facebook:** Meta app > add the permission `pages_manage_posts` (with `pages_show_list`, `pages_read_engagement`). Your Facebook login must be an admin of the Page, and added to the app as an admin/tester.
 - **TikTok:** developers.tiktok.com > your app > add the product **Content Posting API** and enable Direct Post, scope `video.publish` (and `video.upload`). In Sandbox keep your TikTok account as a target user. Posts from unaudited apps stay private.
 - **YouTube:** nothing extra. Uploads from a new Google project may stay private until Google audits it.
+
+## When a connection fails
+The dashboard now shows the platform's own reason after "Connection failed". Common ones:
+- `redirect_uri` / "URL blocked" (Meta): add the exact /auth/instagram/callback and /auth/facebook/callback URLs under Facebook Login for Business > Settings > Valid OAuth Redirect URIs.
+- `scope` / `scope_not_authorized` (TikTok): a scope is requested that the TikTok app doesn't have. Keep "Request posting permissions" at 0 until Content Posting API is added and approved.
+- `redirect_uri` (TikTok): the exact /auth/tiktok/callback URL must be registered under Login Kit.
+- Meta/TikTok in development mode: your account must be added as a tester / sandbox target user.
+- A field in the admin console showing source "admin" overrides the Render value of the same name.
+- Facebook now reuses the Instagram configuration ID if no separate Facebook one is set.
