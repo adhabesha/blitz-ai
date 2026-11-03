@@ -555,27 +555,46 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 	}
 	pick := 0
 	if want := fbNorm(env("FACEBOOK_PAGE")); want != "" {
-		found := -1
-		for i, p := range acc.Data {
-			if fbNorm(p.User) == want || fbNorm(p.Name) == want {
-				found = i
-				break
-			}
-		}
-		if found < 0 {
+		find := func() int {
 			for i, p := range acc.Data {
-				if strings.Contains(fbNorm(p.Name), want) || (fbNorm(p.User) != "" && strings.Contains(fbNorm(p.User), want)) {
-					found = i
-					break
+				if fbNorm(p.User) == want || fbNorm(p.Name) == want {
+					return i
 				}
 			}
+			for i, p := range acc.Data {
+				if strings.Contains(fbNorm(p.Name), want) || (fbNorm(p.User) != "" && strings.Contains(fbNorm(p.User), want)) {
+					return i
+				}
+			}
+			return -1
+		}
+		found := find()
+		var seen []string
+		if found < 0 {
+			// Pages shared per-Page, or owned through a business, can be missing from me/accounts.
+			ids, sc, _ := fbPageIDs(ctx, tok)
+			seen = sc
+			have := map[string]bool{}
+			for _, p := range acc.Data {
+				have[p.ID] = true
+			}
+			for _, id := range ids {
+				if have[id] {
+					continue
+				}
+				var one fbPage
+				if getJSON(ctx, base+id+"?"+url.Values{"fields": {pf}, "access_token": {tok}}.Encode(), &one) == nil && one.ID != "" && one.Token != "" {
+					acc.Data = append(acc.Data, one)
+				}
+			}
+			found = find()
 		}
 		if found < 0 {
 			var names []string
 			for _, p := range acc.Data {
 				names = append(names, p.Name)
 			}
-			return nil, userErr("The Page \"" + env("FACEBOOK_PAGE") + "\" was not found among the Pages Meta shared: " + strings.Join(names, ", ") + ". Put the exact Page name in the admin console (Facebook Page setting), or remove Blitz AI in your Facebook Business integrations and connect again so you can tick the Page.")
+			return nil, userErr("The Page \"" + env("FACEBOOK_PAGE") + "\" was not found among the Pages Meta shared: " + strings.Join(names, ", ") + " (Meta granted: " + strings.Join(seen, ", ") + "). A Page owned through a business needs the business_management permission in the Meta configuration; add it, remove Blitz AI in your Facebook Business integrations and connect again.")
 		}
 		pick = found
 	}
