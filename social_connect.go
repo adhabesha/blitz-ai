@@ -307,6 +307,9 @@ func (s *server) socialCallback(id string) http.HandlerFunc {
 			if d == "" {
 				d = q.Get("error_reason")
 			}
+			if lid := q.Get("log_id"); lid != "" {
+				d += " [log_id " + lid + "]"
+			}
 			fail("the platform refused the login (" + e + "): " + d)
 			return
 		}
@@ -474,6 +477,19 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 	return snap, nil
 }
 
+// fbNorm lowercases and keeps only a-z and 0-9, so "SIKET Training center" matches "siket training center".
+func fbNorm(x string) string {
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		if r >= 'A' && r <= 'Z' {
+			return r + 32
+		}
+		return -1
+	}, x)
+}
+
 type fbPage struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
@@ -538,13 +554,30 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 		}
 	}
 	pick := 0
-	if want := strings.ToLower(strings.TrimSpace(env("FACEBOOK_PAGE"))); want != "" {
+	if want := fbNorm(env("FACEBOOK_PAGE")); want != "" {
+		found := -1
 		for i, p := range acc.Data {
-			if strings.ToLower(p.User) == want || strings.ToLower(p.Name) == want {
-				pick = i
+			if fbNorm(p.User) == want || fbNorm(p.Name) == want {
+				found = i
 				break
 			}
 		}
+		if found < 0 {
+			for i, p := range acc.Data {
+				if strings.Contains(fbNorm(p.Name), want) || (fbNorm(p.User) != "" && strings.Contains(fbNorm(p.User), want)) {
+					found = i
+					break
+				}
+			}
+		}
+		if found < 0 {
+			var names []string
+			for _, p := range acc.Data {
+				names = append(names, p.Name)
+			}
+			return nil, userErr("The Page \"" + env("FACEBOOK_PAGE") + "\" was not found among the Pages Meta shared: " + strings.Join(names, ", ") + ". Put the exact Page name in the admin console (Facebook Page setting), or remove Blitz AI in your Facebook Business integrations and connect again so you can tick the Page.")
+		}
+		pick = found
 	}
 	pg := acc.Data[pick]
 	f := pg.Followers
