@@ -474,23 +474,68 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 	return snap, nil
 }
 
+type fbPage struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Token     string  `json:"access_token"`
+	User      string  `json:"username"`
+	Followers float64 `json:"followers_count"`
+	Fans      float64 `json:"fan_count"`
+}
+
+// fbPageIDs lists the Page ids the person ticked on Meta's login screen (per-Page permissions).
+func fbPageIDs(ctx context.Context, tok string) (ids []string, seen []string, err error) {
+	var dbg struct {
+		Data struct {
+			Granular []struct {
+				Scope string   `json:"scope"`
+				IDs   []string `json:"target_ids"`
+			} `json:"granular_scopes"`
+		} `json:"data"`
+	}
+	app := env("FACEBOOK_APP_ID") + "|" + env("FACEBOOK_APP_SECRET")
+	if err = getJSON(ctx, "https://graph.facebook.com/v21.0/debug_token?"+url.Values{"input_token": {tok}, "access_token": {app}}.Encode(), &dbg); err != nil {
+		return nil, nil, err
+	}
+	have := map[string]bool{}
+	for _, g := range dbg.Data.Granular {
+		seen = append(seen, fmt.Sprintf("%s:%d", g.Scope, len(g.IDs)))
+		if strings.HasPrefix(g.Scope, "pages_") {
+			for _, id := range g.IDs {
+				if !have[id] {
+					have[id] = true
+					ids = append(ids, id)
+				}
+			}
+		}
+	}
+	return ids, seen, nil
+}
+
 func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 	base := "https://graph.facebook.com/v21.0/"
 	var acc struct {
-		Data []struct {
-			ID        string  `json:"id"`
-			Name      string  `json:"name"`
-			Token     string  `json:"access_token"`
-			User      string  `json:"username"`
-			Followers float64 `json:"followers_count"`
-			Fans      float64 `json:"fan_count"`
-		} `json:"data"`
+		Data []fbPage `json:"data"`
 	}
-	if err := getJSON(ctx, base+"me/accounts?"+url.Values{"fields": {"id,name,username,access_token,followers_count,fan_count"}, "access_token": {tok}}.Encode(), &acc); err != nil {
+	pf := "id,name,username,access_token,followers_count,fan_count"
+	if err := getJSON(ctx, base+"me/accounts?"+url.Values{"fields": {pf}, "access_token": {tok}}.Encode(), &acc); err != nil {
 		return nil, err
 	}
 	if len(acc.Data) == 0 {
-		return nil, userErr("No Facebook Page found. You must manage a Facebook Page to connect it.")
+		ids, seen, derr := fbPageIDs(ctx, tok)
+		for _, id := range ids {
+			var one fbPage
+			if getJSON(ctx, base+id+"?"+url.Values{"fields": {pf}, "access_token": {tok}}.Encode(), &one) == nil && one.ID != "" && one.Token != "" {
+				acc.Data = append(acc.Data, one)
+			}
+		}
+		if len(acc.Data) == 0 {
+			detail := "Meta granted: " + strings.Join(seen, ", ")
+			if derr != nil {
+				detail = "token check failed: " + trunc(derr.Error(), 120)
+			}
+			return nil, userErr("No Facebook Page found (" + detail + "). Click Disconnect, then Connect again and tick your Page on Meta's screen. Your Facebook account must have full control of the Page.")
+		}
 	}
 	pick := 0
 	if want := strings.ToLower(strings.TrimSpace(env("FACEBOOK_PAGE"))); want != "" {
