@@ -83,7 +83,11 @@ func authURL(p *provCfg, state string) string {
 		}
 		return "https://www.facebook.com/v21.0/dialog/oauth?" + q.Encode()
 	}
-	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {"user.info.basic,user.info.profile,user.info.stats,video.list" + ifs(env("PUBLISH_SCOPES") == "1", ",video.publish,video.upload", "")}, "state": {state}}
+	tsc := strings.TrimSpace(env("TIKTOK_SCOPES"))
+	if tsc == "" {
+		tsc = "user.info.basic,user.info.profile,user.info.stats,video.list" + ifs(env("PUBLISH_SCOPES") == "1", ",video.publish,video.upload", "")
+	}
+	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {tsc}, "state": {state}}
 	return "https://www.tiktok.com/v2/auth/authorize/?" + q.Encode()
 }
 

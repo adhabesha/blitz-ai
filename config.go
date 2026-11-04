@@ -57,6 +57,7 @@ var adminItems = []cfgItem{
 	{"FACEBOOK_APP_SECRET", "Facebook app secret", "Facebook", "Meta app > Settings > Basic.", "", true},
 	{"FACEBOOK_CONFIG_ID", "Facebook login configuration ID (optional)", "Facebook", "Meta app > Facebook Login for Business > Configurations. Leave empty to use classic permissions.", "", false},
 	{"FACEBOOK_PAGE", "Facebook Page username to post to", "Facebook", "For example sikettc. Leave empty to use the first Page you manage.", "", false},
+	{"TIKTOK_SCOPES", "TikTok scopes (optional)", "TikTok", "Comma-separated. Leave empty for the default. For testing, try only user.info.basic.", "", false},
 	{"TIKTOK_CLIENT_KEY", "TikTok client key", "TikTok", "developers.tiktok.com > your app.", "tiktok", false},
 	{"TIKTOK_CLIENT_SECRET", "TikTok client secret", "TikTok", "developers.tiktok.com > your app.", "", true},
 }
