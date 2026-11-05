@@ -85,7 +85,7 @@ func authURL(p *provCfg, state string) string {
 	}
 	tsc := strings.TrimSpace(env("TIKTOK_SCOPES"))
 	if tsc == "" {
-		tsc = "user.info.basic,user.info.profile,user.info.stats,video.list" + ifs(env("PUBLISH_SCOPES") == "1", ",video.publish,video.upload", "")
+		tsc = "user.info.basic,user.info.profile,user.info.stats" + ifs(env("TIKTOK_PUBLISH") != "0", ",video.publish,video.upload", "")
 	}
 	q := url.Values{"client_key": {cid}, "redirect_uri": {ru}, "response_type": {"code"}, "scope": {tsc}, "state": {state}}
 	return "https://www.tiktok.com/v2/auth/authorize/?" + q.Encode()
@@ -684,7 +684,7 @@ func fetchTikTok(ctx context.Context, tok string) (*socialSnap, error) {
 		} `json:"data"`
 	}
 	if err := gcall(ctx, tok, "POST", "https://open.tiktokapis.com/v2/video/list/?fields=id,title,create_time,view_count,like_count,comment_count,share_count,share_url,cover_image_url", map[string]any{"max_count": 20}, &vd); err != nil {
-		return nil, err
+		log.Println("tiktok video list unavailable:", err)
 	}
 	for _, v := range vd.Data.Videos {
 		snap.Posts = append(snap.Posts, socialPost{ID: v.ID, Text: v.Title, URL: v.Link, Thumb: v.Cover, When: time.Unix(int64(v.Created), 0), Likes: v.Likes, Comments: v.Comments, Shares: v.Shares, Views: v.Views})

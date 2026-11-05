@@ -26,6 +26,9 @@ type pubSpec struct {
 	Platforms                                []string
 	Schedule                                 *time.Time
 	Size                                     int64
+	Dur                                      float64
+	Notes                                    map[string]string
+	FBReel                                   bool
 }
 
 type pubStatus struct {
@@ -194,13 +197,44 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 		fail("Choose at least one platform that supports this post type.")
 		return
 	}
+	var info *vidInfo
+	var iw, ih int
+	if typ == "image" {
+		iw, ih = imageSize(path)
+	} else {
+		info, _ = probeMP4(path)
+		if info != nil {
+			sp.Dur = info.Dur
+			sp.FBReel = info.W <= info.H && info.Dur >= 3 && info.Dur <= 90
+		}
+	}
+	verd := preflight(sp, info, iw, ih)
+	sp.Notes = map[string]string{}
 	job := &pubJob{UID: uid, Created: time.Now()}
+	runnable := 0
+	var reasons []string
 	for _, p := range sp.Platforms {
 		it := &pubStatus{Platform: p, State: "queued"}
-		if sp.Schedule != nil && (p == "instagram" || p == "tiktok") {
+		v := verd[p]
+		sp.Notes[p] = v.Note
+		if v.Block != "" {
+			it.State, it.Message = "failed", "Not posted: "+v.Block
+			reasons = append(reasons, p+": "+v.Block)
+		} else if sp.Schedule != nil && (p == "instagram" || p == "tiktok") {
 			it.State, it.Message = "skipped", "Instagram and TikTok can't be scheduled through their APIs. Use Post now."
+		} else {
+			runnable++
 		}
 		job.Items = append(job.Items, it)
+	}
+	if runnable == 0 {
+		os.Remove(path)
+		msg := "Nothing could be posted: " + strings.Join(reasons, " | ")
+		if len(reasons) == 0 {
+			msg = "Nothing to post. Instagram and TikTok can't be scheduled."
+		}
+		http.Error(w, msg, 400)
+		return
 	}
 	id := randHex(8)
 	jobs.Lock()
@@ -263,7 +297,7 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 		job.mu.Lock()
 		skip := false
 		for _, it := range job.Items {
-			if it.Platform == p && it.State == "skipped" {
+			if it.Platform == p && (it.State == "skipped" || it.State == "failed") {
 				skip = true
 			}
 		}
@@ -297,6 +331,9 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 				log.Println("publish", p, err)
 				job.set(p, "failed", trunc(err.Error(), 400), "")
 				return
+			}
+			if n := sp.Notes[p]; n != "" {
+				note += " " + n
 			}
 			job.set(p, "done", note, link)
 		}()
@@ -475,7 +512,7 @@ func (s *server) pubFacebook(ctx context.Context, uid string, sp pubSpec) (strin
 		}
 		return "https://www.facebook.com/" + id, note, nil
 	}
-	if sp.Type == "short" && sp.Schedule == nil {
+	if sp.Type == "short" && sp.Schedule == nil && sp.FBReel {
 		link, rerr := s.fbReel(ctx, pid, ptok, caption, sp)
 		if rerr == nil {
 			return link, note + " as a Reel", nil
@@ -615,11 +652,18 @@ func (s *server) pubTikTok(ctx context.Context, uid string, sp pubSpec) (string,
 	}
 	var ci struct {
 		Data struct {
-			Opts []string `json:"privacy_level_options"`
+			Opts   []string `json:"privacy_level_options"`
+			MaxDur float64  `json:"max_video_post_duration_sec"`
 		} `json:"data"`
 	}
 	if err := gcall(ctx, t.Access, "POST", "https://open.tiktokapis.com/v2/post/publish/creator_info/query/", map[string]any{}, &ci); err != nil {
+		if strings.Contains(err.Error(), "scope_not_authorized") {
+			return "", "", fmt.Errorf("TikTok is connected without posting permission. In Connected social click Disconnect on TikTok, then Connect again and approve video posting")
+		}
 		return "", "", fmt.Errorf("TikTok refused the request (is Content Posting API with video.publish enabled, and did you reconnect TikTok?): %s", trunc(err.Error(), 160))
+	}
+	if ci.Data.MaxDur > 0 && sp.Dur > ci.Data.MaxDur {
+		return "", "", fmt.Errorf("This video is %.0f s but your TikTok account allows at most %.0f s", sp.Dur, ci.Data.MaxDur)
 	}
 	priv := "SELF_ONLY"
 	if has(ci.Data.Opts, "PUBLIC_TO_EVERYONE") {

@@ -63,7 +63,6 @@ func main() {
 			"APIKey":     env("FIREBASE_WEB_API_KEY"),
 			"AuthDomain": env("FIREBASE_AUTH_DOMAIN"),
 			"ProjectID":  env("FIREBASE_PROJECT_ID"),
-			"ContactEmail": env("CONTACT_EMAIL"),
 		},
 	}
 
@@ -82,8 +81,6 @@ func main() {
 	mux.HandleFunc("/dashboard", s.page("dashboard.html"))
 	mux.HandleFunc("/app", s.page("auth.html"))
 	mux.HandleFunc("/admin", s.page("admin.html"))
-	mux.HandleFunc("/privacy", s.page("privacy.html"))
-	mux.HandleFunc("/terms", s.page("terms.html"))
 	mux.HandleFunc("/api/me", s.me)
 	mux.HandleFunc("/api/profile", s.saveProfile)
 	mux.HandleFunc("/api/admin/config", s.adminConfig)

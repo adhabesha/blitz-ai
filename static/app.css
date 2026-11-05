@@ -174,3 +174,4 @@ html[data-theme=dark] .rp-side{color:var(--ink)}
 .pub-prev{margin:10px 0}.pub-prev img,.pub-prev video{max-width:260px;max-height:300px;border-radius:16px;display:block;background:var(--field)}
 .pubbar{height:8px;border-radius:99px;background:var(--field);overflow:hidden;margin:14px 0}.pubbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
 .pub-row{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-top:8px}.pub-row p{margin:4px 0}
+.pub-note{flex-basis:100%;margin:2px 0 0;font-size:12px}

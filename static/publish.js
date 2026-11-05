@@ -7,18 +7,35 @@ const TYPES={
 };
 const PN={youtube:"YouTube",facebook:"Facebook Page",instagram:"Instagram",tiktok:"TikTok"};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let auth,conn={},type="short",plats=new Set(),file=null,ui={};
+let auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null;
+function verdict(p){
+  if(!meta)return{};
+  const{w,h,d}=meta,r=w/h,t=type;
+  if(type==="image"){
+    if(p==="instagram"&&file&&/\.png$/i.test(file.name))return{block:"needs a JPG image"};
+    if(p==="instagram"&&(r<0.8||r>1.91))return{block:"image ratio must be between 4:5 and 1.91:1"};
+    return{};
+  }
+  if(p==="youtube"&&t==="short"){if(d>180)return{block:"Shorts must be 3 min or shorter"};if(w>h)return{block:"Shorts must be vertical or square"};return{note:"Posted as a YouTube Short (#Shorts added)"}}
+  if(p==="instagram"){if(d<3)return{block:"Reels need at least 3 seconds"};if(t==="short"&&w>h)return{block:"Reels must be vertical (9:16)"};if(w>h)return{note:"Posted as a Reel with bars (landscape)"};if(Math.abs(r-9/16)>0.07)return{note:"Not exactly 9:16: may be cropped"};return{note:"Posted as an Instagram Reel"}}
+  if(p==="tiktok"){if(d<3)return{block:"needs at least 3 seconds"};if(d>600)return{block:"must be 10 minutes or shorter"};if(w>h)return{block:"must be vertical (9:16)"};return{note:"Posted to TikTok (private while the app is in sandbox)"}}
+  if(p==="facebook"&&t==="short"){const ok=w<=h&&d>=3&&d<=90;return{note:ok?"Posted as a Facebook Reel":"Posted as a normal Facebook video (Reels need vertical 9:16, 3-90 s)"}}
+  return{};
+}
 
 export function mountPublish(root,a){
   auth=a;root.innerHTML="";
   const w=h("div","wide");root.appendChild(w);
   w.appendChild(h("p","bz-mut","One upload, many platforms. Pick what you are posting, choose the platforms, and Blitz AI sends it to each connected account."));
   ui.seg=h("div","seg3");
-  for(const[k,t]of Object.entries(TYPES)){const b=h("button",null,t.label);b.dataset.t=k;b.onclick=()=>{type=k;file=null;ui.file.value="";ui.prev.innerHTML="";drawType()};ui.seg.appendChild(b)}
+  for(const[k,t]of Object.entries(TYPES)){const b=h("button",null,t.label);b.dataset.t=k;b.onclick=()=>{type=k;file=null;meta=null;ui.file.value="";ui.prev.innerHTML="";drawType()};ui.seg.appendChild(b)}
   ui.hint=h("p","bz-mut");
   ui.file=h("input");ui.file.type="file";
   ui.prev=h("div","pub-prev");
-  ui.file.onchange=()=>{file=ui.file.files[0]||null;ui.prev.innerHTML="";if(file){const u=URL.createObjectURL(file);const el=document.createElement(type==="image"?"img":"video");el.src=u;if(type!=="image"){el.controls=true;el.muted=true}ui.prev.appendChild(el)}};
+  ui.file.onchange=()=>{file=ui.file.files[0]||null;meta=null;ui.prev.innerHTML="";drawPlats();if(file){const u=URL.createObjectURL(file);const el=document.createElement(type==="image"?"img":"video");el.src=u;
+    if(type==="image")el.onload=()=>{meta={w:el.naturalWidth,h:el.naturalHeight,d:0};drawPlats()};
+    else{el.controls=true;el.muted=true;el.onloadedmetadata=()=>{meta={w:el.videoWidth,h:el.videoHeight,d:el.duration};drawPlats()}}
+    ui.prev.appendChild(el)}};
   ui.title=h("input");ui.title.maxLength=100;ui.title.placeholder="Title (YouTube and Facebook)";
   ui.cap=h("textarea");ui.cap.rows=6;ui.cap.maxLength=4000;ui.cap.placeholder="Caption / description. Add hashtags at the end.";
   ui.topic=h("input");ui.topic.placeholder="What is it about? (for AI caption)";
@@ -57,11 +74,12 @@ function drawPlats(){
   ui.plats.innerHTML="";
   for(const p of["youtube","facebook","instagram","tiktok"]){
     const okType=t.plats.includes(p),okSched=!(scheduled&&(p==="instagram"||p==="tiktok")),connected=!!conn[p];
-    const usable=okType&&okSched&&connected;
+    const v=verdict(p),usable=okType&&okSched&&connected&&!v.block;
     if(!usable)plats.delete(p);
-    const b=h("button","chip"+(plats.has(p)?" on":"")+(usable?"":" off"),PN[p]+(!okType?" (not for this type)":!connected?" (connect first)":!okSched?" (can't schedule)":""));
+    const b=h("button","chip"+(plats.has(p)?" on":"")+(usable?"":" off"),PN[p]+(!okType?" (not for this type)":!connected?" (connect first)":!okSched?" (can't schedule)":v.block?" - "+v.block:""));
     b.onclick=()=>{if(!usable)return;if(plats.has(p))plats.delete(p);else plats.add(p);drawPlats()};
     ui.plats.appendChild(b);
+    if(plats.has(p)&&v.note)ui.plats.appendChild(h("p","bz-mut pub-note",PN[p]+": "+v.note));
   }
 }
 async function submit(){

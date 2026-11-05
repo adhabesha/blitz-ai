@@ -227,7 +227,7 @@ func (s *server) adminTest(w http.ResponseWriter, r *http.Request) {
 		case "instagram":
 			used = env("INSTAGRAM_CONFIG_ID")
 		case "facebook":
-			used = fbConfigID()
+			used = env("FACEBOOK_CONFIG_ID")
 		}
 		msg = ifs(ok, "Keys are present. Configuration ID in use: "+ifs(used == "", "(none)", used)+". Test by connecting an account in the dashboard.", "Missing app keys, configuration ID or BASE_URL.")
 	default:
