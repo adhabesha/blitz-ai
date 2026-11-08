@@ -138,6 +138,9 @@ type evalIn struct {
 	Property string `json:"property"`
 	Channel  bool   `json:"channel"`
 	ExactSubs float64 `json:"exactSubs"`
+	Budget    float64 `json:"budget"`
+	Country   string  `json:"country"`
+	Lang      string  `json:"lang"`
 	// app
 	Store     string  `json:"store"`
 	Query     string  `json:"query"`

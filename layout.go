@@ -23,6 +23,21 @@ func route(rules []pageRule, text, def string) string {
 }
 
 var layouts = map[string]kindLayout{
+	"keywords": {
+		Pages:  []PageDef{{"overview", "Overview"}, {"clusters", "Keyword clusters"}, {"fixes", "Plan"}},
+		Tables: []pageRule{{"cluster", "clusters"}, {"ideas", "clusters"}},
+		DefChart: "overview", DefTable: "overview",
+	},
+	"competitors": {
+		Pages:  []PageDef{{"overview", "Overview"}, {"compare", "Side by side"}, {"fixes", "Gaps and plan"}},
+		Tables: []pageRule{{"side-by-side", "compare"}, {"presents", "compare"}},
+		DefChart: "overview", DefTable: "overview",
+	},
+	"ads": {
+		Pages:  []PageDef{{"overview", "Overview"}, {"google", "Google Ads"}, {"meta", "Meta Ads"}, {"fixes", "Launch plan"}},
+		Tables: []pageRule{{"meta", "meta"}, {"audience", "meta"}, {"google", "google"}},
+		DefChart: "overview", DefTable: "overview",
+	},
 	"youtube": {
 		Pages:  []PageDef{{"overview", "Overview"}, {"shortlong", "Short vs Long"}, {"videos", "Videos"}, {"tags", "Viral tags"}, {"time", "Time"}, {"fixes", "Fixes & plan"}},
 		Charts: []pageRule{{"short vs long", "shortlong"}, {"views share", "shortlong"}, {"weekday", "time"}, {"uploads per week", "time"}, {"projected", "time"}},

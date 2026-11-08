@@ -218,6 +218,12 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalYouTube(ctx, in)
 	case "google":
 		rep, err = s.evalGoogle(ctx, uid, in)
+	case "keywords":
+		rep, err = s.evalKeywords(ctx, in)
+	case "competitors":
+		rep, err = s.evalCompetitors(ctx, in)
+	case "ads":
+		rep, err = s.evalAds(ctx, in)
 	case "social_connected":
 		rep, err = s.evalConnectedSocial(ctx, uid, in)
 	default:

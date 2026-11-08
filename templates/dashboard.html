@@ -14,6 +14,8 @@
 <button class="bz-nav" data-kind="socialc" data-icon="share">Connected social</button>
 <button class="bz-nav" data-kind="social" data-icon="users">Other social (manual)</button>
 <button class="bz-nav" data-kind="app" data-icon="phone">App</button>
+<button class="bz-nav" data-kind="seo" data-icon="search">SEO &amp; Ads</button>
+<button class="bz-nav" data-kind="mreport" data-icon="layers">Marketing report</button>
 <button class="bz-nav" data-kind="publish" data-icon="send">Publish to all</button>
 <button class="bz-nav" data-kind="optimizer" data-icon="zap">Optimizer &amp; Publish</button>
 <a class="bz-nav bz-nav-link" id="admin-link" href="/admin" hidden style="margin-top:auto">Admin console</a>
@@ -79,6 +81,23 @@
 </div></div>
 
 <div class="form" id="f-publish" hidden></div>
+
+<div class="form" id="f-seo" hidden>
+<label class="wide">What do you need?<select id="seo-mode"><option value="keywords">Keyword research</option><option value="competitors">Competitor analysis</option><option value="ads">Google + Meta ads planner</option></select></label>
+<label id="l-seed" class="wide">Topic, product or service<input id="seo-seed" maxlength="200" placeholder="e.g. boutique hotel in Addis Ababa"></label>
+<label id="l-own" hidden>Your website<input id="seo-own" placeholder="yourcompany.com"></label>
+<label id="l-comp" class="wide" hidden>Competitor websites (up to 3, one per line)<textarea id="seo-comp" rows="3" placeholder="competitor1.com&#10;competitor2.com"></textarea></label>
+<label id="l-goal" hidden>Campaign goal<select id="seo-goal"><option value="leads">Leads</option><option value="sales">Sales</option><option value="awareness">Awareness</option></select></label>
+<label id="l-budget" hidden>Monthly budget (USD)<input id="seo-budget" type="number" min="0" placeholder="500"></label>
+<label>Country code<input id="seo-country" maxlength="2" placeholder="us, et, ae, qa"></label>
+<label>Language code<input id="seo-lang" maxlength="5" placeholder="en"></label>
+</div>
+
+<div class="form" id="f-mreport" hidden>
+<label>Company / client name<input id="mr-company" placeholder="Company name"></label>
+<label>Prepared by<input id="mr-by" placeholder="Your name"></label>
+<p class="bz-mut wide" style="margin:0">One client-ready report built from your latest evaluations (website, Google, YouTube, social, SEO, ads). Use Print / save PDF to send it.</p>
+</div>
 
 <div class="form" id="f-optimizer" hidden>
 <label>Platform<select id="o-platform"><option value="youtube">YouTube</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="website">Website page (SEO)</option></select></label>

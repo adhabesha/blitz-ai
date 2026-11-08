@@ -1,4 +1,4 @@
-import{h,add,icon,api,copyBox}from"./ui.js";
+import{h,add,icon,api,copyBox,copy}from"./ui.js";
 import{fixFromCheck,fixFromPlan,fixFromText,mount,renderViral}from"./actions.js";
 
 let charts=[];
@@ -47,7 +47,9 @@ function chartCard(parent,c,cls){
     scales:dn?{}:{x:{grid:{display:false},ticks:{color:mut,maxTicksLimit:10,maxRotation:0},border:{display:false}},y:{beginAtZero:true,grid:{color:grid},ticks:{color:mut,callback:v=>compact(v)},border:{display:false}}}}}));
 }
 function tableCard(t,cls){
-  const card=h("div","rp-card "+(cls||""));card.appendChild(h("h3",null,t.title));
+  const card=h("div","rp-card "+(cls||""));
+  const hd0=h("h3");hd0.appendChild(h("span",null,t.title));const cb=h("button","bz-mini","Copy table");
+  cb.onclick=()=>copy([t.columns.join("\t"),...(t.rows||[]).map(r=>r.cells.join("\t"))].join("\n"),cb);hd0.appendChild(cb);card.appendChild(hd0);
   const w=h("div","rp-scroll"),tb=h("table","bz-table"),hd=tb.createTHead().insertRow();
   for(const c of t.columns)hd.appendChild(h("th",null,c));
   const body=tb.createTBody();for(const r of t.rows||[]){const tr=body.insertRow();for(const c of r.cells)tr.insertCell().textContent=c}

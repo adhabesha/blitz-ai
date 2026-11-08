@@ -3,13 +3,14 @@ import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasej
 import{$,h,add,icon,setAuth,api,copyBox}from"./ui.js";
 import{renderReport,destroyCharts}from"./report.js";
 import{mountPublish}from"./publish.js";
+import{renderMarketing}from"./mreport.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
-const STEPS={website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
+const STEPS={seo:["Collecting data…","Comparing and clustering…","Writing recommendations…"],website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
 let kind="website",hist=[],timer,current=null,gA=null,showAll=false;
 const session={};
 let refreshPub=null;
-const tabOf=k=>k==="social_connected"?"socialc":k;
+const tabOf=k=>k==="social_connected"?"socialc":(k==="keywords"||k==="competitors"||k==="ads")?"seo":k;
 
 // theme
 const setTheme=t=>{document.documentElement.dataset.theme=t;try{localStorage.setItem("bz-theme",t)}catch(e){}document.querySelectorAll(".bz-theme button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(current)show(current,false)};
@@ -21,7 +22,7 @@ function setKind(k){
   kind=k;
   document.querySelectorAll(".bz-nav").forEach(x=>x.classList.toggle("on",x.dataset.kind===k));
   document.querySelectorAll("#formbox>.form").forEach(f=>f.hidden=f.id!=="f-"+k);
-  $("runbox").hidden=(k==="optimizer"||k==="publish");
+  $("runbox").hidden=(k==="optimizer"||k==="publish"||k==="mreport");
   $("runrow").hidden=(k==="google"||k==="socialc");
   $("optres").hidden=(k!=="optimizer");
   if(k==="optimizer"&&!$("optres").children.length){
@@ -93,6 +94,12 @@ function collect(){
   const ai=$("ai").checked,m=$("msg");m.textContent="";
   if(kind==="website"){const u=$("w-url").value.trim();if(!u){m.textContent="Enter a website address";return}return{kind,url:u,useAI:ai}}
   if(kind==="youtube"){const u=$("y-url").value.trim();if(!u){m.textContent="Paste a channel link or @handle";return}return{kind,query:u,exactSubs:num("y-subs"),useAI:ai}}
+  if(kind==="seo"){
+    const mode=$("seo-mode").value,o={kind:mode,country:$("seo-country").value.trim(),lang:$("seo-lang").value.trim(),useAI:true};
+    if(mode==="competitors"){const own=$("seo-own").value.trim(),cm=$("seo-comp").value.trim();if(!own||!cm){m.textContent="Enter your website and at least one competitor";return}o.url=own;o.query=cm}
+    else{const q=$("seo-seed").value.trim();if(q.length<3){m.textContent="Describe the topic, product or service";return}o.query=q;o.goal=$("seo-goal").value;o.budget=num("seo-budget");o.url=$("seo-own").value.trim()}
+    return o;
+  }
   if(kind==="social"){
     if(!$("s-handle").value.trim()||!num("s-followers")){m.textContent="Enter the handle and follower count";return}
     return{kind,platform:$("s-platform").value,handle:$("s-handle").value.trim(),followers:num("s-followers"),prevFollowers:num("s-prev"),following:num("s-following"),posts30:num("s-posts"),likes:num("s-likes"),comments:num("s-comments"),shares:num("s-shares"),views:num("s-views"),bio:$("s-bio").value,captions:$("s-captions").value,goal:$("s-goal").value,useAI:ai};
@@ -233,3 +240,11 @@ onAuthStateChanged(auth,async u=>{
   else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");{const why=qp.get("why");$("msg").textContent="Connection failed"+(why?": "+why:".")+" (setup help: SETUP-SOCIAL.md)"}}
 });
 $("out").onclick=()=>signOut(auth);
+
+// ---- SEO & Ads form + marketing report ----
+function seoMode(){const m=$("seo-mode").value;
+  $("l-seed").hidden=(m==="competitors");$("l-own").hidden=(m==="keywords");$("l-comp").hidden=(m!=="competitors");$("l-goal").hidden=(m!=="ads");$("l-budget").hidden=(m!=="ads");}
+$("seo-mode").onchange=seoMode;seoMode();
+function showMReport(){$("runbox").hidden=true;$("result").hidden=false;renderMarketing($("result"),hist,$("mr-company").value,$("mr-by").value)}
+document.querySelectorAll(".bz-nav").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.kind==="mreport")showMReport()}));
+["mr-company","mr-by"].forEach(id=>$(id).addEventListener("input",()=>{if(kind==="mreport")showMReport()}));
