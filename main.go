@@ -95,6 +95,9 @@ func main() {
 	mux.HandleFunc("/api/google/token", s.googleToken)
 	mux.HandleFunc("/api/google/disconnect", s.googleDisconnect)
 	mux.HandleFunc("/api/optimize", s.optimize)
+	mux.HandleFunc("/api/ads/accounts", s.adsAccountsHandler)
+	mux.HandleFunc("/api/ads/launch", s.adsLaunch)
+	mux.HandleFunc("/api/ads/action", s.adsAction)
 	mux.HandleFunc("/api/publish", s.publish)
 	mux.HandleFunc("/api/publish/status", s.publishStatus)
 	mux.HandleFunc("/media/", s.serveMedia)
@@ -218,6 +221,8 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalYouTube(ctx, in)
 	case "google":
 		rep, err = s.evalGoogle(ctx, uid, in)
+	case "adsperf":
+		rep, err = s.evalAdsPerf(ctx, uid, in)
 	case "keywords":
 		rep, err = s.evalKeywords(ctx, in)
 	case "competitors":

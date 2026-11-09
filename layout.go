@@ -23,6 +23,11 @@ func route(rules []pageRule, text, def string) string {
 }
 
 var layouts = map[string]kindLayout{
+	"adsperf": {
+		Pages:  []PageDef{{"overview", "Overview"}, {"campaigns", "Campaigns and ads"}, {"fixes", "Actions"}},
+		Tables: []pageRule{{"campaigns", "campaigns"}, {"ads", "campaigns"}},
+		DefChart: "overview", DefTable: "overview",
+	},
 	"keywords": {
 		Pages:  []PageDef{{"overview", "Overview"}, {"clusters", "Keyword clusters"}, {"fixes", "Plan"}},
 		Tables: []pageRule{{"cluster", "clusters"}, {"ideas", "clusters"}},

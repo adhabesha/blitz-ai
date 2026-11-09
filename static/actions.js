@@ -232,6 +232,12 @@ export function fixFromText(text,r){
 }
 export function fixFromPlan(p,r){
   if(p.auto&&p.auto.startsWith("optimize-video:")){const id=p.auto.split(":")[1];return(c,rr)=>videoFix(c,rr,{videoId:id})}
+  if(p.auto&&p.auto.startsWith("ads:")){const q=p.auto.split(":");return(c)=>{
+    const body=q[1]==="pause"?{type:"pause",id:q[2],account:q[3]}:{type:"budget",id:q[2],value:parseFloat(q[3]),account:q[4]};
+    c.appendChild(h("p","bz-note","This changes your live Meta campaign. Check it in Ads Manager if unsure."));
+    const st=h("p","bz-mut"),b=h("button","bz-btn",q[1]==="pause"?"Pause this ad now":"Set the ad set daily budget to "+q[3]);
+    b.onclick=async()=>{b.disabled=true;st.textContent="Applying…";try{await api("POST","/api/ads/action",body);st.textContent="Done."}catch(e){st.textContent=e.message}b.disabled=false};
+    add(c,b,st)}}
   if(p.auto==="calendar")return calendar;
   if(p.auto==="viral")return viralFix;
   if(p.auto==="draft:meta"||p.auto==="draft:seo-content")return queriesFix;
