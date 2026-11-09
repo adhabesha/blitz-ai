@@ -31,7 +31,7 @@ New Meta apps cannot use the old "Instagram login", so Blitz AI signs in through
 Reading and posting use different permissions. Do this once per platform, then in the admin console set **Request posting permissions** to `1`, and disconnect and reconnect each account in Connected social.
 - **Instagram:** Meta app > Instagram > API setup > add the permission `instagram_business_content_publish`. The account must be Business or Creator, and added as an Instagram Tester.
 - **Facebook:** Meta app > add the permission `pages_manage_posts` (with `pages_show_list`, `pages_read_engagement`). Your Facebook login must be an admin of the Page, and added to the app as an admin/tester.
-- **TikTok:** developers.tiktok.com > your app > add the product **Content Posting API** and enable Direct Post, scope `video.publish` (and `video.upload`). In Sandbox keep your TikTok account as a target user. Posts from unaudited apps stay private.
+- **TikTok:** developers.tiktok.com > your app > add the product **Content Posting API** and enable Direct Post, scope `video.publish` (and `video.upload`). In Sandbox keep your TikTok account as a target user. Posts from unaudited apps stay private, and the TikTok account itself must be set to Private (TikTok app > Settings and privacy > Privacy) until the app passes audit; then set TIKTOK_AUDITED=1.
 - **YouTube:** nothing extra. Uploads from a new Google project may stay private until Google audits it.
 
 ## When a connection fails

@@ -29,6 +29,14 @@ type pubSpec struct {
 	Dur                                      float64
 	Notes                                    map[string]string
 	FBReel                                   bool
+	TT                                       ttOpts
+}
+
+// ttOpts holds the TikTok choices the user makes in the Publish form.
+type ttOpts struct {
+	Privacy                        string
+	Comment, Duet, Stitch          bool
+	Commercial, YourBrand, Branded bool
 }
 
 type pubStatus struct {
@@ -196,6 +204,25 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 	if len(sp.Platforms) == 0 {
 		fail("Choose at least one platform that supports this post type.")
 		return
+	}
+	if has(sp.Platforms, "tiktok") {
+		tt := ttOpts{Privacy: fields["tt_privacy"], Comment: fields["tt_comment"] == "1", Duet: fields["tt_duet"] == "1", Stitch: fields["tt_stitch"] == "1",
+			Commercial: fields["tt_commercial"] == "1", YourBrand: fields["tt_your_brand"] == "1", Branded: fields["tt_branded"] == "1"}
+		switch {
+		case fields["tt_consent"] != "1":
+			fail("TikTok: tick the box to confirm TikTok's Music Usage Confirmation before posting.")
+			return
+		case tt.Privacy == "":
+			fail("TikTok: choose who can view this video.")
+			return
+		case tt.Commercial && !tt.YourBrand && !tt.Branded:
+			fail("TikTok: you turned on commercial content disclosure, so pick Your brand and/or Branded content.")
+			return
+		}
+		if !tt.Commercial {
+			tt.YourBrand, tt.Branded = false, false
+		}
+		sp.TT = tt
 	}
 	var info *vidInfo
 	var iw, ih int
@@ -642,6 +669,55 @@ func (s *server) pubInstagram(ctx context.Context, uid string, sp pubSpec) (stri
 
 // ---------------- TikTok ----------------
 
+type ttCreator struct {
+	Data struct {
+		Avatar     string   `json:"creator_avatar_url"`
+		Username   string   `json:"creator_username"`
+		Nickname   string   `json:"creator_nickname"`
+		Opts       []string `json:"privacy_level_options"`
+		CommentOff bool     `json:"comment_disabled"`
+		DuetOff    bool     `json:"duet_disabled"`
+		StitchOff  bool     `json:"stitch_disabled"`
+		MaxDur     float64  `json:"max_video_post_duration_sec"`
+	} `json:"data"`
+}
+
+func tiktokCreatorInfo(ctx context.Context, access string) (*ttCreator, error) {
+	var ci ttCreator
+	if err := gcall(ctx, access, "POST", "https://open.tiktokapis.com/v2/post/publish/creator_info/query/", map[string]any{}, &ci); err != nil {
+		if strings.Contains(err.Error(), "scope_not_authorized") {
+			return nil, fmt.Errorf("TikTok is connected without posting permission. In Connected social click Disconnect on TikTok, then Connect again and approve video posting")
+		}
+		return nil, fmt.Errorf("TikTok refused the request (is Content Posting API with video.publish enabled, and did you reconnect TikTok?): %s", trunc(err.Error(), 160))
+	}
+	return &ci, nil
+}
+
+// tiktokCreator returns the connected TikTok account's name and posting options for the Publish form.
+func (s *server) tiktokCreator(w http.ResponseWriter, r *http.Request) {
+	uid, err := s.uid(r)
+	if err != nil {
+		http.Error(w, "unauthorized", 401)
+		return
+	}
+	t, err := s.validToken(r.Context(), uid, provOf("tiktok"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	ci, err := tiktokCreatorInfo(r.Context(), t.Access)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"nickname": ci.Data.Nickname, "username": ci.Data.Username, "avatar": ci.Data.Avatar, "options": ci.Data.Opts,
+		"comment_disabled": ci.Data.CommentOff, "duet_disabled": ci.Data.DuetOff, "stitch_disabled": ci.Data.StitchOff,
+		"max_dur": ci.Data.MaxDur, "audited": env("TIKTOK_AUDITED") == "1",
+	})
+}
+
 func (s *server) pubTikTok(ctx context.Context, uid string, sp pubSpec) (string, string, error) {
 	if sp.Type == "image" {
 		return "", "", fmt.Errorf("TikTok image posts aren't supported here")
@@ -650,26 +726,27 @@ func (s *server) pubTikTok(ctx context.Context, uid string, sp pubSpec) (string,
 	if err != nil {
 		return "", "", err
 	}
-	var ci struct {
-		Data struct {
-			Opts   []string `json:"privacy_level_options"`
-			MaxDur float64  `json:"max_video_post_duration_sec"`
-		} `json:"data"`
-	}
-	if err := gcall(ctx, t.Access, "POST", "https://open.tiktokapis.com/v2/post/publish/creator_info/query/", map[string]any{}, &ci); err != nil {
-		if strings.Contains(err.Error(), "scope_not_authorized") {
-			return "", "", fmt.Errorf("TikTok is connected without posting permission. In Connected social click Disconnect on TikTok, then Connect again and approve video posting")
-		}
-		return "", "", fmt.Errorf("TikTok refused the request (is Content Posting API with video.publish enabled, and did you reconnect TikTok?): %s", trunc(err.Error(), 160))
+	ci, err := tiktokCreatorInfo(ctx, t.Access)
+	if err != nil {
+		return "", "", err
 	}
 	if ci.Data.MaxDur > 0 && sp.Dur > ci.Data.MaxDur {
 		return "", "", fmt.Errorf("This video is %.0f s but your TikTok account allows at most %.0f s", sp.Dur, ci.Data.MaxDur)
 	}
-	priv := "SELF_ONLY"
-	if has(ci.Data.Opts, "PUBLIC_TO_EVERYONE") {
-		priv = "PUBLIC_TO_EVERYONE"
-	} else if len(ci.Data.Opts) > 0 && !has(ci.Data.Opts, "SELF_ONLY") {
-		priv = ci.Data.Opts[0]
+	// Unaudited TikTok apps may only post with SELF_ONLY, whatever the user picks.
+	// Public choices are honoured only after TikTok's audit and TIKTOK_AUDITED=1.
+	priv := sp.TT.Privacy
+	if env("TIKTOK_AUDITED") != "1" {
+		priv = "SELF_ONLY"
+	}
+	if priv == "" {
+		priv = "SELF_ONLY"
+	}
+	if len(ci.Data.Opts) > 0 && !has(ci.Data.Opts, priv) {
+		return "", "", fmt.Errorf("TikTok doesn't offer that visibility for your account right now. Pick another option and publish again")
+	}
+	if sp.TT.Branded && priv == "SELF_ONLY" {
+		return "", "", fmt.Errorf("TikTok doesn't allow Branded content to be private. Turn off Branded content, or wait until your TikTok app is approved and choose a public option")
 	}
 	size := sp.Size
 	chunk := int64(10 << 20)
@@ -678,7 +755,9 @@ func (s *server) pubTikTok(ctx context.Context, uid string, sp pubSpec) (string,
 		chunkSize, total = chunk, size/chunk
 	}
 	initBody := map[string]any{
-		"post_info":   map[string]any{"title": cut(sp.Caption, 2200), "privacy_level": priv, "disable_duet": false, "disable_comment": false, "disable_stitch": false},
+		"post_info": map[string]any{"title": cut(sp.Caption, 2200), "privacy_level": priv,
+			"disable_comment": !sp.TT.Comment || ci.Data.CommentOff, "disable_duet": !sp.TT.Duet || ci.Data.DuetOff, "disable_stitch": !sp.TT.Stitch || ci.Data.StitchOff,
+			"brand_content_toggle": sp.TT.Branded, "brand_organic_toggle": sp.TT.YourBrand},
 		"source_info": map[string]any{"source": "FILE_UPLOAD", "video_size": size, "chunk_size": chunkSize, "total_chunk_count": total},
 	}
 	var ir struct {
@@ -691,7 +770,18 @@ func (s *server) pubTikTok(ctx context.Context, uid string, sp pubSpec) (string,
 			Message string `json:"message"`
 		} `json:"error"`
 	}
-	if err := gcall(ctx, t.Access, "POST", "https://open.tiktokapis.com/v2/post/publish/video/init/", initBody, &ir); err != nil {
+	initURL := "https://open.tiktokapis.com/v2/post/publish/video/init/"
+	err = gcall(ctx, t.Access, "POST", initURL, initBody, &ir)
+	if err != nil && strings.Contains(err.Error(), "unaudited_client_can_only_post_to_private_accounts") && priv != "SELF_ONLY" {
+		// Retry as private if TIKTOK_AUDITED was set but the app isn't actually audited yet.
+		priv = "SELF_ONLY"
+		initBody["post_info"].(map[string]any)["privacy_level"] = priv
+		err = gcall(ctx, t.Access, "POST", initURL, initBody, &ir)
+	}
+	if err != nil {
+		if strings.Contains(err.Error(), "unaudited_client_can_only_post_to_private_accounts") {
+			return "", "", fmt.Errorf("TikTok only lets unaudited apps post to a PRIVATE TikTok account. In the TikTok app go to Settings and privacy > Privacy > turn on Private account, then publish again. Once TikTok approves your app's audit you can post publicly")
+		}
 		return "", "", err
 	}
 	if ir.Data.UploadURL == "" {

@@ -7,7 +7,7 @@ const TYPES={
 };
 const PN={youtube:"YouTube",facebook:"Facebook Page",instagram:"Instagram",tiktok:"TikTok"};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null;
+let auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null,tt=null,ttInfo=null;
 function verdict(p){
   if(!meta)return{};
   const{w,h,d}=meta,r=w/h,t=type;
@@ -18,7 +18,7 @@ function verdict(p){
   }
   if(p==="youtube"&&t==="short"){if(d>180)return{block:"Shorts must be 3 min or shorter"};if(w>h)return{block:"Shorts must be vertical or square"};return{note:"Posted as a YouTube Short (#Shorts added)"}}
   if(p==="instagram"){if(d<3)return{block:"Reels need at least 3 seconds"};if(t==="short"&&w>h)return{block:"Reels must be vertical (9:16)"};if(w>h)return{note:"Posted as a Reel with bars (landscape)"};if(Math.abs(r-9/16)>0.07)return{note:"Not exactly 9:16: may be cropped"};return{note:"Posted as an Instagram Reel"}}
-  if(p==="tiktok"){if(d<3)return{block:"needs at least 3 seconds"};if(d>600)return{block:"must be 10 minutes or shorter"};if(w>h)return{block:"must be vertical (9:16)"};return{note:"Posted to TikTok (private while the app is in sandbox)"}}
+  if(p==="tiktok"){if(d<3)return{block:"needs at least 3 seconds"};if(d>600)return{block:"must be 10 minutes or shorter"};if(w>h)return{block:"must be vertical (9:16)"};return{note:"Posted to TikTok (private until TikTok approves Blitz AI)"}}
   if(p==="facebook"&&t==="short"){const ok=w<=h&&d>=3&&d<=90;return{note:ok?"Posted as a Facebook Reel":"Posted as a normal Facebook video (Reels need vertical 9:16, 3-90 s)"}}
   return{};
 }
@@ -46,14 +46,14 @@ export function mountPublish(root,a){
     try{const r=await api("POST","/api/optimize",{platform:type==="image"?"instagram":"youtube",topic:ui.topic.value});const o=r.result||{};
       ui.title.value=(o.titles||[])[0]||ui.title.value;ui.cap.value=((o.description||"")+((o.hashtags||[]).length?"\n\n"+o.hashtags.slice(0,5).join(" "):"")).trim();ui.msg.textContent="Review and edit the text before publishing."}
     catch(e){ui.msg.textContent=e.message}ui.ai.disabled=false};
-  ui.plats=h("div","chips");
+  ui.plats=h("div","chips");ui.tt=h("div","tt-panel");ui.tt.hidden=true;
   ui.when=h("input");ui.when.type="datetime-local";ui.when.onchange=drawPlats;
   ui.priv=h("select");for(const v of["private","unlisted","public"]){const o=h("option",null,v==="private"?"private (safest)":v);o.value=v;ui.priv.appendChild(o)}
   const lab=(t,el)=>{const l=h("label",null,t);l.appendChild(el);return l};
   const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (YouTube and Facebook only, optional)",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
   ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");
-  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),ui.ai,h("h4",null,"Post to"),ui.plats,ui.go,ui.bar,ui.msg,ui.jobs);
+  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),ui.ai,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs);
   drawType();
   return refresh;
 }
@@ -81,14 +81,87 @@ function drawPlats(){
     ui.plats.appendChild(b);
     if(plats.has(p)&&v.note)ui.plats.appendChild(h("p","bz-mut pub-note",PN[p]+": "+v.note));
   }
+  drawTT();
+}
+
+/* ---------- TikTok options (required by TikTok's Content Posting API guidelines) ---------- */
+const PRIV={PUBLIC_TO_EVERYONE:"Everyone",MUTUAL_FOLLOW_FRIENDS:"Friends",FOLLOWER_OF_CREATOR:"Followers",SELF_ONLY:"Only me"};
+const MUSIC_URL="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en",BC_URL="https://www.tiktok.com/legal/page/global/bc-policy/en";
+function drawTT(){
+  const show=plats.has("tiktok");ui.tt.hidden=!show;
+  if(!show||ui.tt.dataset.ready)return;
+  ui.tt.dataset.ready="1";ui.tt.innerHTML="";ui.tt.appendChild(h("p","bz-mut","Loading your TikTok account…"));
+  api("GET","/api/tiktok/creator").then(c=>{ttInfo=c;buildTT(c)}).catch(e=>{
+    ui.tt.dataset.ready="";tt=null;ui.tt.innerHTML="";ui.tt.appendChild(h("p","bz-mut","TikTok: "+e.message))});
+}
+function cb(label,get,set,disabled){
+  const l=h("label","tt-cb"),i=h("input");i.type="checkbox";i.checked=!!get();i.disabled=!!disabled;
+  i.onchange=()=>{set(i.checked);paintTT()};l.appendChild(i);l.appendChild(document.createTextNode(" "+label));return l;
+}
+function buildTT(c){
+  tt={privacy:"",comment:false,duet:false,stitch:false,commercial:false,yourBrand:false,branded:false,consent:false};
+  ui.tt.innerHTML="";
+  const who=h("div","tt-who");
+  if(c.avatar){const im=h("img");im.src=c.avatar;im.alt="";im.referrerPolicy="no-referrer";who.appendChild(im)}
+  const wt=h("span");wt.appendChild(document.createTextNode("Posting to TikTok as "));wt.appendChild(h("b",null,c.nickname||c.username||"your account"));
+  if(c.username)wt.appendChild(document.createTextNode(" (@"+c.username+")"));who.appendChild(wt);
+  const sel=h("select"),ph=h("option",null,"Select who can view this video");ph.value="";sel.appendChild(ph);
+  for(const o of c.options||[]){const op=h("option",null,PRIV[o]||o);op.value=o;sel.appendChild(op)}
+  sel.onchange=()=>{tt.privacy=sel.value;paintTT()};
+  const pl=h("label",null,"Who can view this video");pl.appendChild(sel);
+  ui.ttNote=h("p","bz-mut pub-note");
+  ui.ttInter=h("div","tt-row");
+  ui.ttCom=h("div");ui.ttBrand=h("div");ui.ttConsent=h("div");
+  add(ui.tt,who,pl,ui.ttNote,ui.ttInter,ui.ttCom,ui.ttBrand,ui.ttConsent);
+  paintTT();
+}
+function paintTT(){
+  if(!tt||!ttInfo)return;const c=ttInfo;
+  ui.ttNote.textContent=c.audited?"":"Until TikTok approves Blitz AI, every post is sent as private (Only me), whichever option you choose.";
+  ui.ttInter.innerHTML="";ui.ttInter.appendChild(h("span","bz-mut","Allow users to:"));
+  add(ui.ttInter,
+    cb("Comment"+(c.comment_disabled?" (off in your TikTok settings)":""),()=>tt.comment,v=>tt.comment=v,c.comment_disabled),
+    cb("Duet"+(c.duet_disabled?" (off in your TikTok settings)":""),()=>tt.duet,v=>tt.duet=v,c.duet_disabled),
+    cb("Stitch"+(c.stitch_disabled?" (off in your TikTok settings)":""),()=>tt.stitch,v=>tt.stitch=v,c.stitch_disabled));
+  ui.ttCom.innerHTML="";
+  ui.ttCom.appendChild(cb("Disclose commercial content (this video promotes a brand, product or service)",()=>tt.commercial,v=>{tt.commercial=v;if(!v){tt.yourBrand=false;tt.branded=false}}));
+  ui.ttBrand.innerHTML="";
+  if(tt.commercial){
+    add(ui.ttBrand,cb("Your brand: you promote yourself or your own business",()=>tt.yourBrand,v=>tt.yourBrand=v),
+      cb("Branded content: you promote another brand or a third party",()=>tt.branded,v=>tt.branded=v));
+    let m="Turn on at least one option to continue.";
+    if(tt.yourBrand&&!tt.branded)m="Your video will be labeled “Promotional content”.";
+    if(tt.branded)m="Your video will be labeled “Paid partnership”.";
+    ui.ttBrand.appendChild(h("p","bz-mut pub-note",m));
+    if(tt.branded&&(tt.privacy==="SELF_ONLY"||!c.audited))ui.ttBrand.appendChild(h("p","pub-note tt-warn","Branded content can't be private. Choose a public option once Blitz AI is approved by TikTok."));
+  }
+  ui.ttConsent.innerHTML="";
+  const l=h("label","tt-cb"),i=h("input");i.type="checkbox";i.checked=tt.consent;i.onchange=()=>{tt.consent=i.checked};l.appendChild(i);
+  l.appendChild(document.createTextNode(" By posting, you agree to TikTok's "));
+  const a=h("a",null,"Music Usage Confirmation");a.href=MUSIC_URL;a.target="_blank";a.rel="noopener";l.appendChild(a);
+  if(tt.branded){l.appendChild(document.createTextNode(" and "));const b=h("a",null,"Branded Content Policy");b.href=BC_URL;b.target="_blank";b.rel="noopener";l.appendChild(b)}
+  l.appendChild(document.createTextNode("."));ui.ttConsent.appendChild(l);
+}
+function ttCheck(){
+  if(!tt)return"TikTok options are still loading. Wait a moment and try again.";
+  if(!tt.privacy)return"TikTok: choose who can view this video.";
+  if(tt.commercial&&!tt.yourBrand&&!tt.branded)return"TikTok: pick Your brand and/or Branded content, or turn commercial disclosure off.";
+  if(tt.branded&&(tt.privacy==="SELF_ONLY"||!(ttInfo&&ttInfo.audited)))return"TikTok: Branded content can't be private (and posts stay private until TikTok approves Blitz AI). Turn off Branded content.";
+  if(!tt.consent)return"TikTok: tick the box to confirm TikTok's Music Usage Confirmation.";
+  return"";
 }
 async function submit(){
   ui.msg.textContent="";
   if(!file){ui.msg.textContent="Choose a file first.";return}
   const list=[...plats];if(!list.length){ui.msg.textContent="Choose at least one platform that is connected.";return}
   if(file.size>300*1024*1024){ui.msg.textContent="The file is larger than 300 MB. Compress it first.";return}
+  if(plats.has("tiktok")){const e=ttCheck();if(e){ui.msg.textContent=e;return}}
   const fd=new FormData();
   fd.append("type",type);fd.append("title",ui.title.value);fd.append("caption",ui.cap.value);fd.append("privacy",ui.priv.value);fd.append("platforms",list.join(","));
+  if(plats.has("tiktok")){
+    fd.append("tt_privacy",tt.privacy);fd.append("tt_consent",tt.consent?"1":"0");
+    for(const[k,v]of[["tt_comment",tt.comment],["tt_duet",tt.duet],["tt_stitch",tt.stitch],["tt_commercial",tt.commercial],["tt_your_brand",tt.yourBrand],["tt_branded",tt.branded]])fd.append(k,v?"1":"0");
+  }
   if(ui.when.value)fd.append("schedule",new Date(ui.when.value).toISOString());
   fd.append("file",file);
   ui.go.disabled=true;ui.bar.hidden=false;ui.barI.style.width="0";ui.jobs.innerHTML="";

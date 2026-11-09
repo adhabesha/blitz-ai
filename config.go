@@ -61,6 +61,7 @@ var adminItems = []cfgItem{
 	{"TIKTOK_SCOPES", "TikTok scopes (optional)", "TikTok", "Comma-separated. Leave empty for the default. For testing, try only user.info.basic.", "", false},
 	{"TIKTOK_CLIENT_KEY", "TikTok client key", "TikTok", "developers.tiktok.com > your app.", "tiktok", false},
 	{"TIKTOK_CLIENT_SECRET", "TikTok client secret", "TikTok", "developers.tiktok.com > your app.", "", true},
+	{"TIKTOK_AUDITED", "TikTok app audited (set 1 only after approval)", "TikTok", "Leave empty while the app is in sandbox/unaudited: posts are sent as private. Set to 1 once TikTok approves your Content Posting API audit to allow public posts.", "", false},
 }
 
 func cfgKey() []byte {

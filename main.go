@@ -100,6 +100,7 @@ func main() {
 	mux.HandleFunc("/api/ads/action", s.adsAction)
 	mux.HandleFunc("/api/publish", s.publish)
 	mux.HandleFunc("/api/publish/status", s.publishStatus)
+	mux.HandleFunc("/api/tiktok/creator", s.tiktokCreator)
 	mux.HandleFunc("/media/", s.serveMedia)
 	mux.HandleFunc("/api/social/status", s.socialStatus)
 	mux.HandleFunc("/api/social/start", s.socialStart)
