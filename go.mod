@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/firestore v1.29.0
 	firebase.google.com/go/v4 v4.22.0
 	google.golang.org/api v0.309.0
+	google.golang.org/grpc v1.84.0
 )
 
 require (
@@ -58,6 +59,5 @@ require (
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
-	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )

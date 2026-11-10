@@ -45,6 +45,7 @@ type cfgItem struct {
 var adminItems = []cfgItem{
 	{"PUBLISH_SCOPES", "Request posting permissions (type 1 to enable)", "Publishing", "Turn this on only after enabling posting permissions in each developer app, then reconnect each account.", "", false},
 	{"ADS_MAX_DAILY_BUDGET", "Max daily ad budget per campaign (safety cap)", "Core", "Default 20 in your ad account currency. Raise it only when you are ready to spend more.", "", false},
+	{"MEDIA_DIR", "Folder for uploaded media (optional)", "Core", "Where uploaded videos wait for scheduled posting. Default is the server temp folder, which is cleared on restart. Point it at a persistent disk (for example /var/data) so scheduled Instagram and TikTok posts survive restarts.", "", false},
 	{"BASE_URL", "Public app URL", "Core", "Your Render address, e.g. https://blitz-ai-5ow4.onrender.com (no slash at the end).", "", false},
 	{"GEMINI_API_KEY", "Gemini API key", "AI", "From aistudio.google.com/app/apikey. Use a key from a separate project.", "gemini", true},
 	{"GEMINI_MODEL", "Gemini model (optional)", "AI", "Leave empty for the default. Change it if Google retires a model.", "", false},

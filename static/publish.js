@@ -43,24 +43,30 @@ export function mountPublish(root,a){
   ui.ai.onclick=async()=>{
     if(!ui.topic.value.trim()){ui.msg.textContent="Type what the post is about first.";return}
     ui.ai.disabled=true;ui.msg.textContent="Writing…";
-    try{const r=await api("POST","/api/optimize",{platform:type==="image"?"instagram":"youtube",topic:ui.topic.value});const o=r.result||{};
-      ui.title.value=(o.titles||[])[0]||ui.title.value;ui.cap.value=((o.description||"")+((o.hashtags||[]).length?"\n\n"+o.hashtags.slice(0,5).join(" "):"")).trim();ui.msg.textContent="Review and edit the text before publishing."}
+    try{const r=await api("POST","/api/optimize",{platform:"post",topic:ui.topic.value,hashtagCount:+ui.hc.value});const o=r.result||{};
+      ui.title.value=(o.titles||[])[0]||ui.title.value;ui.cap.value=((o.description||"")+((o.hashtags||[]).length?"\n\n"+o.hashtags.join(" "):"")).trim();
+      ui.ai.dataset.src=(r.sourceTags||[]).length?"1":"";
+      drawViral(o,r.sourceTags||[]);drawPlats();
+      ui.msg.textContent="Review and edit the text before publishing."}
     catch(e){ui.msg.textContent=e.message}ui.ai.disabled=false};
+  ui.hc=h("select");for(const[v,t]of[[5,"5 hashtags"],[10,"10 hashtags (recommended mix)"],[15,"15 hashtags"]]){const o=h("option",null,t);o.value=v;if(v===10)o.selected=true;ui.hc.appendChild(o)}
+  ui.viral=h("div","viral-box");ui.chk=h("div","viral-chk");
+  ui.cap.oninput=drawPlats;ui.title.oninput=drawPlats;
   ui.plats=h("div","chips");ui.tt=h("div","tt-panel");ui.tt.hidden=true;
   ui.when=h("input");ui.when.type="datetime-local";ui.when.onchange=drawPlats;
   ui.priv=h("select");for(const v of["private","unlisted","public"]){const o=h("option",null,v==="private"?"private (safest)":v);o.value=v;ui.priv.appendChild(o)}
   const lab=(t,el)=>{const l=h("label",null,t);l.appendChild(el);return l};
-  const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (YouTube and Facebook only, optional)",ui.when));
+  const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): Blitz AI uploads at this time",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
-  ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");
-  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),ui.ai,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs);
+  ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");ui.sched=h("div","pub-sched");
+  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs,ui.sched);
   drawType();
   return refresh;
 }
 export async function refresh(){
   try{const g=await api("GET","/api/google/status"),s=await api("GET","/api/social/status"),p=s.providers||{};
     conn={youtube:!!g.connected,facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected}}catch(e){conn={}}
-  drawPlats();
+  drawPlats();loadSched();
 }
 function drawType(){
   const t=TYPES[type];
@@ -73,7 +79,7 @@ function drawPlats(){
   const t=TYPES[type],scheduled=!!ui.when.value;
   ui.plats.innerHTML="";
   for(const p of["youtube","facebook","instagram","tiktok"]){
-    const okType=t.plats.includes(p),okSched=!(scheduled&&(p==="instagram"||p==="tiktok")),connected=!!conn[p];
+    const okType=t.plats.includes(p),okSched=true,connected=!!conn[p];
     const v=verdict(p),usable=okType&&okSched&&connected&&!v.block;
     if(!usable)plats.delete(p);
     const b=h("button","chip"+(plats.has(p)?" on":"")+(usable?"":" off"),PN[p]+(!okType?" (not for this type)":!connected?" (connect first)":!okSched?" (can't schedule)":v.block?" - "+v.block:""));
@@ -81,7 +87,42 @@ function drawPlats(){
     ui.plats.appendChild(b);
     if(plats.has(p)&&v.note)ui.plats.appendChild(h("p","bz-mut pub-note",PN[p]+": "+v.note));
   }
-  drawTT();
+  drawTT();drawCheck();
+}
+
+/* ---------- Viral pack: hooks, real top-video tags, pre-post checklist ---------- */
+function drawViral(o,src){
+  ui.viral.innerHTML="";
+  if((o.hooks||[]).length){
+    ui.viral.appendChild(h("p","bz-mut","Hook options for the first line (click one to use it):"));
+    const row=h("div","chips");
+    for(const hk of o.hooks){const b=h("button","chip",hk);b.onclick=()=>{const rest=ui.cap.value.split("\n").slice(1).join("\n");ui.cap.value=(hk+"\n"+rest).trim();drawPlats()};row.appendChild(b)}
+    ui.viral.appendChild(row);
+  }
+  const t=o.tagTiers||{},names={broad:"Broad",mid:"Mid-size",niche:"Niche",micro:"Micro",trending:"Trending"};
+  const lines=Object.keys(names).filter(k=>(t[k]||[]).length).map(k=>names[k]+": "+t[k].join(" "));
+  if(lines.length){ui.viral.appendChild(h("p","bz-mut","Hashtag mix (a pyramid of popular to very specific tags, so you can rank in small searches and still be found in big ones):"));for(const l of lines)ui.viral.appendChild(h("p","bz-mut pub-note",l))}
+  if(src.length)ui.viral.appendChild(h("p","bz-mut pub-note","Based on tags used by the most-viewed recent YouTube videos on your topic: "+src.slice(0,12).join(" ")));
+  else ui.viral.appendChild(h("p","bz-mut pub-note","Tags are AI-written. Add YOUTUBE_API_KEY in the admin console so they are based on real top-video tags."));
+  for(const n of o.notes||[])ui.viral.appendChild(h("p","bz-mut pub-note","Test next: "+n));
+}
+function drawCheck(){
+  if(!ui.chk)return;
+  const txt=ui.cap.value,first=txt.split("\n")[0].replace(/#[\p{L}\p{N}_]+/gu,"").trim(),tags=txt.match(/#[\p{L}\p{N}_]+/gu)||[],body=txt.replace(/#[\p{L}\p{N}_]+/gu,"").trim();
+  const items=[
+    [first.length>=8&&first.length<=125,"Hook: the first line is short and grabs attention ("+first.length+" characters, aim for 125 or fewer)"],
+    [tags.length>=3&&tags.length<=15,"Hashtags: "+tags.length+" (3 to 15 works; YouTube ignores all hashtags if you use more than 15)"],
+    [/\b(comment|share|save|follow|subscribe|tell me|tag|link in bio|dm|vote|reply)\b/i.test(body),"Call to action: ask for a comment, share or save"],
+    [body.split(/\s+/).filter(Boolean).length>=12,"Keywords: describe the video in plain words people would search"]
+  ];
+  if(meta&&type!=="image"){
+    if(type==="short")items.push([meta.w<=meta.h,"Format: vertical or square for Shorts, Reels and TikTok"]);
+    items.push([meta.d<=60||type!=="short","Length: "+Math.round(meta.d)+" s (short videos under about 60 s tend to hold viewers to the end)"]);
+  }
+  const ok=items.filter(i=>i[0]).length;
+  ui.chk.innerHTML="";
+  ui.chk.appendChild(h("p","bz-mut","Pre-post checklist: "+ok+" of "+items.length+". Rules of thumb from platform guidance. They improve your odds but can't guarantee reach."));
+  for(const[pass,msg]of items)ui.chk.appendChild(h("p",pass?"bz-mut pub-note":"pub-note tt-warn",(pass?"✓ ":"• ")+msg));
 }
 
 /* ---------- TikTok options (required by TikTok's Content Posting API guidelines) ---------- */
@@ -177,9 +218,23 @@ async function submit(){
       let d;try{d=await api("GET","/api/publish/status?id="+id)}catch(e){await sleep(4000);continue}
       render(d);if(d.done)break;await sleep(3000);
     }
-    ui.msg.textContent="Finished.";
+    ui.msg.textContent="Finished.";loadSched();
   }catch(e){ui.msg.textContent=e.message}
   ui.go.disabled=false;
+}
+const SN={pending:"Waiting",running:"Uploading",done:"Posted",failed:"Failed"};
+async function loadSched(){
+  let list;try{list=await api("GET","/api/publish/scheduled")}catch(e){return}
+  ui.sched.innerHTML="";if(!list.length)return;
+  ui.sched.appendChild(h("h4",null,"Scheduled posts (Instagram and TikTok)"));
+  for(const it of list){
+    const row=h("div","pub-row"),st=h("span","bz-pill "+(it.status==="done"?"pass":it.status==="failed"?"fail":"warn"),(SN[it.status]||it.status).toUpperCase());
+    const body=h("div");body.appendChild(h("b",null,(it.plats||[]).map(p=>PN[p]||p).join(" + ")+" · "+new Date(it.when).toLocaleString()));
+    if(it.title)body.appendChild(h("p","bz-mut",it.title));
+    for(const r of it.results||[])body.appendChild(h("p","bz-mut",(PN[r.platform]||r.platform)+": "+r.state+(r.message?" - "+r.message:"")));
+    if(it.status==="pending"){const b=h("button","bz-btn ghost","Cancel");b.onclick=async()=>{b.disabled=true;try{await api("POST","/api/publish/scheduled/cancel",{id:it.id})}catch(e){ui.msg.textContent=e.message}loadSched()};body.appendChild(b)}
+    add(row,st,body);ui.sched.appendChild(row);
+  }
 }
 function render(d){
   ui.jobs.innerHTML="";

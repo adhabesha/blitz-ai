@@ -75,6 +75,8 @@ func main() {
 		}
 	}()
 
+	go s.scheduleLoop()
+
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
 	mux.HandleFunc("/", s.page("landing.html"))
@@ -101,6 +103,8 @@ func main() {
 	mux.HandleFunc("/api/publish", s.publish)
 	mux.HandleFunc("/api/publish/status", s.publishStatus)
 	mux.HandleFunc("/api/tiktok/creator", s.tiktokCreator)
+	mux.HandleFunc("/api/publish/scheduled", s.scheduledList)
+	mux.HandleFunc("/api/publish/scheduled/cancel", s.scheduledCancel)
 	mux.HandleFunc("/media/", s.serveMedia)
 	mux.HandleFunc("/api/social/status", s.socialStatus)
 	mux.HandleFunc("/api/social/start", s.socialStart)

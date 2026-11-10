@@ -30,6 +30,7 @@ type pubSpec struct {
 	Notes                                    map[string]string
 	FBReel                                   bool
 	TT                                       ttOpts
+	Keep                                     bool // keep the file after publishing (scheduler removes it)
 }
 
 // ttOpts holds the TikTok choices the user makes in the Publish form.
@@ -94,7 +95,11 @@ func cut(s string, n int) string {
 }
 
 func mediaDir() string {
-	d := filepath.Join(os.TempDir(), "blitz-media")
+	base := os.TempDir()
+	if v := env("MEDIA_DIR"); v != "" {
+		base = v
+	}
+	d := filepath.Join(base, "blitz-media")
 	os.MkdirAll(d, 0o755)
 	return d
 }
@@ -239,7 +244,7 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 	sp.Notes = map[string]string{}
 	job := &pubJob{UID: uid, Created: time.Now()}
 	runnable := 0
-	var reasons []string
+	var reasons, schedPlats []string
 	for _, p := range sp.Platforms {
 		it := &pubStatus{Platform: p, State: "queued"}
 		v := verd[p]
@@ -247,8 +252,10 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 		if v.Block != "" {
 			it.State, it.Message = "failed", "Not posted: "+v.Block
 			reasons = append(reasons, p+": "+v.Block)
-		} else if sp.Schedule != nil && (p == "instagram" || p == "tiktok") {
-			it.State, it.Message = "skipped", "Instagram and TikTok can't be scheduled through their APIs. Use Post now."
+		} else if sp.Schedule != nil && appScheduled(p) {
+			it.State, it.Message = "scheduled", "Scheduled. Blitz AI will upload it at your chosen time (see Scheduled posts below). You can close this page."
+			schedPlats = append(schedPlats, p)
+			runnable++
 		} else {
 			runnable++
 		}
@@ -258,7 +265,7 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 		os.Remove(path)
 		msg := "Nothing could be posted: " + strings.Join(reasons, " | ")
 		if len(reasons) == 0 {
-			msg = "Nothing to post. Instagram and TikTok can't be scheduled."
+			msg = "Nothing to post."
 		}
 		http.Error(w, msg, 400)
 		return
@@ -272,6 +279,15 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 	}
 	jobs.m[id] = job
 	jobs.Unlock()
+	if len(schedPlats) > 0 {
+		sp.Keep = true
+		if _, err := s.saveScheduled(r.Context(), uid, sp, schedPlats); err != nil {
+			log.Println("save scheduled:", err)
+			for _, p := range schedPlats {
+				job.set(p, "failed", "Could not save the schedule. Try again.", "")
+			}
+		}
+	}
 	go s.runPublish(job, uid, sp)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"id": id})
@@ -324,7 +340,7 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 		job.mu.Lock()
 		skip := false
 		for _, it := range job.Items {
-			if it.Platform == p && (it.State == "skipped" || it.State == "failed") {
+			if it.Platform == p && (it.State == "skipped" || it.State == "failed" || it.State == "scheduled") {
 				skip = true
 			}
 		}
@@ -369,7 +385,9 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 	job.mu.Lock()
 	job.Done = true
 	job.mu.Unlock()
-	time.AfterFunc(10*time.Minute, func() { os.Remove(sp.Path) })
+	if !sp.Keep {
+		time.AfterFunc(10*time.Minute, func() { os.Remove(sp.Path) })
+	}
 }
 
 // ---------------- YouTube ----------------

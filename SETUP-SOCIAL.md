@@ -42,3 +42,9 @@ The dashboard now shows the platform's own reason after "Connection failed". Com
 - Meta/TikTok in development mode: your account must be added as a tester / sandbox target user.
 - A field in the admin console showing source "admin" overrides the Render value of the same name.
 - Facebook now reuses the Instagram configuration ID if no separate Facebook one is set.
+
+## Scheduling Instagram and TikTok (app-side)
+Instagram and TikTok have no scheduling in their APIs, so Blitz AI holds the post and uploads it at your chosen time (YouTube and Facebook still use their own native scheduling). The schedule is saved in Firestore (`scheduled_posts`); you can close the page.
+- The video file waits on the server. Free hosting clears it on restart/redeploy; set `MEDIA_DIR` to a persistent disk (Render: add a Disk, e.g. mount `/var/data`) to avoid losing scheduled posts.
+- The server must be awake at the time. On a free plan that sleeps, ping `https://YOUR-APP/healthz` every 5 minutes (for example with UptimeRobot) or use a paid plan. Posts up to 12 hours late are still sent; older ones are marked missed.
+- TikTok while unaudited: your TikTok account must be Private at the moment the post uploads.

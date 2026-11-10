@@ -183,3 +183,4 @@ html[data-theme=dark] .rp-side{color:var(--ink)}
 .tt-row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
 .tt-panel label.tt-cb{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
 .tt-warn{color:var(--bad)}
+.viral-box,.viral-chk{margin:8px 0}.viral-box .chip{font-size:13px;padding:8px 12px;text-align:left}
