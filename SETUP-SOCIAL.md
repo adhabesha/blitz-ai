@@ -48,3 +48,11 @@ Instagram and TikTok have no scheduling in their APIs, so Blitz AI holds the pos
 - The video file waits on the server. Free hosting clears it on restart/redeploy; set `MEDIA_DIR` to a persistent disk (Render: add a Disk, e.g. mount `/var/data`) to avoid losing scheduled posts.
 - The server must be awake at the time. On a free plan that sleeps, ping `https://YOUR-APP/healthz` every 5 minutes (for example with UptimeRobot) or use a paid plan. Posts up to 12 hours late are still sent; older ones are marked missed.
 - TikTok while unaudited: your TikTok account must be Private at the moment the post uploads.
+
+## Apply buttons (fixes that change your accounts directly)
+Open any fix in a report: where it is possible, the fix has an Apply button instead of only Copy.
+- **YouTube video:** title, description, tags (Connected Google).
+- **YouTube channel:** channel description from the Bio fix.
+- **Website:** robots.txt, sitemap.xml, llms.txt, title and meta description, canonical, viewport, language, share-preview tags, structured data (Organization and FAQ), and removing noindex. The first time, a setup form asks for your website address, GitHub repository, branch, homepage file and a GitHub token (fine-grained, Contents: Read and write, one repo). Blitz AI commits the change; your host deploys it. Revert the commit on GitHub to undo. Apply only works on the website you connected.
+- **Instagram, TikTok, Facebook:** their APIs cannot edit an existing post or bio, so those fixes use **Use in Publish** (fills the Publish form) and the content calendar has **Create post** per day (fills topic and schedule).
+- **Not applicable (explained next to each fix):** HTTPS and speed (host settings), image alt text, app store listings and replies, pinning comments.

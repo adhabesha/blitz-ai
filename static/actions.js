@@ -1,4 +1,5 @@
 import{h,add,api,copy,copyBox}from"./ui.js";
+import{applyBtn,noApply,siteApply,sendToPublish,publishBtn}from"./apply.js";
 
 const M=r=>{const m=Object.assign({},r.meta||{});m.domain=m.domain||(r.kind==="website"?r.target:"");m.name=m.name||m.channel||m.title||m.domain||r.target||"your brand";m.url=m.url||(m.domain?"https://"+m.domain+"/":"");return m};
 const originOf=m=>{try{return new URL(m.url).origin}catch(e){return"https://"+(m.domain||"example.com")}};
@@ -41,7 +42,39 @@ function snippets(key,r){
   }
   return{boxes:[]};
 }
-const snip=key=>(c,r)=>{const s=snippets(key,r);for(const x of s.boxes)c.appendChild(copyBox(x.t,x.x));if(s.note)c.appendChild(h("p","bz-mut",s.note))};
+// What can be applied straight to the connected website, and why the rest can't.
+const NOAPPLY={
+  https:"HTTPS is switched on at your host or Cloudflare, not in your site files.",
+  alt:"every image needs its own description written for what it shows.",
+  perf:"speed depends on your images, scripts and hosting.",
+  review:"App Store and Google Play replies are written inside their own consoles, which Blitz AI can't access.",
+  release:"release notes are entered in App Store Connect or Google Play Console.",
+  engage:"YouTube, TikTok and Instagram have no way for an app to pin a comment. Post it yourself."
+};
+function siteSpec(key,m,o,s){
+  const url=m.url||o+"/",desc=m.description||("Learn more about "+m.name+"."),title=m.title||m.name;
+  const head=ops=>({kind:"head",ops});
+  switch(key){
+  case"robots":return{label:"Add robots.txt to my website",body:{kind:"file",file:"robots.txt",content:s.boxes[0].x}};
+  case"sitemap":return{label:"Add sitemap.xml to my website",body:{kind:"file",file:"sitemap.xml",content:s.boxes[0].x}};
+  case"llms":return{label:"Add llms.txt to my website",body:{kind:"file",file:"llms.txt",content:s.boxes[0].x}};
+  case"canonical":return{label:"Add the canonical link to my website",body:head([{op:"canonical",value:url}])};
+  case"viewport":return{label:"Add the viewport tag to my website",body:head([{op:"meta",key:"viewport",value:"width=device-width, initial-scale=1"}])};
+  case"lang":return{label:"Set the page language on my website",input:{label:"Language code",value:"en"},body:head([{op:"lang",value:"__INPUT__"}])};
+  case"og":return{label:"Add share-preview tags to my website",body:head([{op:"meta",key:"og:type",value:"website"},{op:"meta",key:"og:title",value:title},{op:"meta",key:"og:description",value:desc},{op:"meta",key:"og:url",value:url},{op:"meta",key:"twitter:card",value:"summary_large_image"}])};
+  case"jsonld":return{label:"Add structured data to my website",body:head([{op:"jsonld",key:"org",value:JSON.stringify({"@context":"https://schema.org","@type":"Organization",name:m.name,url:url,description:desc})}])};
+  case"noindex":return{label:"Remove the noindex tag from my website",body:head([{op:"remove_noindex"}])};
+  }
+  return null;
+}
+const snip=key=>(c,r)=>{
+  const s=snippets(key,r);
+  for(const x of s.boxes)c.appendChild(copyBox(x.t,x.x));
+  if(s.note)c.appendChild(h("p","bz-mut",s.note));
+  const m=M(r),spec=r.kind==="website"?siteSpec(key,m,originOf(m),s):null;
+  if(spec)return siteApply(c,m.domain,spec);
+  noApply(c,NOAPPLY[key]||"it has to be changed on your own site or host.");
+};
 
 // ---------- AI-powered workspaces ----------
 const opt=body=>api("POST","/api/optimize",body);
@@ -77,7 +110,9 @@ const seoFix=ai((c,o,cur,r)=>{
   const t=compare(c,"page title",m.title,(o.titles||[])[0],true),d=compare(c,"meta description",m.description,o.description,true);
   const html=copyBox("Ready-to-paste HTML",'<title>'+t.ta.value+'</title>\n<meta name="description" content="'+d.ta.value.replace(/"/g,"&quot;")+'">\n<h1>'+((o.titles||[])[1]||t.ta.value)+'</h1>');
   c.appendChild(html);options(c,"More title / H1 options",(o.titles||[]).slice(1));
-  c.appendChild(h("p","bz-mut","Edit the boxes above, then paste the snippet into your page's <head>. Keep the title under 60 characters and the description under 155."));
+  c.appendChild(h("p","bz-mut","Edit the boxes above, then apply. Keep the title under 60 characters and the description under 155."));
+  if(r.kind==="website")return siteApply(c,m.domain,{label:"Apply title and description to my website",body:()=>({kind:"head",ops:[{op:"title",value:t.ta.value},{op:"meta",key:"description",value:d.ta.value}]})});
+  noApply(c,"this isn't a website report.");
 },(r)=>{const m=M(r);return{platform:"website",title:m.title,description:m.description,topic:m.name+" "+(m.domain||"")}});
 
 const queriesFix=ai((c,o,cur,r)=>{
@@ -85,28 +120,40 @@ const queriesFix=ai((c,o,cur,r)=>{
   c.appendChild(copyBox("Meta description to use",o.description||""));
   options(c,"Opening lines for the page / blog post",o.hooks);
   c.appendChild(h("p","bz-mut","Make (or update) one page per query group, put the main query in the title and first paragraph, then link to it from your homepage."));
+  noApply(c,"each search query needs its own page, and Blitz AI can't tell which page of your site should carry it.");
 },(r)=>({platform:"website",topic:"Search queries to rank for: "+((r.meta||{}).lowCtr||(r.meta||{}).queries||r.target),goal:"Win more clicks from Google"}));
 
 const faqFix=ai((c,o,cur,r)=>{
   const q=o.titles||[],a=o.hooks||[],items=q.map((x,i)=>({q:x,a:a[i]||""})).filter(x=>x.a);
-  for(const it of items)c.appendChild(copyBox("Q: "+it.q,it.a,true));
+  const boxes=items.map(it=>{const b=copyBox("Q: "+it.q,it.a,true);c.appendChild(b);return{q:it.q,b}});
   const j={"@context":"https://schema.org","@type":"FAQPage",mainEntity:items.map(it=>({"@type":"Question",name:it.q,acceptedAnswer:{"@type":"Answer",text:it.a}}))};
   c.appendChild(copyBox("FAQ structured data (paste into your page <head>)",'<script type="application/ld+json">\n'+JSON.stringify(j,null,2)+"\n<\/script>"));
   c.appendChild(h("p","bz-mut","Publish these questions and answers visibly on a page too. Check the facts first: AI wrote the draft."));
+  const m=M(r);
+  if(r.kind==="website"&&boxes.length)return siteApply(c,m.domain,{label:"Add the FAQ structured data to my website",body:()=>({kind:"head",ops:[{op:"jsonld",key:"faq",value:JSON.stringify({"@context":"https://schema.org","@type":"FAQPage",mainEntity:boxes.map(x=>({"@type":"Question",name:x.q,acceptedAnswer:{"@type":"Answer",text:x.b.ta.value}}))})}]})});
+  noApply(c,"it needs a website connection and a website report.");
 },(r)=>{const m=M(r);return{platform:"faq",topic:m.name+": "+(m.description||m.domain)}});
 
 const bioFix=ai((c,o,cur,r)=>{
   const m=M(r);
-  compare(c,"bio",m.bio||"(not provided)",o.description,true);
+  const bio=compare(c,"bio",m.bio||"(not provided)",o.description,true);
   options(c,"Other bio options",o.titles);
+  const pf=(m.platform||r.kind||"").toLowerCase();
+  if(pf==="youtube")return add(c,h("p","bz-mut","Applying changes your live channel description (1000 characters max)."),applyBtn("Apply to my YouTube channel",async()=>{await api("POST","/api/youtube/channel/apply",{description:bio.ta.value});return{message:"Done. Your channel description was updated."}},{confirm:"Replace your YouTube channel description with this text?"}));
+  const links={instagram:["https://www.instagram.com/accounts/edit/","Open Instagram profile editor"],tiktok:["https://www.tiktok.com/setting","Open TikTok settings"],facebook:["https://www.facebook.com/","Open Facebook"]};
+  noApply(c,(pf==="instagram"||pf==="tiktok"||pf==="facebook"?pf[0].toUpperCase()+pf.slice(1):"This platform")+" doesn't let apps change your bio. Copy it and paste it in the profile editor.");
+  if(links[pf]){const a=h("a","bz-btn ghost",links[pf][1]);a.href=links[pf][0];a.target="_blank";a.rel="noopener";c.appendChild(a)}
 },(r)=>{const m=M(r);return{platform:"bio",description:m.bio||"",topic:(m.platform||"")+" account @"+(m.handle||""),goal:m.goal||""}});
 
 const hashFix=ai((c,o,cur,r)=>{
   if((o.hashtags||[]).length)c.appendChild(copyBox("Hashtags (copy under your caption)",o.hashtags.join(" ")));
   if((o.tags||[]).length)c.appendChild(copyBox("Keywords",o.tags.join(", ")));
   options(c,"Opening hooks + calls to action",o.hooks);
-  c.appendChild(copyBox("Caption template",(o.titles||[])[0]?o.titles[0]+"\n\n"+(o.description||""):(o.description||""),true));
+  const cap=copyBox("Caption template",(o.titles||[])[0]?o.titles[0]+"\n\n"+(o.description||""):(o.description||""),true);c.appendChild(cap);
   options(c,"A/B testing tips",o.notes);
+  const m=M(r);
+  c.appendChild(h("p","bz-mut","Instagram, TikTok and Facebook don't let apps edit a post that is already live, so this creates a new post: it fills the Publish form with this caption and hashtags."));
+  c.appendChild(publishBtn("Use in Publish",()=>({caption:(cap.ta.value+((o.hashtags||[]).length?"\n\n"+o.hashtags.join(" "):"")).trim(),topic:m.goal||m.name||""})));
 },(r)=>{const m=M(r);return{platform:m.platform||"instagram",topic:(m.goal||m.handle||r.target),description:m.bio||"",goal:m.goal||""}});
 
 const appFix=ai((c,o,cur,r)=>{
@@ -115,6 +162,7 @@ const appFix=ai((c,o,cur,r)=>{
   c.appendChild(copyBox("Store description (first 3 lines sell the benefit)",o.description||"",true));
   if((o.tags||[]).length)c.appendChild(copyBox("Keyword field (100 characters max)",o.tags.join(",").slice(0,100)));
   options(c,"More title options",(o.titles||[]).slice(1));options(c,"Screenshot caption ideas",o.ideas);
+  noApply(c,"App Store and Google Play listings can only be edited in App Store Connect or Play Console.");
 },(r)=>{const m=M(r);return{platform:"app",title:m.name,description:m.description||"",topic:m.name}});
 
 const howto=ai((c,o)=>{
@@ -178,14 +226,15 @@ const calendar=async(c,r)=>{
       const key="bz-cal:"+(r.target||"")+":"+ymd(x.date),chk=h("input");chk.type="checkbox";try{chk.checked=localStorage.getItem(key)==="1"}catch(e){}
       chk.onchange=()=>{try{localStorage.setItem(key,chk.checked?"1":"0")}catch(e){}};
       const b=h("button","bz-mini","Copy");b.onclick=()=>copy(x.date.toDateString()+": "+inp.value+(hooks[i%Math.max(hooks.length,1)]?"\nHook: "+hooks[i%hooks.length]:""),b);
+      const cr=h("button","bz-mini","Create post");cr.onclick=()=>sendToPublish({topic:inp.value,caption:hooks[i%Math.max(hooks.length,1)]||"",schedule:x.date.getFullYear()+"-"+pad(x.date.getMonth()+1)+"-"+pad(x.date.getDate())+"T12:00"});
       const lbl=h("span","bz-mut",x.date.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"}));
-      add(row,lbl,inp,chk,b);list.appendChild(row)});
+      add(row,lbl,inp,chk,b,cr);list.appendChild(row)});
     out.appendChild(list);
     const bar=h("div");bar.style.marginTop="12px";
     const cp=h("button","bz-btn ghost","Copy whole calendar");cp.onclick=()=>copy(rows.map(x=>x.date.toDateString()+" - "+x.text).join("\n"),cp);
     const dl=h("button","bz-btn","Download .ics (add to your phone calendar)");dl.style.marginLeft="8px";dl.onclick=()=>ics(rows,"blitz-content-calendar");
     add(bar,cp,dl);out.appendChild(bar);
-    out.appendChild(h("p","bz-mut","Batch-create each week's content in one session, then schedule it (YouTube Studio, Meta Business Suite and TikTok all have free schedulers). Tick days as you publish."));
+    out.appendChild(h("p","bz-mut","Click Create post on a day to open Publish with that idea and date filled in. Choose your file and platforms, and Blitz AI posts it at that time. Tick days as you publish."));
   };
   sel.onchange=build;
   const l=loading(c,"Generating content ideas for your calendar…");

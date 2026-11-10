@@ -5,6 +5,7 @@ import{renderReport,destroyCharts}from"./report.js";
 import{mountPublish}from"./publish.js";
 import{mountRunAds,analyzeButton}from"./runads.js";
 import{renderMarketing}from"./mreport.js";
+import{publishBtn,noApply}from"./apply.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={seo:["Collecting data…","Comparing and clustering…","Writing recommendations…"],website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
@@ -41,6 +42,7 @@ function setKind(k){
   if(k==="socialc")loadSocial().catch(e=>{$("msg").textContent=e.message});
 }
 document.querySelectorAll(".bz-nav").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
+document.addEventListener("bz-goto",e=>{setKind(e.detail.kind);window.scrollTo({top:0,behavior:"smooth"})});
 $("a-store").onchange=()=>{const a=$("a-store").value==="android";$("a-manual").hidden=!a;$("a-ios").hidden=a};
 const num=i=>parseFloat($(i).value)||0;
 
@@ -154,7 +156,12 @@ function renderOpt(res){
       catch(e){st.textContent=e.message}ap.disabled=false};add(c,ap,st)}
   box.appendChild(c);
   if(pl==="youtube")box.appendChild(uploadCard(t,d,g));
-  else{const n=h("div","bz-card");n.style.marginTop="16px";n.appendChild(h("p","bz-mut","Automatic posting for this platform needs the platform's own approval of the app (Meta, TikTok, X). For now copy the text above and publish it yourself, or use YouTube publishing."));box.appendChild(n)}
+  else{const n=h("div","bz-card");n.style.marginTop="16px";
+    if(["instagram","tiktok","facebook"].includes(pl)){
+      n.appendChild(h("p","bz-mut","Fills the Publish form with this title, caption and hashtags. Choose your file and the accounts, and Blitz AI posts it (or schedules it)."));
+      n.appendChild(publishBtn("Use in Publish",()=>({title:t.ta.value,caption:(d.ta.value+((hs.ta.value||"").trim()?"\n\n"+hs.ta.value.trim():"")).trim(),topic:$("o-topic").value})));
+    }else noApply(n,"Blitz AI can't post to this platform or edit this item yet. Copy the text above.");
+    box.appendChild(n)}
   box.scrollIntoView({behavior:"smooth"});
 }
 function uploadCard(t,d,g){

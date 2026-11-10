@@ -66,7 +66,16 @@ export function mountPublish(root,a){
 export async function refresh(){
   try{const g=await api("GET","/api/google/status"),s=await api("GET","/api/social/status"),p=s.providers||{};
     conn={youtube:!!g.connected,facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected}}catch(e){conn={}}
-  drawPlats();loadSched();
+  drawPlats();
+  takeDraft();loadSched();
+}
+function takeDraft(){
+  const d=window.__bzDraft;if(!d)return;window.__bzDraft=null;
+  if(d.caption!=null&&d.caption!=="")ui.cap.value=d.caption;
+  if(d.title!=null)ui.title.value=d.title;
+  if(d.topic!=null)ui.topic.value=d.topic;
+  if(d.schedule)ui.when.value=d.schedule;
+  drawPlats();ui.msg.textContent="Filled in from your fix. Choose a file and platforms, then publish.";
 }
 function drawType(){
   const t=TYPES[type];

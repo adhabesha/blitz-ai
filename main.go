@@ -113,6 +113,11 @@ func main() {
 		mux.HandleFunc("/auth/"+p.ID+"/callback", s.socialCallback(p.ID))
 	}
 	mux.HandleFunc("/api/youtube/apply", s.applyYouTube)
+	mux.HandleFunc("/api/youtube/channel/apply", s.applyYouTubeChannel)
+	mux.HandleFunc("/api/site/status", s.siteStatus)
+	mux.HandleFunc("/api/site/connect", s.siteConnect)
+	mux.HandleFunc("/api/site/disconnect", s.siteDisconnect)
+	mux.HandleFunc("/api/site/apply", s.siteApply)
 
 	port := env("PORT")
 	if port == "" {
