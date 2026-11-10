@@ -244,13 +244,13 @@ func pageText(doc string, n int) string {
 
 // findCompetitors reads the person's own site to learn the category and the place it serves, then asks Gemini
 // (with live Google Search) for real businesses that offer the same thing in the same area.
-func (s *server) findCompetitors(ctx context.Context, in evalIn) (category, location string, out []compCand, err error) {
+func (s *server) findCompetitors(ctx context.Context, in evalIn) (category, location string, out []compCand, live bool, err error) {
 	if env("GEMINI_API_KEY") == "" {
-		return "", "", nil, errors.New("AI is not set up (GEMINI_API_KEY)")
+		return "", "", nil, false, errors.New("AI is not set up (GEMINI_API_KEY)")
 	}
 	target, domain, nerr := normalizeURL(in.URL)
 	if nerr != nil {
-		return "", "", nil, nerr
+		return "", "", nil, false, nerr
 	}
 	title, desc, text := "", "", ""
 	if pg, ferr := fetch(ctx, target, 1<<20); ferr == nil {
@@ -274,11 +274,43 @@ Step 1: work out what exactly this business sells (its category and main service
 Step 2: find 5 real DIRECT competitors: businesses with their own website that offer the same kind of products or services to customers in the same city or area (widen to the same country only if there are not enough local ones), in the same category and at a similar scale. Exclude the business itself, directories, marketplaces, social networks, news sites and Wikipedia. Only include websites you saw in the search results; never invent a domain.
 Return JSON only, no other text: {"category":"short category","location":"city, country","competitors":[{"name":"business name","domain":"example.com","why":"one short line on why it competes"}]}`,
 		domain, clip(title, 150), clip(desc, 300), text, clip(in.Country, 5), clip(in.Location, 80), clip(in.Topic, 120))
-	cctx, cancel := context.WithTimeout(ctx, 28*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, 38*time.Second)
 	defer cancel()
-	txt, gerr := s.geminiSearch(cctx, prompt)
-	if gerr != nil {
-		return "", "", nil, gerr
+	// Search grounding has small quotas that are counted per model, so try several models, then fall back to
+	// the model's own knowledge (the competitor sites are still opened and audited, so dead or invented ones drop out).
+	var models []string
+	for _, m := range []string{env("GEMINI_SEARCH_MODEL"), geminiModel(), "gemini-2.5-flash", "gemini-2.5-flash-lite"} {
+		dup := m == ""
+		for _, x := range models {
+			dup = dup || x == m
+		}
+		if !dup {
+			models = append(models, m)
+		}
+	}
+	var txt string
+	var gerr error
+	live = false
+	for _, m := range models {
+		if txt, gerr = s.geminiSearch(cctx, m, prompt); gerr == nil {
+			live = true
+			break
+		}
+		log.Println("competitor search with", m, "failed:", gerr)
+		if cctx.Err() != nil {
+			break
+		}
+	}
+	if !live {
+		cc, cc2 := context.WithTimeout(ctx, 25*time.Second)
+		txt, gerr = s.gemini(cc, strings.Replace(prompt, "Use Google Search. ", "", 1))
+		cc2()
+		if gerr != nil {
+			if errors.Is(gerr, errRate) {
+				return "", "", nil, false, userErr("The AI is busy right now (daily or per-minute limit reached). Wait a minute and run it again, or type 1 to 3 competitor websites.")
+			}
+			return "", "", nil, false, gerr
+		}
 	}
 	var res struct {
 		Category    string `json:"category"`
@@ -290,7 +322,7 @@ Return JSON only, no other text: {"category":"short category","location":"city, 
 		} `json:"competitors"`
 	}
 	if json.Unmarshal([]byte(cleanJSON(txt)), &res) != nil || len(res.Competitors) == 0 {
-		return "", "", nil, errors.New("no competitors in the answer")
+		return "", "", nil, false, errors.New("no competitors in the answer")
 	}
 	seen := map[string]bool{domain: true}
 	for _, c := range res.Competitors {
@@ -314,9 +346,9 @@ Return JSON only, no other text: {"category":"short category","location":"city, 
 		}
 	}
 	if len(out) == 0 {
-		return "", "", nil, errors.New("no usable competitor websites in the answer")
+		return "", "", nil, false, errors.New("no usable competitor websites in the answer")
 	}
-	return clip(res.Category, 80), clip(res.Location, 80), out, nil
+	return clip(res.Category, 80), clip(res.Location, 80), out, live, nil
 }
 
 func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error) {
@@ -333,9 +365,10 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 	// No competitors typed: find them by the same category, area and location.
 	var auto []compCand
 	var autoCat, autoLoc string
+	var autoLive bool
 	if len(urls) < 2 {
 		var ferr error
-		autoCat, autoLoc, auto, ferr = s.findCompetitors(ctx, in)
+		autoCat, autoLoc, auto, autoLive, ferr = s.findCompetitors(ctx, in)
 		if ferr != nil {
 			if _, ok := ferr.(userErr); ok {
 				return nil, ferr
@@ -380,7 +413,7 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 			ft.Rows = append(ft.Rows, Row{Cells: []string{c.Name, c.Domain, c.Why}})
 		}
 		r.Tables = append(r.Tables, ft)
-		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", using live Google Search. To compare against specific businesses instead, type their websites and run it again.")
+		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", "+ifs(autoLive, "using live Google Search", "from the AI's own knowledge because live search was busy, so check that they really are your competitors")+". To compare against specific businesses instead, type their websites and run it again.")
 	}
 	var sites []*Report
 	sites = append(sites, own)

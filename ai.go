@@ -71,12 +71,12 @@ func (s *server) geminiParts(ctx context.Context, parts []any) (string, error) {
 
 // geminiSearch asks Gemini with Google Search grounding on, so answers come from live web results.
 // Search grounding can't be combined with forced JSON output, so the caller extracts the JSON from the text.
-func (s *server) geminiSearch(ctx context.Context, prompt string) (string, error) {
+func (s *server) geminiSearch(ctx context.Context, model, prompt string) (string, error) {
 	body, _ := json.Marshal(map[string]any{
 		"contents": []any{map[string]any{"parts": []any{map[string]string{"text": prompt}}}},
 		"tools":    []any{map[string]any{"google_search": map[string]any{}}},
 	})
-	url := "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel() + ":generateContent"
+	url := "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", env("GEMINI_API_KEY"))
