@@ -97,6 +97,7 @@ func main() {
 	mux.HandleFunc("/api/google/token", s.googleToken)
 	mux.HandleFunc("/api/google/disconnect", s.googleDisconnect)
 	mux.HandleFunc("/api/optimize", s.optimize)
+	mux.HandleFunc("/api/viral/research", s.viralResearch)
 	mux.HandleFunc("/api/ads/accounts", s.adsAccountsHandler)
 	mux.HandleFunc("/api/ads/launch", s.adsLaunch)
 	mux.HandleFunc("/api/ads/action", s.adsAction)

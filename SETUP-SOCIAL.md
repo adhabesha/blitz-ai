@@ -56,3 +56,8 @@ Open any fix in a report: where it is possible, the fix has an Apply button inst
 - **Website:** robots.txt, sitemap.xml, llms.txt, title and meta description, canonical, viewport, language, share-preview tags, structured data (Organization and FAQ), and removing noindex. The first time, a setup form asks for your website address, GitHub repository, branch, homepage file and a GitHub token (fine-grained, Contents: Read and write, one repo). Blitz AI commits the change; your host deploys it. Revert the commit on GitHub to undo. Apply only works on the website you connected.
 - **Instagram, TikTok, Facebook:** their APIs cannot edit an existing post or bio, so those fixes use **Use in Publish** (fills the Publish form) and the content calendar has **Create post** per day (fills topic and schedule).
 - **Not applicable (explained next to each fix):** HTTPS and speed (host settings), image alt text, app store listings and replies, pinning comments.
+
+## Winning examples + script (Publish tab)
+The button **Find winning examples and write the script** takes your Topic, finds the best-performing YouTube videos on it from the last 60 days (real views, channel size, views per day, and how far each video beat its own channel), explains what they share, then writes a timed script (short or normal video) or a design brief (image, and a thumbnail concept for videos) in your topic's language.
+- Needs `YOUTUBE_API_KEY`. Each search uses about 102 of the 10,000 free daily YouTube quota units, results are cached for 6 hours, and each person gets 12 per day.
+- Real performance data exists for YouTube only. TikTok, Instagram and Facebook do not give apps their top content by topic, so the panel links to their live hashtag pages.

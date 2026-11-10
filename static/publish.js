@@ -1,4 +1,4 @@
-import{h,add,api}from"./ui.js";
+import{h,add,api,copyBox}from"./ui.js";
 
 const TYPES={
   short:{label:"Short / Reel",hint:"Vertical video (9:16), up to about 3 minutes. Goes to YouTube Shorts, TikTok, Facebook Reels and Instagram Reels.",accept:"video/mp4,video/quicktime",plats:["youtube","tiktok","facebook","instagram"]},
@@ -50,6 +50,7 @@ export function mountPublish(root,a){
       ui.msg.textContent="Review and edit the text before publishing."}
     catch(e){ui.msg.textContent=e.message}ui.ai.disabled=false};
   ui.hc=h("select");for(const[v,t]of[[5,"5 hashtags"],[10,"10 hashtags (recommended mix)"],[15,"15 hashtags"]]){const o=h("option",null,t);o.value=v;if(v===10)o.selected=true;ui.hc.appendChild(o)}
+  ui.win=h("button","bz-btn ghost","Find winning examples and write the script");ui.win.onclick=findWinners;ui.winres=h("div","win-res");
   ui.viral=h("div","viral-box");ui.chk=h("div","viral-chk");
   ui.cap.oninput=drawPlats;ui.title.oninput=drawPlats;
   ui.plats=h("div","chips");ui.tt=h("div","tt-panel");ui.tt.hidden=true;
@@ -59,7 +60,7 @@ export function mountPublish(root,a){
   const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): Blitz AI uploads at this time",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
   ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");ui.sched=h("div","pub-sched");
-  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs,ui.sched);
+  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs,ui.sched);
   drawType();
   return refresh;
 }
@@ -97,6 +98,66 @@ function drawPlats(){
     if(plats.has(p)&&v.note)ui.plats.appendChild(h("p","bz-mut pub-note",PN[p]+": "+v.note));
   }
   drawTT();drawCheck();
+}
+
+/* ---------- Winning examples + script / design brief (real YouTube data) ---------- */
+const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
+async function findWinners(){
+  const topic=(ui.topic.value||ui.title.value||"").trim();
+  if(!topic){ui.msg.textContent="Type what the post is about in the Topic box first.";return}
+  ui.win.disabled=true;ui.winres.innerHTML="";ui.winres.appendChild(h("p","bz-mut","Finding what is working right now. This takes about 20 seconds…"));
+  try{drawWinners(await api("POST","/api/viral/research",{topic,kind:type}),topic)}
+  catch(e){ui.winres.innerHTML="";ui.winres.appendChild(h("p","bz-err",e.message))}
+  ui.win.disabled=false;
+}
+function drawWinners(r,topic){
+  const a=r.analysis||{},sc=a.script||{},dg=a.design||{},box=ui.winres;box.innerHTML="";
+  box.appendChild(h("h4",null,"Top-performing videos on your topic ("+r.source+")"));
+  const grid=h("div","win-grid");
+  for(const v of r.videos||[]){
+    const card=h("div","win-card"),link=h("a");link.href=v.url;link.target="_blank";link.rel="noopener";
+    const im=h("img");im.src=v.thumb;im.alt="";im.loading="lazy";im.referrerPolicy="no-referrer";link.appendChild(im);
+    card.appendChild(link);
+    const t=h("a","win-t",v.title);t.href=v.url;t.target="_blank";t.rel="noopener";card.appendChild(t);
+    card.appendChild(h("p","bz-mut pub-note",v.channel+(v.subs?" · "+fmtN(v.subs)+" subscribers":"")));
+    card.appendChild(h("p","pub-note",fmtN(v.views)+" views · "+fmtN(Math.round(v.perDay))+"/day"+(v.ratio>=2?" · "+v.ratio.toFixed(1)+"x its channel size":"")+(v.durSec?" · "+Math.round(v.durSec)+" s":"")));
+    if(v.why)card.appendChild(h("p","bz-mut pub-note",v.why));
+    grid.appendChild(card);
+  }
+  box.appendChild(grid);
+  if((a.patterns||[]).length){box.appendChild(h("h4",null,"What the winners have in common"));const ul=h("ul","bz-mut");for(const p of a.patterns)ul.appendChild(h("li",null,p));box.appendChild(ul)}
+  if((sc.beats||[]).length){
+    let txt="HOOK: "+(sc.hook||"")+"\n";
+    for(const b of sc.beats)txt+="\n["+(b.time||"")+"]\nSAY: "+(b.say||"")+"\nSHOW: "+(b.show||"")+(b.onscreen?"\nON SCREEN: "+b.onscreen:"")+"\n";
+    if(sc.cta)txt+="\nCALL TO ACTION: "+sc.cta;
+    box.appendChild(h("h4",null,"Your script ("+(sc.lengthSec?"about "+sc.lengthSec+" seconds":sc.format||"")+")"));
+    box.appendChild(copyBox("Script (edit it, then record)",txt.trim(),true));
+  }
+  if(dg.layout){
+    const txt=["LAYOUT: "+dg.layout,"TEXT ON IMAGE: "+(dg.text||""),"COLORS: "+(dg.colors||""),"ELEMENTS:\n- "+(dg.elements||[]).join("\n- "),"OTHER CONCEPTS:\n- "+(dg.variations||[]).join("\n- ")].join("\n\n");
+    box.appendChild(h("h4",null,type==="image"?"Design brief":"Thumbnail concept"));box.appendChild(copyBox("Design brief",txt,true));
+  }
+  if((a.titles||[]).length){
+    box.appendChild(h("h4",null,"Title options (click one to use it)"));const row=h("div","chips");
+    for(const t of a.titles){const b=h("button","chip",t);b.onclick=()=>{ui.title.value=t;drawPlats()};row.appendChild(b)}box.appendChild(row);
+  }
+  const use=h("button","bz-btn","Use this title and caption in the form");
+  use.onclick=()=>{
+    if((a.titles||[])[0])ui.title.value=a.titles[0];
+    const keep=(ui.cap.value.match(/#[\p{L}\p{N}_]+/gu)||[]).join(" "),capt=(sc.caption||sc.hook||"").trim();
+    if(capt)ui.cap.value=(capt+(keep?"\n\n"+keep:"")).trim();
+    drawPlats();ui.msg.textContent="Title and caption filled in. Record or design it, choose the file, then publish.";window.scrollTo({top:ui.title.getBoundingClientRect().top+scrollY-120,behavior:"smooth"});
+  };
+  box.appendChild(use);
+  const tags=(r.tags||[]).slice(0,3);
+  if(tags.length){
+    box.appendChild(h("h4",null,"See what is trending live on the other platforms"));
+    const L=[["TikTok",t=>"https://www.tiktok.com/tag/"+encodeURIComponent(t)],["Instagram",t=>"https://www.instagram.com/explore/tags/"+encodeURIComponent(t)+"/"],["Facebook",t=>"https://www.facebook.com/hashtag/"+encodeURIComponent(t)],["YouTube",t=>"https://www.youtube.com/hashtag/"+encodeURIComponent(t)]];
+    const wrap=h("div","chips");
+    for(const[n,f]of L)for(const t of tags){const a2=h("a","chip","#"+t+" on "+n);a2.href=f(t);a2.target="_blank";a2.rel="noopener";wrap.appendChild(a2)}
+    box.appendChild(wrap);
+  }
+  box.appendChild(h("p","bz-mut pub-note","Real performance numbers come from YouTube. TikTok, Instagram and Facebook don't share their top content by topic with apps, so use the links above to see it live. Use the winners as a model for structure and style. Make your own version and don't copy their wording or visuals."));
 }
 
 /* ---------- Viral pack: hooks, real top-video tags, pre-post checklist ---------- */
