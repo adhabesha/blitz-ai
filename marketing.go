@@ -3,13 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"html"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ---------------- keyword research ----------------
@@ -221,7 +226,103 @@ func findCheck(r *Report, name string) *Check {
 	return nil
 }
 
+type compCand struct{ Name, Domain, Why string }
+
+// Sites that are directories, marketplaces or social networks are never direct competitors.
+var notCompetitor = []string{"facebook.com", "instagram.com", "linkedin.com", "youtube.com", "tiktok.com", "twitter.com", "x.com", "pinterest.com", "wikipedia.org", "yelp.com", "tripadvisor.com", "google.com", "booking.com", "amazon.com", "alibaba.com", "olx.com", "reddit.com", "quora.com", "medium.com", "yellowpages.com", "crunchbase.com", "glassdoor.com", "indeed.com"}
+
+var (
+	reScriptStyle = regexp.MustCompile(`(?is)<(script|style|noscript|svg)[^>]*>.*?</(script|style|noscript|svg)>`)
+	reAnyTag      = regexp.MustCompile(`(?s)<[^>]+>`)
+)
+
+func pageText(doc string, n int) string {
+	t := reScriptStyle.ReplaceAllString(doc, " ")
+	t = reAnyTag.ReplaceAllString(t, " ")
+	return clip(strings.Join(strings.Fields(html.UnescapeString(t)), " "), n)
+}
+
+// findCompetitors reads the person's own site to learn the category and the place it serves, then asks Gemini
+// (with live Google Search) for real businesses that offer the same thing in the same area.
+func (s *server) findCompetitors(ctx context.Context, in evalIn) (category, location string, out []compCand, err error) {
+	if env("GEMINI_API_KEY") == "" {
+		return "", "", nil, errors.New("AI is not set up (GEMINI_API_KEY)")
+	}
+	target, domain, nerr := normalizeURL(in.URL)
+	if nerr != nil {
+		return "", "", nil, nerr
+	}
+	title, desc, text := "", "", ""
+	if pg, ferr := fetch(ctx, target, 1<<20); ferr == nil {
+		doc := string(pg.body)
+		if m := reTitle.FindStringSubmatch(doc); m != nil {
+			title = strings.TrimSpace(html.UnescapeString(m[1]))
+		}
+		desc = meta(doc, "description")
+		text = pageText(doc, 1500)
+	}
+	prompt := fmt.Sprintf(`Use Google Search. A business has this website.
+Domain: %s
+Title: %s
+Description: %s
+Text from the homepage: %s
+Country code given by the owner: %s
+City or area given by the owner (may be empty): %s
+Business type given by the owner (may be empty): %s
+
+Step 1: work out what exactly this business sells (its category and main services) and where it operates (city or area, and country). Prefer what the owner gave, otherwise use the website.
+Step 2: find 5 real DIRECT competitors: businesses with their own website that offer the same kind of products or services to customers in the same city or area (widen to the same country only if there are not enough local ones), in the same category and at a similar scale. Exclude the business itself, directories, marketplaces, social networks, news sites and Wikipedia. Only include websites you saw in the search results; never invent a domain.
+Return JSON only, no other text: {"category":"short category","location":"city, country","competitors":[{"name":"business name","domain":"example.com","why":"one short line on why it competes"}]}`,
+		domain, clip(title, 150), clip(desc, 300), text, clip(in.Country, 5), clip(in.Location, 80), clip(in.Topic, 120))
+	cctx, cancel := context.WithTimeout(ctx, 28*time.Second)
+	defer cancel()
+	txt, gerr := s.geminiSearch(cctx, prompt)
+	if gerr != nil {
+		return "", "", nil, gerr
+	}
+	var res struct {
+		Category    string `json:"category"`
+		Location    string `json:"location"`
+		Competitors []struct {
+			Name   string `json:"name"`
+			Domain string `json:"domain"`
+			Why    string `json:"why"`
+		} `json:"competitors"`
+	}
+	if json.Unmarshal([]byte(cleanJSON(txt)), &res) != nil || len(res.Competitors) == 0 {
+		return "", "", nil, errors.New("no competitors in the answer")
+	}
+	seen := map[string]bool{domain: true}
+	for _, c := range res.Competitors {
+		_, d, derr := normalizeURL(c.Domain)
+		if derr != nil || seen[d] {
+			continue
+		}
+		skip := false
+		for _, b := range notCompetitor {
+			if d == b || strings.HasSuffix(d, "."+b) {
+				skip = true
+			}
+		}
+		if skip {
+			continue
+		}
+		seen[d] = true
+		out = append(out, compCand{Name: clip(c.Name, 80), Domain: d, Why: clip(c.Why, 160)})
+		if len(out) == 4 {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return "", "", nil, errors.New("no usable competitor websites in the answer")
+	}
+	return clip(res.Category, 80), clip(res.Location, 80), out, nil
+}
+
 func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error) {
+	if strings.TrimSpace(in.URL) == "" {
+		return nil, userErr("Enter your website.")
+	}
 	var urls []string
 	urls = append(urls, in.URL)
 	for _, f := range strings.FieldsFunc(in.Query, func(r rune) bool { return r == ',' || r == '\n' || r == ' ' || r == ';' }) {
@@ -229,8 +330,22 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 			urls = append(urls, f)
 		}
 	}
+	// No competitors typed: find them by the same category, area and location.
+	var auto []compCand
+	var autoCat, autoLoc string
 	if len(urls) < 2 {
-		return nil, userErr("Enter your website and at least one competitor website.")
+		var ferr error
+		autoCat, autoLoc, auto, ferr = s.findCompetitors(ctx, in)
+		if ferr != nil {
+			if _, ok := ferr.(userErr); ok {
+				return nil, ferr
+			}
+			log.Println("find competitors:", ferr)
+			return nil, userErr("I couldn't find competitors automatically (" + trunc(ferr.Error(), 100) + "). Type 1 to 3 competitor websites and run it again.")
+		}
+		for _, c := range auto {
+			urls = append(urls, c.Domain)
+		}
 	}
 	type res struct {
 		rep *Report
@@ -257,6 +372,15 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 	r := &Report{Target: own.Target + " vs competitors", Checks: own.Checks, Meta: map[string]string{}}
 	for k, v := range own.Meta {
 		r.Meta[k] = v
+	}
+	if len(auto) > 0 {
+		r.Meta["category"], r.Meta["location"] = autoCat, autoLoc
+		ft := Table{Title: "Competitors found for you (same category and area)", Columns: []string{"Business", "Website", "Why it competes"}}
+		for _, c := range auto {
+			ft.Rows = append(ft.Rows, Row{Cells: []string{c.Name, c.Domain, c.Why}})
+		}
+		r.Tables = append(r.Tables, ft)
+		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", using live Google Search. To compare against specific businesses instead, type their websites and run it again.")
 	}
 	var sites []*Report
 	sites = append(sites, own)
@@ -303,7 +427,7 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 			best, bestName = st.Score, st.Target
 		}
 	}
-	r.Tables = []Table{mt, pt}
+	r.Tables = append([]Table{mt, pt}, r.Tables...)
 	r.Charts = []Chart{scores}
 	if len(perf.Labels) > 1 {
 		r.Charts = append(r.Charts, perf)

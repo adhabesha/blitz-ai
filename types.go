@@ -141,6 +141,8 @@ type evalIn struct {
 	ExactSubs float64 `json:"exactSubs"`
 	Budget    float64 `json:"budget"`
 	Country   string  `json:"country"`
+	Topic     string  `json:"topic"`    // optional business type / category hint (competitor finder)
+	Location  string  `json:"location"` // optional city or area hint (competitor finder)
 	Lang      string  `json:"lang"`
 	// app
 	Store     string  `json:"store"`

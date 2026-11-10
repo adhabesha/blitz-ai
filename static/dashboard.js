@@ -100,7 +100,7 @@ function collect(){
   if(kind==="youtube"){const u=$("y-url").value.trim();if(!u){m.textContent="Paste a channel link or @handle";return}return{kind,query:u,exactSubs:num("y-subs"),useAI:ai}}
   if(kind==="seo"){
     const mode=$("seo-mode").value,o={kind:mode,country:$("seo-country").value.trim(),lang:$("seo-lang").value.trim(),useAI:true};
-    if(mode==="competitors"){const own=$("seo-own").value.trim(),cm=$("seo-comp").value.trim();if(!own||!cm){m.textContent="Enter your website and at least one competitor";return}o.url=own;o.query=cm}
+    if(mode==="competitors"){const own=$("seo-own").value.trim(),cm=$("seo-comp").value.trim();if(!own){m.textContent="Enter your website";return}o.url=own;o.query=cm;o.topic=$("seo-seed").value.trim();o.location=$("seo-loc").value.trim()}
     else{const q=$("seo-seed").value.trim();if(q.length<3){m.textContent="Describe the topic, product or service";return}o.query=q;o.goal=$("seo-goal").value;o.budget=num("seo-budget");o.url=$("seo-own").value.trim()}
     return o;
   }
@@ -256,7 +256,7 @@ $("out").onclick=()=>signOut(auth);
 
 // ---- SEO & Ads form + marketing report ----
 function seoMode(){const m=$("seo-mode").value;
-  $("l-seed").hidden=(m==="competitors");$("l-own").hidden=(m==="keywords");$("l-comp").hidden=(m!=="competitors");$("l-goal").hidden=(m!=="ads");$("l-budget").hidden=(m!=="ads");}
+  $("l-seed").hidden=false;$("l-seed").firstChild.textContent=(m==="competitors")?"Business type (optional, detected from your website if empty)":"Topic, product or service";$("l-loc").hidden=(m!=="competitors");$("l-own").hidden=(m==="keywords");$("l-comp").hidden=(m!=="competitors");$("l-goal").hidden=(m!=="ads");$("l-budget").hidden=(m!=="ads");}
 $("seo-mode").onchange=seoMode;seoMode();
 function showMReport(){$("runbox").hidden=true;$("result").hidden=false;renderMarketing($("result"),hist,$("mr-company").value,$("mr-by").value)}
 document.querySelectorAll(".bz-nav").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.kind==="mreport")showMReport()}));

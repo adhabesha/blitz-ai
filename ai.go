@@ -69,6 +69,50 @@ func (s *server) geminiParts(ctx context.Context, parts []any) (string, error) {
 	return out.Candidates[0].Content.Parts[0].Text, nil
 }
 
+// geminiSearch asks Gemini with Google Search grounding on, so answers come from live web results.
+// Search grounding can't be combined with forced JSON output, so the caller extracts the JSON from the text.
+func (s *server) geminiSearch(ctx context.Context, prompt string) (string, error) {
+	body, _ := json.Marshal(map[string]any{
+		"contents": []any{map[string]any{"parts": []any{map[string]string{"text": prompt}}}},
+		"tools":    []any{map[string]any{"google_search": map[string]any{}}},
+	})
+	url := "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel() + ":generateContent"
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", env("GEMINI_API_KEY"))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", errRate
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("gemini search status %d", resp.StatusCode)
+	}
+	var out struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || len(out.Candidates) == 0 {
+		return "", errors.New("empty gemini reply")
+	}
+	var sb strings.Builder
+	for _, p := range out.Candidates[0].Content.Parts {
+		sb.WriteString(p.Text)
+	}
+	if sb.Len() == 0 {
+		return "", errors.New("empty gemini reply")
+	}
+	return sb.String(), nil
+}
+
 type visResult struct {
 	Mentions, Total int
 	Category        string
