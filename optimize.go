@@ -197,6 +197,10 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 			title, desc, tags = vr.Items[0].Snippet.Title, vr.Items[0].Snippet.Description, vr.Items[0].Snippet.Tags
 		}
 	}
+	if in.VideoID != "" && pl == "youtube" && strings.TrimSpace(title+desc) == "" {
+		http.Error(w, "I couldn't read that video from YouTube, so I won't guess what it is about. Check that YOUTUBE_API_KEY is set and that the video is public, then try again.", 400)
+		return
+	}
 	if strings.TrimSpace(title+desc+in.Topic) == "" {
 		http.Error(w, "Add a topic, a title or a description first", 400)
 		return
@@ -216,10 +220,18 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 	var real []string
 	if pl == "post" || pl == "youtube" || pl == "instagram" || pl == "tiktok" {
 		tctx, tcancel := context.WithTimeout(r.Context(), 12*time.Second)
-		real = ytTopTags(tctx, firstNonEmpty(in.Topic, title))
+		real = ytTopTags(tctx, firstNonEmpty(title, in.Topic))
 		tcancel()
 	}
 	extra := ""
+	topicIn := in.Topic
+	if strings.TrimSpace(title+desc) != "" {
+		// The existing title/description define what the content is about. The channel niche is background only.
+		extra += "\nSUBJECT LOCK: the subject of this content is defined ONLY by the Current title and Current description above. Every title, description, tag, hashtag and hook you write must be about that exact subject, in the same language as the current title. The Topic line is only background about the channel: use it only where it agrees with the title, and ignore it completely where it does not. Never switch to a different subject, and never state facts the title and description do not imply."
+		if topicIn != "" {
+			topicIn = "(channel background only, ignore if it differs from the title) " + topicIn
+		}
+	}
 	if len(real) > 0 {
 		extra += "\nReal data: tags and hashtags used by the most-viewed recent YouTube videos on this topic, most common first (use the ones that truly fit the post, ignore unrelated ones): " + strings.Join(real, " ") + "."
 	}
@@ -230,7 +242,7 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 		extra += fmt.Sprintf("\nHashtags: return exactly %d in hashtags, built as a pyramid: broad 2-3 (very popular, topic level), mid 3-4, niche 3-5 (the exact subject), micro 2-3 (very specific long tags), trending 1-2 (tied to a format, season or event you are confident is current, otherwise leave out). Merge in that order and trim to the count. No spammy, banned or misleading tags, no duplicates, no spaces, no punctuation.", in.HashtagCount)
 	}
 	prompt := fmt.Sprintf("You are an expert %s growth strategist. Optimise the content below for maximum reach and clicks using the platform's published best practices, and never invent facts about the creator.\nRules: %s\nCurrent title: %s\nCurrent description or caption: %s\nCurrent tags: %s\nTopic: %s\nAudience: %s\nGoal: %s\nReturn JSON only with keys: titles (%d distinct options; for non-video platforms caption openers; for ideas the content ideas; for faq the questions; for bio the bio options), description (the final improved full description, caption or bio, ready to paste; for howto the numbered steps; for faq a one-line summary), tags (keywords without #; empty list if the platform doesn't use tags), hashtags (with #), hooks (3 strong opening lines; for faq the matching answers in the same order as titles; for howto 3 ready-to-use examples), ideas (3 thumbnail or visual ideas), notes (3 short A/B testing tips), tagTiers (an object with array keys. For youtube: broad, niche, longtail, questions, trending. For every other platform: the hashtag tiers broad, mid, niche, micro, trending).%s",
-		label, rules, clip(title, 150), clip(desc, 1500), clip(strings.Join(tags, ", "), 400), clip(in.Topic, 400), clip(in.Audience, 150), clip(in.Goal, 150), n, extra)
+		label, rules, clip(title, 150), clip(desc, 1500), clip(strings.Join(tags, ", "), 400), clip(topicIn, 400), clip(in.Audience, 150), clip(in.Goal, 150), n, extra)
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	txt, err := s.gemini(ctx, prompt)
