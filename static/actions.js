@@ -337,6 +337,14 @@ export function fixFromPlan(p,r){
     const st=h("p","bz-mut"),b=h("button","bz-btn",q[1]==="pause"?"Pause this ad now":"Set the ad set daily budget to "+q[3]);
     b.onclick=async()=>{b.disabled=true;st.textContent="Applying…";try{await api("POST","/api/ads/action",body);st.textContent="Done."}catch(e){st.textContent=e.message}b.disabled=false};
     add(c,b,st)}}
+  if(p.auto&&p.auto.startsWith("adbrief:")){
+    const ctx=p.auto.slice(8).split(" | ");
+    return(c,rr)=>{
+      c.appendChild(h("p","bz-mut","Opens Ad creative with this winning ad as the starting point, so the new scripts keep what already works and change the opening and visual."));
+      const b=h("button","bz-btn","Brief and script new ads from this winner");
+      b.onclick=()=>{window.__bzCreative={winners:'Ad "'+(ctx[0]||"")+'" (campaign '+(ctx[1]||"")+"): "+(ctx.slice(2).join(" | ")||""),product:""};document.dispatchEvent(new CustomEvent("bz-goto",{detail:{kind:"adcreative"}}))};
+      c.appendChild(b)};
+  }
   if(p.auto==="calendar")return calendar;
   if(p.auto==="viral")return viralFix;
   if(p.auto==="draft:meta"||p.auto==="draft:seo-content")return queriesFix;

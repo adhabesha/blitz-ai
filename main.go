@@ -101,6 +101,7 @@ func main() {
 	mux.HandleFunc("/api/ads/accounts", s.adsAccountsHandler)
 	mux.HandleFunc("/api/ads/launch", s.adsLaunch)
 	mux.HandleFunc("/api/ads/action", s.adsAction)
+	mux.HandleFunc("/api/adcreative", s.adCreative)
 	mux.HandleFunc("/api/publish", s.publish)
 	mux.HandleFunc("/api/publish/status", s.publishStatus)
 	mux.HandleFunc("/api/tiktok/creator", s.tiktokCreator)
@@ -241,6 +242,8 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalCompetitors(ctx, in)
 	case "ads":
 		rep, err = s.evalAds(ctx, in)
+	case "campaigns":
+		rep, err = s.evalCampaigns(ctx, uid, in)
 	case "social_connected":
 		rep, err = s.evalConnectedSocial(ctx, uid, in)
 	default:

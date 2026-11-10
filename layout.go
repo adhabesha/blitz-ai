@@ -38,6 +38,11 @@ var layouts = map[string]kindLayout{
 		Tables: []pageRule{{"side-by-side", "compare"}, {"presents", "compare"}},
 		DefChart: "overview", DefTable: "overview",
 	},
+	"campaigns": {
+		Pages:  []PageDef{{"overview", "Overview"}, {"campaigns", "Campaigns managed"}, {"winners", "Winning ads"}, {"docs", "Documentation"}, {"fixes", "Actions"}},
+		Tables: []pageRule{{"managed", "campaigns"}, {"winning", "winners"}, {"documentation", "docs"}},
+		DefChart: "overview", DefTable: "overview",
+	},
 	"ads": {
 		Pages:  []PageDef{{"overview", "Overview"}, {"google", "Google Ads"}, {"meta", "Meta Ads"}, {"fixes", "Launch plan"}},
 		Tables: []pageRule{{"meta", "meta"}, {"audience", "meta"}, {"google", "google"}},

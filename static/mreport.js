@@ -1,5 +1,5 @@
 import{h,add}from"./ui.js";
-const NAMES={adsperf:"Paid ads performance (Meta)",website:"Website and SEO audit",google:"Search, traffic and YouTube analytics",youtube:"YouTube channel",social_connected:"Social media accounts",competitors:"Competitor analysis",keywords:"Keyword research",ads:"Ads plan",app:"App store listing",social:"Social account (manual)"};
+const NAMES={adsperf:"Paid ads performance (Meta)",campaigns:"Campaigns managed (Meta)",website:"Website and SEO audit",google:"Search, traffic and YouTube analytics",youtube:"YouTube channel",social_connected:"Social media accounts",competitors:"Competitor analysis",keywords:"Keyword research",ads:"Ads plan",app:"App store listing",social:"Social account (manual)"};
 const tone=s=>s>=75?"#16a34a":s>=50?"#f59e0b":"#ef4444";
 export function renderMarketing(box,hist,company,by){
   box.innerHTML="";box.hidden=false;

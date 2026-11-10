@@ -3,7 +3,8 @@ import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasej
 import{$,h,add,icon,setAuth,api,copyBox}from"./ui.js";
 import{renderReport,destroyCharts}from"./report.js";
 import{mountPublish}from"./publish.js";
-import{mountRunAds,analyzeButton}from"./runads.js";
+import{mountRunAds,analyzeButton,campaignsControls}from"./runads.js";
+import{mountAdCreative}from"./adcreative.js";
 import{renderMarketing}from"./mreport.js";
 import{publishBtn,noApply}from"./apply.js";
 
@@ -11,8 +12,8 @@ const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={seo:["Collecting data…","Comparing and clustering…","Writing recommendations…"],website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
 let kind="website",hist=[],timer,current=null,gA=null,showAll=false;
 const session={};
-let refreshPub=null,refreshAds=null;
-const tabOf=k=>k==="social_connected"?"socialc":(k==="keywords"||k==="competitors"||k==="ads")?"seo":k==="adsperf"?"runads":k;
+let refreshPub=null,refreshAds=null,refreshCreative=null;
+const tabOf=k=>k==="social_connected"?"socialc":(k==="keywords"||k==="competitors"||k==="ads")?"seo":(k==="adsperf"||k==="campaigns")?"runads":k;
 
 // theme
 const setTheme=t=>{document.documentElement.dataset.theme=t;try{localStorage.setItem("bz-theme",t)}catch(e){}document.querySelectorAll(".bz-theme button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(current)show(current,false)};
@@ -24,7 +25,7 @@ function setKind(k){
   kind=k;
   document.querySelectorAll(".bz-nav").forEach(x=>x.classList.toggle("on",x.dataset.kind===k));
   document.querySelectorAll("#formbox>.form").forEach(f=>f.hidden=f.id!=="f-"+k);
-  $("runbox").hidden=(k==="optimizer"||k==="publish"||k==="mreport"||k==="runads");
+  $("runbox").hidden=(k==="optimizer"||k==="publish"||k==="mreport"||k==="runads"||k==="adcreative");
   $("runrow").hidden=(k==="google"||k==="socialc");
   $("optres").hidden=(k!=="optimizer");
   if(k==="optimizer"&&!$("optres").children.length){
@@ -39,6 +40,7 @@ function setKind(k){
   if(k==="google")loadGoogle(true).catch(e=>{$("msg").textContent=e.message});
   if(k==="publish"&&refreshPub)refreshPub();
   if(k==="runads"&&refreshAds)refreshAds();
+  if(k==="adcreative"&&refreshCreative)refreshCreative();
   if(k==="socialc")loadSocial().catch(e=>{$("msg").textContent=e.message});
 }
 document.querySelectorAll(".bz-nav").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
@@ -240,6 +242,13 @@ onAuthStateChanged(auth,async u=>{
     try{$("msg").textContent="Reading your Meta ads…";const r=await api("POST","/api/evaluate",{kind:"adsperf",site:acct,useAI:$("ai").checked});hist.unshift(r);drawHistory();show(r,true);$("msg").textContent=""}
     catch(e){$("msg").textContent=e.message}});
   $("f-runads").appendChild(analyzeButton());
+  $("f-runads").appendChild(campaignsControls(async(acct,period)=>{
+    try{$("msg").textContent="Reading your Meta campaigns…";const r=await api("POST","/api/evaluate",{kind:"campaigns",site:acct,query:period,useAI:$("ai").checked});hist.unshift(r);drawHistory();show(r,true);$("msg").textContent=""}
+    catch(e){$("msg").textContent=e.message}}));
+  refreshCreative=mountAdCreative($("f-adcreative"),()=>{
+    const r=hist.find(x=>x.kind==="campaigns");if(!r)return"";
+    const t=(r.tables||[]).find(x=>/winning/i.test(x.title));if(!t||!t.rows||!t.rows.length)return"";
+    return t.rows.slice(0,4).map(x=>{const c=x.cells||x;return"Ad \""+c[0]+"\" (campaign "+c[1]+"): CPA "+c[4]+", conversion rate "+c[5]+", ROAS "+c[6]+", CTR "+c[7]}).join("\n")});
   try{hist=await api("GET","/api/reports")}catch(e){$("msg").textContent=e.message}
   drawHistory();
   const g=new URLSearchParams(location.search).get("google");

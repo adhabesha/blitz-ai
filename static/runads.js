@@ -22,6 +22,8 @@ export function mountRunAds(root,a,perf){
   return refresh;
 }
 export async function refresh(){
+  const d=window.__bzAdDraft;
+  if(d){window.__bzAdDraft=null;ui.head.value=d.head||"";ui.prim.value=d.prim||"";ui.desc.value=d.desc||"";ui.topic.value=d.topic||"";if(d.cta)ui.cta.value=d.cta;ui.msg.textContent="Ad copy added from Ad creative. Add the link, image, audience and budget."}
   try{const d=await api("GET","/api/ads/accounts");ui.acct.innerHTML="";for(const a of d.accounts){const o=h("option",null,a.name+" ("+a.currency+")");o.value=a.id;ui.acct.appendChild(o)}
     ui.budget.placeholder="Daily budget (max "+d.maxDaily+")";ui.msg.textContent=""}
   catch(e){ui.acct.innerHTML="";ui.msg.textContent=e.message}
@@ -52,3 +54,12 @@ function drawCreated(){
   add(c,conf,act,perf,st);ui.out.innerHTML="";ui.out.appendChild(c);
 }
 export function analyzeButton(){const b=h("button","bz-btn ghost","Analyze my Meta ads performance");b.onclick=()=>onPerf&&onPerf(ui.acct.value);return b}
+
+// Campaigns managed report: ROAS, CPA, conversion rate and winning ads for the chosen period.
+export function campaignsControls(onCamp){
+  const w=h("div","apply-row");w.style.marginTop="12px";
+  const sel=h("select");for(const[v,l]of[["last_30d","Last 30 days"],["last_90d","Last 90 days"],["this_year","This year"],["last_year","Last year"],["maximum","All time"]]){const o=h("option",null,l);o.value=v;sel.appendChild(o)}
+  const b=h("button","bz-btn","Campaigns managed report (ROAS, CPA, winning ads)");b.style.marginLeft="8px";
+  b.onclick=()=>onCamp&&onCamp(ui.acct.value,sel.value);
+  add(w,sel,b);return w;
+}
