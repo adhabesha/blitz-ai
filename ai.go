@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,8 +21,22 @@ func cleanJSON(s string) string {
 }
 
 func (s *server) gemini(ctx context.Context, prompt string) (string, error) {
+	return s.geminiParts(ctx, []any{map[string]string{"text": prompt}})
+}
+
+// geminiImages sends a prompt together with images (JPEG) so the AI can actually look at them.
+func (s *server) geminiImages(ctx context.Context, prompt string, labels []string, imgs [][]byte) (string, error) {
+	parts := []any{map[string]string{"text": prompt}}
+	for i, b := range imgs {
+		parts = append(parts, map[string]string{"text": labels[i]})
+		parts = append(parts, map[string]any{"inline_data": map[string]string{"mime_type": "image/jpeg", "data": base64.StdEncoding.EncodeToString(b)}})
+	}
+	return s.geminiParts(ctx, parts)
+}
+
+func (s *server) geminiParts(ctx context.Context, parts []any) (string, error) {
 	body, _ := json.Marshal(map[string]any{
-		"contents":         []any{map[string]any{"parts": []any{map[string]string{"text": prompt}}}},
+		"contents":         []any{map[string]any{"parts": parts}},
 		"generationConfig": map[string]any{"responseMimeType": "application/json"},
 	})
 	url := "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel() + ":generateContent"

@@ -105,14 +105,16 @@ const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String
 async function findWinners(){
   const topic=(ui.topic.value||ui.title.value||"").trim();
   if(!topic){ui.msg.textContent="Type what the post is about in the Topic box first.";return}
-  ui.win.disabled=true;ui.winres.innerHTML="";ui.winres.appendChild(h("p","bz-mut","Finding what is working right now. This takes about 20 seconds…"));
+  ui.win.disabled=true;ui.winres.innerHTML="";ui.winres.appendChild(h("p","bz-mut","Finding what is working right now"+(type==="image"?" and studying the designs":"")+". This can take up to a minute for unusual topics…"));
   try{drawWinners(await api("POST","/api/viral/research",{topic,kind:type}),topic)}
   catch(e){ui.winres.innerHTML="";ui.winres.appendChild(h("p","bz-err",e.message))}
   ui.win.disabled=false;
 }
 function drawWinners(r,topic){
   const a=r.analysis||{},sc=a.script||{},dg=a.design||{},box=ui.winres;box.innerHTML="";
-  box.appendChild(h("h4",null,"Top-performing videos on your topic ("+r.source+")"));
+  box.appendChild(h("h4",null,type==="image"?"Top-performing designs in your niche ("+r.source+")":"Top-performing videos on your topic ("+r.source+")"));
+  if(type==="image")box.appendChild(h("p","bz-mut pub-note","These are the cover images that earned the most views compared with their channel's size. Look at the layout, the text size and the colours."));
+  if(r.note)box.appendChild(h("p","bz-mut pub-note",r.note));
   const grid=h("div","win-grid");
   for(const v of r.videos||[]){
     const card=h("div","win-card"),link=h("a");link.href=v.url;link.target="_blank";link.rel="noopener";
@@ -134,7 +136,8 @@ function drawWinners(r,topic){
     box.appendChild(copyBox("Script (edit it, then record)",txt.trim(),true));
   }
   if(dg.layout){
-    const txt=["LAYOUT: "+dg.layout,"TEXT ON IMAGE: "+(dg.text||""),"COLORS: "+(dg.colors||""),"ELEMENTS:\n- "+(dg.elements||[]).join("\n- "),"OTHER CONCEPTS:\n- "+(dg.variations||[]).join("\n- ")].join("\n\n");
+    const slides=(dg.slides||[]).map((x,i)=>"SLIDE "+(i+1)+": "+(x.headline||"")+(x.body?"\n  TEXT: "+x.body:"")+(x.visual?"\n  VISUAL: "+x.visual:"")).join("\n");
+    const txt=[(dg.format?"FORMAT: "+dg.format:""),(slides?slides:""),"LAYOUT: "+dg.layout,"TEXT ON IMAGE: "+(dg.text||""),"COLORS: "+(dg.colors||""),"ELEMENTS:\n- "+(dg.elements||[]).join("\n- "),"OTHER CONCEPTS:\n- "+(dg.variations||[]).join("\n- ")].filter(Boolean).join("\n\n");
     box.appendChild(h("h4",null,type==="image"?"Design brief":"Thumbnail concept"));box.appendChild(copyBox("Design brief",txt,true));
   }
   if((a.titles||[]).length){
@@ -149,6 +152,15 @@ function drawWinners(r,topic){
     drawPlats();ui.msg.textContent="Title and caption filled in. Record or design it, choose the file, then publish.";window.scrollTo({top:ui.title.getBoundingClientRect().top+scrollY-120,behavior:"smooth"});
   };
   box.appendChild(use);
+  if(type==="image"){
+    const q=encodeURIComponent(topic);
+    box.appendChild(h("h4",null,"Find image and ad posts that are performing well"));
+    const wrap=h("div","chips");
+    for(const[n,u]of[["Facebook Ad Library (image ads)","https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&media_type=image&search_type=keyword_unordered&q="+q],["Pinterest","https://www.pinterest.com/search/pins/?q="+q],["Canva templates","https://www.canva.com/templates/?query="+q],["Behance","https://www.behance.net/search/projects?search="+q],["Google Images (past month)","https://www.google.com/search?tbm=isch&tbs=qdr:m&q="+q]]){
+      const a2=h("a","chip",n);a2.href=u;a2.target="_blank";a2.rel="noopener";wrap.appendChild(a2)}
+    box.appendChild(wrap);
+    box.appendChild(h("p","bz-mut pub-note","Tip: in the Ad Library, an ad that has been running for 30 days or more is usually making money, because advertisers stop paying for ads that don't work. Open the ones with the oldest start date."));
+  }
   const tags=(r.tags||[]).slice(0,3);
   if(tags.length){
     box.appendChild(h("h4",null,"See what is trending live on the other platforms"));
@@ -157,7 +169,7 @@ function drawWinners(r,topic){
     for(const[n,f]of L)for(const t of tags){const a2=h("a","chip","#"+t+" on "+n);a2.href=f(t);a2.target="_blank";a2.rel="noopener";wrap.appendChild(a2)}
     box.appendChild(wrap);
   }
-  box.appendChild(h("p","bz-mut pub-note","Real performance numbers come from YouTube. TikTok, Instagram and Facebook don't share their top content by topic with apps, so use the links above to see it live. Use the winners as a model for structure and style. Make your own version and don't copy their wording or visuals."));
+  box.appendChild(h("p","bz-mut pub-note","Real performance numbers come from YouTube. TikTok, Instagram and Facebook don't share their top content by topic with apps, so use the links to see it live. Use the winners as a model for structure and style. Make your own version and don't copy their wording or visuals."));
 }
 
 /* ---------- Viral pack: hooks, real top-video tags, pre-post checklist ---------- */
