@@ -54,7 +54,8 @@ Open any fix in a report: where it is possible, the fix has an Apply button inst
 - **YouTube video:** title, description, tags (Connected Google).
 - **YouTube channel:** channel description from the Bio fix.
 - **Website:** robots.txt, sitemap.xml, llms.txt, title and meta description, canonical, viewport, language, share-preview tags, structured data (Organization and FAQ), and removing noindex. The first time, a setup form asks for your website address, GitHub repository, branch, homepage file and a GitHub token (fine-grained, Contents: Read and write, one repo). Blitz AI commits the change; your host deploys it. Revert the commit on GitHub to undo. Apply only works on the website you connected.
-- **Instagram, TikTok, Facebook:** their APIs cannot edit an existing post or bio, so those fixes use **Use in Publish** (fills the Publish form) and the content calendar has **Create post** per day (fills topic and schedule).
+- **Facebook:** Fix this post / Apply to this post edits the caption of the live Page post (needs `pages_manage_posts`; Facebook only allows text changes on some post types). Views come from post insights and need `read_insights`.
+- **Instagram, TikTok:** their APIs cannot edit a published caption, so the fix gives the finished caption with Copy and a link to open the post. The content calendar has **Create post** per day for new posts (fills topic and schedule).
 - **Not applicable (explained next to each fix):** HTTPS and speed (host settings), image alt text, app store listings and replies, pinning comments.
 
 ## Winning examples + script (Publish tab)

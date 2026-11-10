@@ -110,8 +110,8 @@ function itemsPage(main,r,pageId){
         mount(b,ws,fixFromPlan({auto:"optimize-video:"+it.id,title:it.title},r),r,{videoId:it.id,text:it.title});
         act.appendChild(b);add(wrap,row,ws);
       }else if(it.kind==="post"){
-        const b=h("button","bz-btn ghost","Improve caption"),ws=h("div","bz-ws");ws.hidden=true;
-        mount(b,ws,fixFromText("caption hashtags hook",r),r,{text:it.title});act.appendChild(b);add(wrap,row,ws);
+        const b=h("button","bz-btn ghost","Fix this post"),ws=h("div","bz-ws");ws.hidden=true;
+        mount(b,ws,fixFromText("caption hashtags hook",r),r,{text:it.title,postId:it.id});act.appendChild(b);add(wrap,row,ws);
       }else wrap.appendChild(row);
       add(row,thumb(it),mid,act);list.appendChild(wrap);
     }

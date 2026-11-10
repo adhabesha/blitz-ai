@@ -110,6 +110,7 @@ func main() {
 	mux.HandleFunc("/api/social/status", s.socialStatus)
 	mux.HandleFunc("/api/social/start", s.socialStart)
 	mux.HandleFunc("/api/social/disconnect", s.socialDisconnect)
+	mux.HandleFunc("/api/social/post/apply", s.applyPost)
 	for _, p := range providers {
 		mux.HandleFunc("/auth/"+p.ID+"/callback", s.socialCallback(p.ID))
 	}

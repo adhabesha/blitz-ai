@@ -78,6 +78,7 @@ type PageDef struct {
 type Item struct {
 	ID        string             `json:"id" firestore:"id"`
 	Title     string             `json:"title" firestore:"title"`
+	Text      string             `json:"text,omitempty" firestore:"text,omitempty"` // full caption of a post (Title is shortened)
 	Thumb     string             `json:"thumb" firestore:"thumb"`
 	URL       string             `json:"url" firestore:"url"`
 	Published string             `json:"published" firestore:"published"`

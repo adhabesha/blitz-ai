@@ -18,6 +18,7 @@ type socialPost struct {
 	ID, Text, URL, Thumb           string
 	When                           time.Time
 	Likes, Comments, Shares, Views float64
+	HasViews                       bool // false when the platform did not return a view/reach number (shown as "-", never as a fake 0)
 }
 
 type socialSnap struct {
@@ -438,7 +439,7 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 	for i, m := range md.Data {
 		t, _ := time.Parse("2006-01-02T15:04:05-0700", m.Time)
 		posts[i] = socialPost{ID: m.ID, Text: m.Caption, URL: m.Link, When: t, Likes: m.Likes, Comments: m.Comments, Thumb: pickThumb(m.Thumb, m.MURL, m.MType)}
-		if i >= 12 {
+		if i >= 20 {
 			continue
 		}
 		wg.Add(1)
@@ -463,11 +464,12 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 					v := d.Values[0].Value
 					switch d.Name {
 					case "views":
-						posts[i].Views = v
+						posts[i].Views, posts[i].HasViews = v, true
 					case "reach":
 						if posts[i].Views == 0 {
 							posts[i].Views = v
 						}
+						posts[i].HasViews = true
 					case "saved", "shares":
 						posts[i].Shares += v
 					}
@@ -479,6 +481,49 @@ func fetchInstagram(ctx context.Context, tok string) (*socialSnap, error) {
 	wg.Wait()
 	snap.Posts = posts
 	return snap, nil
+}
+
+// fbViewMetrics are tried in order for each Page post. Meta replaced the old impressions metrics with the
+// "media view" ones, so the new names come first and the old ones remain as a fallback for older apps.
+var fbViewMetrics = []string{"post_media_view", "post_total_media_view_unique", "post_impressions", "post_impressions_unique", "post_video_views"}
+
+// fbPostViews fills in Views for Facebook posts from the Page post insights (needs read_insights).
+// A post whose insights are refused keeps HasViews=false so the report shows "-" instead of a wrong 0.
+func fbPostViews(ctx context.Context, base, ptok string, posts []socialPost) {
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 6)
+	var once sync.Once
+	for i := range posts {
+		if i >= 20 {
+			break
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			var lastErr error
+			for _, met := range fbViewMetrics {
+				var in struct {
+					Data []struct {
+						Values []struct {
+							Value float64 `json:"value"`
+						} `json:"values"`
+					} `json:"data"`
+				}
+				lastErr = getJSON(ctx, base+posts[i].ID+"/insights?"+url.Values{"metric": {met}, "access_token": {ptok}}.Encode(), &in)
+				if lastErr != nil || len(in.Data) == 0 || len(in.Data[0].Values) == 0 {
+					continue
+				}
+				posts[i].Views, posts[i].HasViews = in.Data[0].Values[0].Value, true
+				return
+			}
+			if lastErr != nil {
+				once.Do(func() { log.Println("facebook post insights unavailable:", trunc(lastErr.Error(), 200)) })
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 // fbNorm lowercases and keeps only a-z and 0-9, so "SIKET Training center" matches "siket training center".
@@ -638,6 +683,8 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 		t, _ := time.Parse("2006-01-02T15:04:05-0700", p.Created)
 		snap.Posts = append(snap.Posts, socialPost{ID: p.ID, Text: p.Message, URL: p.Link, Thumb: p.Picture, When: t, Likes: p.Reactions.Summary.Total, Comments: p.Comments.Summary.Total, Shares: p.Shares.Count})
 	}
+	fbPostViews(ctx, base, pg.Token, snap.Posts)
+
 	return snap, nil
 }
 
@@ -687,7 +734,7 @@ func fetchTikTok(ctx context.Context, tok string) (*socialSnap, error) {
 		log.Println("tiktok video list unavailable:", err)
 	}
 	for _, v := range vd.Data.Videos {
-		snap.Posts = append(snap.Posts, socialPost{ID: v.ID, Text: v.Title, URL: v.Link, Thumb: v.Cover, When: time.Unix(int64(v.Created), 0), Likes: v.Likes, Comments: v.Comments, Shares: v.Shares, Views: v.Views})
+		snap.Posts = append(snap.Posts, socialPost{ID: v.ID, Text: v.Title, URL: v.Link, Thumb: v.Cover, When: time.Unix(int64(v.Created), 0), Likes: v.Likes, Comments: v.Comments, Shares: v.Shares, Views: v.Views, HasViews: true})
 	}
 	return snap, nil
 }
@@ -786,13 +833,16 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 			recent = append(recent, q)
 		}
 	}
-	var likes, comments, shares, views float64
+	var likes, comments, shares, views, viewPosts float64
 	var caps []string
 	for i, q := range recent {
 		likes += q.Likes
 		comments += q.Comments
 		shares += q.Shares
-		views += q.Views
+		if q.HasViews {
+			views += q.Views
+			viewPosts++
+		}
 		if i < 15 && strings.TrimSpace(q.Text) != "" {
 			caps = append(caps, strings.TrimSpace(q.Text))
 		}
@@ -801,9 +851,13 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 	if n == 0 {
 		n = 1
 	}
+	avgViews := 0.0
+	if viewPosts > 0 {
+		avgViews = views / viewPosts
+	}
 	prev := s.followerBaseline(ctx, uid, p.ID, snap.Followers)
 	ein := evalIn{Kind: "social", UseAI: in.UseAI, Platform: p.ID, Handle: snap.Handle, Followers: snap.Followers, PrevFollowers: prev, Following: snap.Following, Posts30: posts30,
-		Likes: likes / n, Comments: comments / n, Shares: shares / n, Views: views / n, Bio: snap.Bio, Captions: strings.Join(caps, "\n\n")}
+		Likes: likes / n, Comments: comments / n, Shares: shares / n, Views: avgViews, Bio: snap.Bio, Captions: strings.Join(caps, "\n\n")}
 	r, err := s.evalSocial(ctx, ein)
 	if err != nil {
 		return nil, err
@@ -850,7 +904,11 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		sort.Slice(byEng, func(i, j int) bool { return eng(byEng[i]) > eng(byEng[j]) })
 		cols := []string{"Post", "Date", "Likes", "Comments", "Shares/saves", "Views"}
 		row := func(q socialPost) Row {
-			return Row{Cells: []string{trunc(strings.Join(strings.Fields(q.Text), " "), 60), q.When.Format("2006-01-02"), human(q.Likes), human(q.Comments), human(q.Shares), human(q.Views)}}
+			v := "\u2013"
+			if q.HasViews {
+				v = human(q.Views)
+			}
+			return Row{Cells: []string{trunc(strings.Join(strings.Fields(q.Text), " "), 60), q.When.Format("2006-01-02"), human(q.Likes), human(q.Comments), human(q.Shares), v}}
 		}
 		top := Table{Title: "Top posts", Columns: cols}
 		weak := Table{Title: "Weakest posts \u2013 rewrite these captions", Columns: cols}
@@ -880,8 +938,14 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		r.Meta["niche"] = clip(strings.Join(caps[:minInt(3, len(caps))], " | "), 300)
 	}
 	for _, q := range recent {
-		r.Items = append(r.Items, Item{ID: q.ID, Title: trunc(strings.Join(strings.Fields(q.Text), " "), 110), Thumb: q.Thumb, URL: q.URL, Published: q.When.Format(time.RFC3339), Kind: "post",
-			Metrics: map[string]float64{"views": q.Views, "likes": q.Likes, "comments": q.Comments, "shares": q.Shares, "engagement": eng(q)}})
+		mt := map[string]float64{"likes": q.Likes, "comments": q.Comments, "shares": q.Shares, "engagement": eng(q)}
+		if q.HasViews {
+			mt["views"] = q.Views
+		}
+		r.Items = append(r.Items, Item{ID: q.ID, Title: trunc(strings.Join(strings.Fields(q.Text), " "), 110), Text: clip(q.Text, 2000), Thumb: q.Thumb, URL: q.URL, Published: q.When.Format(time.RFC3339), Kind: "post", Metrics: mt})
+	}
+	if viewPosts == 0 && len(recent) > 0 {
+		r.Notes = append(r.Notes, p.Name+" did not return view counts for these posts, so views show as \u2013 instead of 0. Reconnect "+p.Name+" and approve the insights permission (read_insights"+ifs(p.ID == "instagram", " / instagram_manage_insights", "")+") to see them.")
 	}
 	r.Notes = append(r.Notes, fmt.Sprintf("Data comes straight from %s's official API for your last %d posts. Follower growth appears after a second check at least 20 days later.", p.Name, len(recent)))
 	return r, nil

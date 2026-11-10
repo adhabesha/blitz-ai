@@ -1,5 +1,5 @@
 import{h,add,api,copy,copyBox}from"./ui.js";
-import{applyBtn,noApply,siteApply,sendToPublish,publishBtn}from"./apply.js";
+import{applyBtn,noApply,siteApply,sendToPublish}from"./apply.js";
 
 const M=r=>{const m=Object.assign({},r.meta||{});m.domain=m.domain||(r.kind==="website"?r.target:"");m.name=m.name||m.channel||m.title||m.domain||r.target||"your brand";m.url=m.url||(m.domain?"https://"+m.domain+"/":"");return m};
 const originOf=m=>{try{return new URL(m.url).origin}catch(e){return"https://"+(m.domain||"example.com")}};
@@ -145,16 +145,66 @@ const bioFix=ai((c,o,cur,r)=>{
   if(links[pf]){const a=h("a","bz-btn ghost",links[pf][1]);a.href=links[pf][0];a.target="_blank";a.rel="noopener";c.appendChild(a)}
 },(r)=>{const m=M(r);return{platform:"bio",description:m.bio||"",topic:(m.platform||"")+" account @"+(m.handle||""),goal:m.goal||""}});
 
-const hashFix=ai((c,o,cur,r)=>{
-  if((o.hashtags||[]).length)c.appendChild(copyBox("Hashtags (copy under your caption)",o.hashtags.join(" ")));
-  if((o.tags||[]).length)c.appendChild(copyBox("Keywords",o.tags.join(", ")));
-  options(c,"Opening hooks + calls to action",o.hooks);
-  const cap=copyBox("Caption template",(o.titles||[])[0]?o.titles[0]+"\n\n"+(o.description||""):(o.description||""),true);c.appendChild(cap);
-  options(c,"A/B testing tips",o.notes);
-  const m=M(r);
-  c.appendChild(h("p","bz-mut","Instagram, TikTok and Facebook don't let apps edit a post that is already live, so this creates a new post: it fills the Publish form with this caption and hashtags."));
-  c.appendChild(publishBtn("Use in Publish",()=>({caption:(cap.ta.value+((o.hashtags||[]).length?"\n\n"+o.hashtags.join(" "):"")).trim(),topic:m.goal||m.name||""})));
-},(r)=>{const m=M(r);return{platform:m.platform||"instagram",topic:(m.goal||m.handle||r.target),description:m.bio||"",goal:m.goal||""}});
+// ---------- fix a post that is already published ----------
+// Facebook lets an app edit the text of a live Page post, so that fix is applied directly.
+// Instagram and TikTok refuse caption edits from any app: the person gets the finished caption and a link to the post.
+const postsOf=r=>(r.items||[]).filter(x=>x.kind==="post"&&x.id);
+const capOf=p=>(p&&(p.text||p.title))||"";
+function postWorkspace(c,r,post){
+  const m=M(r),pf=(m.platform||r.kind||"").toLowerCase(),cur=capOf(post);
+  const run=async()=>{
+    c.innerHTML="";const l=loading(c,"Rewriting this post's caption…");
+    try{
+      const res=await opt({platform:pf==="facebook"?"facebook":(pf||"instagram"),topic:cur||m.goal||m.name||r.target,description:cur,goal:m.goal||"",hashtagCount:pf==="facebook"?3:8});
+      l.remove();
+      const o=res.result||{};
+      const tags=(o.hashtags||[]).filter(t=>!(o.description||"").includes(t));
+      const full=((o.description||"")+(tags.length?"\n\n"+tags.join(" "):"")).trim();
+      const g=h("div","bz-two");
+      g.appendChild(copyBox("Current caption on the post",cur||"(no caption)"));
+      const sug=copyBox("New caption (edit it if you like)",full,true);g.appendChild(sug);c.appendChild(g);
+      const ta=sug.ta;ta.rows=Math.min(Math.max(full.split("\n").length+1,4),14);
+      options(c,"Other opening lines to try",(o.titles||[]).concat(o.hooks||[]).slice(0,5));
+      if(pf==="facebook"){
+        c.appendChild(h("p","bz-mut","Applying changes the live post on your Facebook Page. Likes, comments and shares stay as they are."));
+        c.appendChild(applyBtn("Apply to this post",async()=>{
+          const txt=ta.value.trim();if(!txt)throw new Error("The caption can't be empty.");
+          return await api("POST","/api/social/post/apply",{provider:"facebook",postId:post.id,message:txt});
+        },{confirm:"Replace the caption of this live Facebook post with the new text?"}));
+      }else{
+        const name=pf==="tiktok"?"TikTok":"Instagram";
+        // No public link opens a post straight in edit mode, so one click copies the new caption and opens the exact post
+        // (TikTok: your TikTok Studio content list, where the post's edit option lives). You are already signed in there.
+        const target=pf==="tiktok"?"https://www.tiktok.com/tiktokstudio/content":(post.url||"https://www.instagram.com/");
+        const how=pf==="tiktok"?"In TikTok Studio find this video, choose Edit, and paste.":"On the post tap the three dots (...), choose Edit, and paste.";
+        noApply(c,name+" doesn't let any app edit a published post. One click copies your new caption and opens the post. "+how);
+        const row=h("div","apply-row"),go=h("button","bz-btn","Copy caption & open post");
+        go.onclick=()=>{copy(ta.value,go);window.open(target,"_blank","noopener")};
+        const cp=h("button","bz-btn ghost","Copy caption only");cp.style.marginLeft="8px";cp.onclick=()=>copy(ta.value,cp);
+        add(row,go,cp);
+        c.appendChild(row);
+      }
+    }catch(e){l.remove();failMsg(c,e,run)}
+  };
+  return run();
+}
+// From a single post (Posts page) it fixes that post. From a general check (hashtags, hooks, calls to action)
+// the person picks which published post to fix, starting with the weakest recent one.
+const hashFix=async(c,r,item)=>{
+  const posts=postsOf(r);
+  const direct=item&&item.postId&&posts.find(p=>p.id===item.postId);
+  if(direct)return postWorkspace(c,r,direct);
+  if(!posts.length){c.appendChild(h("p","bz-mut","No published posts were found in this report, so there is nothing to fix yet."));return}
+  const byEng=[...posts].sort((a,b)=>((a.metrics||{}).engagement||0)-((b.metrics||{}).engagement||0));
+  const head=h("div","form"),lab=h("label",null,"Which published post should be fixed?"),sel=h("select");
+  for(const p of byEng){const o=h("option",null,(p.published?new Date(p.published).toLocaleDateString()+" \u00b7 ":"")+(capOf(p).replace(/\s+/g," ").slice(0,60)||"(no caption)")+" \u00b7 "+((p.metrics||{}).engagement||0)+" engagement");o.value=p.id;sel.appendChild(o)}
+  lab.appendChild(sel);head.appendChild(lab);c.appendChild(head);
+  const body=h("div");c.appendChild(body);
+  const go=h("button","bz-btn","Write the fix for this post");
+  go.onclick=()=>{go.hidden=true;postWorkspace(body,r,posts.find(p=>p.id===sel.value))};
+  sel.onchange=()=>{body.innerHTML="";go.hidden=false};
+  c.insertBefore(go,body);
+};
 
 const appFix=ai((c,o,cur,r)=>{
   const m=M(r);

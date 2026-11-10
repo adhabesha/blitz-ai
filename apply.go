@@ -402,3 +402,75 @@ func (s *server) applyYouTubeChannel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
 }
+
+var reFBPostID = regexp.MustCompile(`^(\d{5,30})_(\d{5,30})$`)
+
+// applyFacebookPost edits the caption of a post that is already live on the connected Facebook Page.
+// Instagram and TikTok don't let any app change a published caption, so they are refused with a clear reason.
+func (s *server) applyPost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	uid, err := s.uid(r)
+	if err != nil {
+		http.Error(w, "unauthorized", 401)
+		return
+	}
+	var in struct {
+		Provider string `json:"provider"`
+		PostID   string `json:"postId"`
+		Message  string `json:"message"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&in) != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
+	in.Message = strings.TrimSpace(in.Message)
+	switch {
+	case in.Provider == "instagram" || in.Provider == "tiktok":
+		http.Error(w, strings.Title(in.Provider)+" does not let any app edit a post that is already published. Copy the new caption, open the post and use Edit caption there.", 400)
+		return
+	case in.Provider != "facebook":
+		http.Error(w, "bad request", 400)
+		return
+	case in.Message == "" || len([]rune(in.Message)) > 5000:
+		http.Error(w, "The caption must be 1-5000 characters.", 400)
+		return
+	}
+	m := reFBPostID.FindStringSubmatch(in.PostID)
+	if m == nil {
+		http.Error(w, "That post can't be edited from here (unsupported post id).", 400)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	t, err := s.validToken(ctx, uid, provOf("facebook"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	// The post id starts with its Page id, so the Page token comes straight from that Page.
+	var pg struct {
+		Token string `json:"access_token"`
+	}
+	if err := getJSON(ctx, "https://graph.facebook.com/v21.0/"+m[1]+"?"+url.Values{"fields": {"access_token"}, "access_token": {t.Access}}.Encode(), &pg); err != nil || pg.Token == "" {
+		http.Error(w, "Could not get permission to edit this Page. Disconnect and reconnect Facebook, and tick your Page on Meta's screen.", 400)
+		return
+	}
+	var out struct {
+		Success bool `json:"success"`
+	}
+	if err := postForm(ctx, "https://graph.facebook.com/v21.0/"+in.PostID, url.Values{"message": {in.Message}, "access_token": {pg.Token}}, &out); err != nil {
+		msg := err.Error()
+		switch {
+		case strings.Contains(msg, "(#200)") || strings.Contains(msg, "pages_manage_posts") || strings.Contains(msg, "permission"):
+			http.Error(w, "Facebook refused the edit: Blitz AI needs the pages_manage_posts permission. Add it in your Meta configuration (SETUP-SOCIAL.md), then Disconnect and Connect Facebook again.", 400)
+		default:
+			http.Error(w, "Facebook did not accept the edit (it only allows changing the text of some post types): "+trunc(msg, 180), 400)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Done. The caption of this post on your Facebook Page was updated.", "url": "https://www.facebook.com/" + in.PostID})
+}
