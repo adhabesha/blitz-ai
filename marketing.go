@@ -271,7 +271,7 @@ City or area given by the owner (may be empty): %s
 Business type given by the owner (may be empty): %s
 
 Step 1: work out what exactly this business sells (its category and main services) and where it operates (city or area, and country). Prefer what the owner gave, otherwise use the website.
-Step 2: find 5 real DIRECT competitors: businesses with their own website that offer the same kind of products or services to customers in the same city or area (widen to the same country only if there are not enough local ones), in the same category and at a similar scale. Exclude the business itself, directories, marketplaces, social networks, news sites and Wikipedia. Only include websites you saw in the search results; never invent a domain.
+Step 2: find 7 real DIRECT competitors: businesses with their own website that offer the same kind of products or services to customers in the same city or area (widen to the same country only if there are not enough local ones), in the same category and at a similar scale. Exclude the business itself, directories, marketplaces, social networks, news sites and Wikipedia. Only include websites you saw in the search results; never invent a domain.
 Return JSON only, no other text: {"category":"short category","location":"city, country","competitors":[{"name":"business name","domain":"example.com","why":"one short line on why it competes"}]}`,
 		domain, clip(title, 150), clip(desc, 300), text, clip(in.Country, 5), clip(in.Location, 80), clip(in.Topic, 120))
 	cctx, cancel := context.WithTimeout(ctx, 38*time.Second)
@@ -341,7 +341,7 @@ Return JSON only, no other text: {"category":"short category","location":"city, 
 		}
 		seen[d] = true
 		out = append(out, compCand{Name: clip(c.Name, 80), Domain: d, Why: clip(c.Why, 160)})
-		if len(out) == 4 {
+		if len(out) == 6 {
 			break
 		}
 	}
@@ -406,23 +406,37 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 	for k, v := range own.Meta {
 		r.Meta[k] = v
 	}
-	if len(auto) > 0 {
-		r.Meta["category"], r.Meta["location"] = autoCat, autoLoc
-		ft := Table{Title: "Competitors found for you (same category and area)", Columns: []string{"Business", "Website", "Why it competes"}}
-		for _, c := range auto {
-			ft.Rows = append(ft.Rows, Row{Cells: []string{c.Name, c.Domain, c.Why}})
-		}
-		r.Tables = append(r.Tables, ft)
-		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", "+ifs(autoLive, "using live Google Search", "from the AI's own knowledge because live search was busy, so check that they really are your competitors")+". To compare against specific businesses instead, type their websites and run it again.")
-	}
 	var sites []*Report
 	sites = append(sites, own)
-	for _, x := range results[1:] {
-		if x.err != nil {
-			r.Notes = append(r.Notes, "Skipped a competitor: "+trunc(x.err.Error(), 120))
-			continue
+	maxSites := 4 // up to 3 competitors for typed lists, 4 for automatic ones (extra candidates are backups for unreachable sites)
+	if len(auto) > 0 {
+		maxSites = 5
+	}
+	status := map[string]string{}
+	for i, x := range results[1:] {
+		dom := urls[i+1]
+		if len(auto) > 0 {
+			dom = auto[i].Domain
 		}
-		sites = append(sites, x.rep)
+		switch {
+		case x.err != nil:
+			status[dom] = "Not compared: " + trunc(strings.TrimSuffix(x.err.Error(), "."), 90)
+			r.Notes = append(r.Notes, "Could not analyse "+dom+": "+trunc(x.err.Error(), 120))
+		case len(sites) >= maxSites:
+			status[dom] = "Backup, not needed"
+		default:
+			status[dom] = "Compared"
+			sites = append(sites, x.rep)
+		}
+	}
+	if len(auto) > 0 {
+		r.Meta["category"], r.Meta["location"] = autoCat, autoLoc
+		ft := Table{Title: "Competitors found for you (same category and area)", Columns: []string{"Business", "Website", "Why it competes", "Status"}}
+		for _, c := range auto {
+			ft.Rows = append(ft.Rows, Row{Cells: []string{c.Name, c.Domain, c.Why, status[c.Domain]}})
+		}
+		r.Tables = append(r.Tables, ft)
+		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", "+ifs(autoLive, "using live Google Search", "from the AI's own knowledge because live search was busy, so check that they really are your competitors")+". Sites that could not be opened were replaced by the next best match. To compare against specific businesses instead, type their websites and run it again.")
 	}
 	if len(sites) < 2 {
 		return nil, userErr("None of the competitor websites could be analysed. Check the addresses.")

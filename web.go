@@ -54,12 +54,37 @@ type fetched struct {
 	dur    time.Duration
 }
 
+const browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+
+// fetch opens a page. Many sites block unknown bots or serve only http, so a refused or failed first try is
+// repeated with a normal browser identity and, for https, a plain http fallback.
 func fetch(ctx context.Context, u string, max int64) (*fetched, error) {
+	f, err := fetchOnce(ctx, u, max, "BlitzAI-Audit/1.0")
+	blocked := err == nil && (f.status == 403 || f.status == 406 || f.status == 429 || f.status == 503)
+	if err == nil && !blocked {
+		return f, nil
+	}
+	if ctx.Err() != nil {
+		return f, err
+	}
+	if f2, err2 := fetchOnce(ctx, u, max, browserUA); err2 == nil && f2.status < 400 {
+		return f2, nil
+	}
+	if err != nil && strings.HasPrefix(u, "https://") {
+		if f3, err3 := fetchOnce(ctx, "http://"+strings.TrimPrefix(u, "https://"), max, browserUA); err3 == nil && f3.status < 500 {
+			return f3, nil
+		}
+	}
+	return f, err
+}
+
+func fetchOnce(ctx context.Context, u string, max int64, ua string) (*fetched, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "BlitzAI-Audit/1.0")
+	req.Header.Set("User-Agent", ua)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,*/*;q=0.8")
 	start := time.Now()
 	resp, err := safeClient.Do(req)
 	if err != nil {
