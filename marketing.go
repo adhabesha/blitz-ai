@@ -406,52 +406,75 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 	for k, v := range own.Meta {
 		r.Meta[k] = v
 	}
-	var sites []*Report
-	sites = append(sites, own)
-	maxSites := 4 // up to 3 competitors for typed lists, 4 for automatic ones (extra candidates are backups for unreachable sites)
-	if len(auto) > 0 {
-		maxSites = 5
+	// Every competitor that is listed gets a column in the side-by-side view. A site that cannot be opened from the
+	// server is shown as "couldn't open" instead of being dropped. Backup candidates are only used when fewer than 3
+	// of the listed ones could be analysed.
+	type shownC struct {
+		dom  string
+		cand compCand
+		x    res
 	}
-	status := map[string]string{}
+	limit := 3
+	if len(auto) > 0 {
+		limit = 4
+	}
+	var shown []shownC
+	reach := 0
 	for i, x := range results[1:] {
 		dom := urls[i+1]
+		var cd compCand
 		if len(auto) > 0 {
-			dom = auto[i].Domain
+			cd = auto[i]
+			dom = cd.Domain
 		}
-		switch {
-		case x.err != nil:
-			status[dom] = "Not compared: " + trunc(strings.TrimSuffix(x.err.Error(), "."), 90)
-			r.Notes = append(r.Notes, "Could not analyse "+dom+": "+trunc(x.err.Error(), 120))
-		case len(sites) >= maxSites:
-			status[dom] = "Backup, not needed"
-		default:
-			status[dom] = "Compared"
-			sites = append(sites, x.rep)
+		if len(shown) < limit {
+			shown = append(shown, shownC{dom, cd, x})
+			if x.err == nil {
+				reach++
+			}
+		} else if x.err == nil && reach < 3 {
+			shown = append(shown, shownC{dom, cd, x})
+			reach++
 		}
+	}
+	var sites, tcols []*Report
+	sites = append(sites, own)
+	tcols = append(tcols, own)
+	status := map[string]string{}
+	for _, sc := range shown {
+		if sc.x.err != nil {
+			status[sc.dom] = "Could not be opened from our server (slow, offline or blocking checks)"
+			r.Notes = append(r.Notes, "Could not analyse "+sc.dom+": "+trunc(sc.x.err.Error(), 120)+" It is still listed so you can see it was not skipped silently.")
+			tcols = append(tcols, &Report{Target: sc.dom + " (couldn't open)", Meta: map[string]string{"stub": "1"}})
+			continue
+		}
+		status[sc.dom] = "Compared"
+		sites = append(sites, sc.x.rep)
+		tcols = append(tcols, sc.x.rep)
 	}
 	if len(auto) > 0 {
 		r.Meta["category"], r.Meta["location"] = autoCat, autoLoc
 		ft := Table{Title: "Competitors found for you (same category and area)", Columns: []string{"Business", "Website", "Why it competes", "Status"}}
-		for _, c := range auto {
-			ft.Rows = append(ft.Rows, Row{Cells: []string{c.Name, c.Domain, c.Why, status[c.Domain]}})
+		for _, sc := range shown {
+			ft.Rows = append(ft.Rows, Row{Cells: []string{sc.cand.Name, sc.dom, sc.cand.Why, status[sc.dom]}})
 		}
 		r.Tables = append(r.Tables, ft)
-		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", "+ifs(autoLive, "using live Google Search", "from the AI's own knowledge because live search was busy, so check that they really are your competitors")+". Sites that could not be opened were replaced by the next best match. To compare against specific businesses instead, type their websites and run it again.")
+		r.Notes = append(r.Notes, "Competitors were found automatically for category \""+autoCat+"\" in "+autoLoc+", "+ifs(autoLive, "using live Google Search", "from the AI's own knowledge because live search was busy, so check that they really are your competitors")+". Every competitor in the list is in the side-by-side view. To compare against specific businesses instead, type their websites and run it again.")
 	}
 	if len(sites) < 2 {
-		return nil, userErr("None of the competitor websites could be analysed. Check the addresses.")
+		return nil, userErr("None of the competitor websites could be opened from our server. Check the addresses, or try again in a few minutes.")
 	}
 	cols := []string{"Check"}
-	for _, st := range sites {
+	for _, st := range tcols {
 		cols = append(cols, st.Target)
 	}
 	mt := Table{Title: "Side-by-side audit", Columns: cols}
 	for _, c := range own.Checks {
 		row := []string{c.Name}
-		for _, st := range sites {
+		for _, st := range tcols {
 			cc := findCheck(st, c.Name)
 			if cc == nil {
-				row = append(row, "-")
+				row = append(row, "\u2013")
 			} else {
 				row = append(row, strings.ToUpper(cc.Status)+" "+cut(cc.Value, 22))
 			}
@@ -462,6 +485,11 @@ func (s *server) evalCompetitors(ctx context.Context, in evalIn) (*Report, error
 	scores := Chart{Title: "Overall audit score by site", Type: "bar", Datasets: []Dataset{{Name: "Score"}}}
 	perf := Chart{Title: "Mobile performance by site (Lighthouse)", Type: "bar", Datasets: []Dataset{{Name: "Performance"}}}
 	best, bestName := -1, ""
+	for _, st := range tcols {
+		if st.Meta["stub"] == "1" {
+			pt.Rows = append(pt.Rows, Row{Cells: []string{st.Target, "Could not be opened from our server", "\u2013"}})
+		}
+	}
 	for i, st := range sites {
 		pt.Rows = append(pt.Rows, Row{Cells: []string{st.Target, cut(st.Meta["title"], 90), cut(st.Meta["description"], 160)}})
 		scores.Labels = append(scores.Labels, st.Target)
