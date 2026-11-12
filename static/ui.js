@@ -29,6 +29,8 @@ share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="1
 export function icon(n,size=18){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");for(const[k,v]of Object.entries({viewBox:"0 0 24 24",width:size,height:size,fill:"none",stroke:"currentColor","stroke-width":2,"stroke-linecap":"round","stroke-linejoin":"round"}))s.setAttribute(k,v);s.innerHTML=ICONS[n]||"";return s}
 let authRef;export const setAuth=a=>{authRef=a};
 export async function api(m,path,b){
+  if(!authRef.currentUser&&authRef.authStateReady)await authRef.authStateReady();
+  if(!authRef.currentUser)throw new Error("Please sign in again.");
   const tok=await authRef.currentUser.getIdToken();
   const r=await fetch(path,{method:m,headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});
   if(!r.ok)throw new Error(await r.text());

@@ -243,6 +243,10 @@ const VIEWS={
       s.onclick=async()=>{s.disabled=true;msg(m,"Reading your lead forms…");try{const x=await api("POST","/api/crm/meta/sync",{});msg(m,"Added "+x.added+" new leads (checked "+x.checked+")."+(A(x.warnings).length?" Notes: "+x.warnings.join(" | "):""));S.data.leads=null}catch(e){msg(m,e.message,1)}s.disabled=false};add(r,c,s);m.appendChild(r)}
     const wh=I.metaWebhook;add(m,codeBox("Meta webhook callback URL",wh.url),codeBox("Verify token",wh.verifyToken));
     m.appendChild(h("p","bz-mut",wh.appSecretSet?"In your Meta app: Webhooks > Page (and Instagram) > paste the callback URL and verify token > subscribe to leadgen, messages and feed (comments for Instagram).":"FACEBOOK_APP_SECRET is not set on the server, so the live webhook is off. Sync still works."));v.appendChild(m);
+    const lg=h("section","bz-card");lg.style.marginTop="14px";lg.appendChild(h("h3",null,"Meta activity log (what Meta has sent us)"));
+    const L=A(I.hookLog);if(!L.length)lg.appendChild(h("p","bz-mut","Nothing received from Meta yet. If you commented or sent a message and this stays empty: switch your Meta app to Live, subscribe the webhook fields, and make sure the Instagram account allows access to messages (Instagram > Settings > Messages and story replies > Message controls > Connected tools)."));
+    else{const t=h("table","crm-t");t.innerHTML="<thead><tr><th>When</th><th>What</th><th>Result</th></tr></thead>";const b=h("tbody");for(const x of L){const tr=h("tr");for(const y of[ago(x.at),x.kind,x.detail])tr.appendChild(h("td",null,y));b.appendChild(tr)}t.appendChild(b);const w=h("div","crm-wrap");w.appendChild(t);lg.appendChild(w)}
+    v.appendChild(lg);
     const c=h("section","bz-card");c.style.marginTop="14px";c.appendChild(h("h3",null,"3. Add by hand or import"));c.appendChild(h("p","bz-mut","Use Leads > + Create, or Leads > List > Import CSV. Duplicates are detected by email and phone."));v.appendChild(c)},
   async team(){
     S.team=await api("GET","/api/crm/team");setHead("Team & access","Company structure, roles and access");const v=V();v.innerHTML="";const T=S.team;T.members=A(T.members);T.departments=A(T.departments);T.invites=A(T.invites);
@@ -322,7 +326,7 @@ let frameReady=false;
 function nav(k){S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
 async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];const an=k.startsWith("an:");$("anwrap").hidden=!an;$("view").hidden=an;
   if(an){const it=MENU.find(m=>m[0]===k),o=it[4];setHead(it[1],o.sub);$("tabs").hidden=true;const f=$("anframe");
-    if(!frameReady){frameReady=true;f.src="/dashboard?embed=1&kind="+o.k}else f.contentWindow.postMessage({bzKind:o.k},location.origin);window.scrollTo(0,0);return}
+    if(!frameReady){frameReady=true;const ex=new URLSearchParams(location.search);const keep=["google","social","p","why"].filter(x=>ex.get(x)).map(x=>"&"+x+"="+encodeURIComponent(ex.get(x))).join("");f.src="/dashboard?embed=1&kind="+o.k+keep;if(keep)history.replaceState(null,"","/crm")}else f.contentWindow.postMessage({bzKind:o.k},location.origin);window.scrollTo(0,0);return}
   try{if(!S.team)S.team=await api("GET","/api/crm/team");await VIEWS[k]()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
 window.addEventListener("message",e=>{if(e.origin===location.origin&&e.data&&e.data.bzH)$("anframe").style.height=Math.max(e.data.bzH,innerHeight-150)+"px"});
 function globalSearch(){
@@ -343,7 +347,7 @@ function boot(){
   const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
   if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
-  nav(first||"an:website")}
+  const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+want);nav(wk?wk[0]:(first||"an:website"))}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);
   if(st==="none"){c.appendChild(h("h3",null,"Set up your company CRM"));c.appendChild(h("p","bz-mut","Create a workspace for your company. You become the owner and can then invite your team, build departments and decide who can see what. If a colleague invited you, sign in with the invited email address and refresh this page."));

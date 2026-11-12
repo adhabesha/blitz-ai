@@ -91,7 +91,7 @@ async function autoAnalyze(){
     hist.unshift(r);drawHistory();S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();show(r,true);
   }catch(e){const i=S.findIndex(s=>s[1]==="active");if(i>=0){S[i][1]="fail";S[i][0]=e.message}draw()}
 }
-$("g-btn").onclick=async()=>{try{const r=await api("POST","/api/google/start");location.href=r.url}catch(e){$("msg").textContent=e.message}};
+$("g-btn").onclick=async()=>{try{const r=await api("POST","/api/google/start");try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}};
 $("g-run").onclick=autoAnalyze;
 $("g-off").onclick=async()=>{if(!confirm("Disconnect Google?"))return;await api("POST","/api/google/disconnect");gA=null;$("g-steps").hidden=true;loadGoogle(true)};
 
@@ -222,7 +222,7 @@ async function loadSocial(){
   }
   for(const[name,why]of NA){const c=h("div","bz-card s4");add(c,h("h3",null,name),h("p","bz-mut",why));box.appendChild(c)}
 }
-async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});location.href=r.url}catch(e){$("msg").textContent=e.message}}
+async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}
 async function analyzeSocial(id,name){
   const ol=$("sc-steps");ol.hidden=false;
   const S=[["Connected to "+name,"done"],["Reading your profile and recent posts","active"],["Calculating KPIs, charts and fixes","wait"],["Ready","wait"]];

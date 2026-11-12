@@ -85,6 +85,44 @@ func (s *server) crmInbound(ctx context.Context, wid string, f map[string]any, n
 	s.crmAddLead(ctx, wid, f, "", note)
 }
 
+// hookLog keeps the last 30 things Meta sent us per workspace (or "_unmatched") so problems are visible.
+func (s *server) hookLog(ctx context.Context, wid, kind, detail string) {
+	if wid == "" {
+		wid = "_unmatched"
+	}
+	ref := s.db.Collection("crm_hooklog").Doc(wid)
+	var items []any
+	if d, err := ref.Get(ctx); err == nil {
+		items, _ = d.Data()["items"].([]any)
+	}
+	items = append(items, map[string]any{"at": time.Now(), "kind": clip(kind, 60), "detail": clip(detail, 240)})
+	if len(items) > 30 {
+		items = items[len(items)-30:]
+	}
+	ref.Set(ctx, map[string]any{"items": items})
+}
+
+func (s *server) hookLogOf(ctx context.Context, wid string) []map[string]any {
+	var out []map[string]any
+	for _, id := range []string{wid, "_unmatched"} {
+		d, err := s.db.Collection("crm_hooklog").Doc(id).Get(ctx)
+		if err != nil {
+			continue
+		}
+		its, _ := d.Data()["items"].([]any)
+		for _, x := range its {
+			if m, ok := x.(map[string]any); ok {
+				out = append(out, m)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return timeOf(out[i]["at"]).After(timeOf(out[j]["at"])) })
+	if len(out) > 25 {
+		out = out[:25]
+	}
+	return out
+}
+
 func (s *server) crmInboundID(ctx context.Context, wid string, f map[string]any, note string) string {
 	if sv(f, "ownerUid") == "" {
 		f["ownerUid"] = s.crmPickOwner(ctx, wid)
@@ -236,7 +274,7 @@ func (s *server) crmIntegrations(w http.ResponseWriter, r *http.Request) {
 		"webhookUrl": hook, "formUrl": form,
 		"embed":    `<iframe src="` + form + `" style="width:100%;max-width:520px;height:560px;border:0" title="Contact form"></iframe>`,
 		"curl":     `curl -X POST "` + hook + `" -H "Content-Type: application/json" -d '{"name":"Jane Doe","email":"jane@example.com","phone":"+251911000000","message":"I want a quote"}'`,
-		"metaPages": pages, "metaOwner": sv(c.ws, "metaOwner"),
+		"hookLog": s.hookLogOf(c.ctx, c.wid), "metaPages": pages, "metaOwner": sv(c.ws, "metaOwner"),
 		"metaWebhook": map[string]any{"url": base + "/api/crm/meta/webhook", "verifyToken": metaVerifyToken(), "appSecretSet": env("FACEBOOK_APP_SECRET") != ""},
 	})
 }
@@ -453,6 +491,7 @@ func (s *server) crmMetaWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		q := r.URL.Query()
 		if q.Get("hub.mode") == "subscribe" && subtle.ConstantTimeCompare([]byte(q.Get("hub.verify_token")), []byte(metaVerifyToken())) == 1 {
+			s.hookLog(context.Background(), "", "Webhook verified", "Meta confirmed the callback URL and verify token.")
 			w.Write([]byte(q.Get("hub.challenge")))
 			return
 		}
@@ -462,6 +501,7 @@ func (s *server) crmMetaWebhook(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	secret := env("FACEBOOK_APP_SECRET")
 	if secret == "" {
+		s.hookLog(context.Background(), "", "Rejected", "FACEBOOK_APP_SECRET is not set in Admin.")
 		http.Error(w, "not configured", 503)
 		return
 	}
@@ -469,6 +509,7 @@ func (s *server) crmMetaWebhook(w http.ResponseWriter, r *http.Request) {
 	mac.Write(body)
 	want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 	if subtle.ConstantTimeCompare([]byte(want), []byte(r.Header.Get("X-Hub-Signature-256"))) != 1 {
+		s.hookLog(context.Background(), "", "Rejected", "Meta sent an event but the signature did not match. FACEBOOK_APP_SECRET in Admin must equal the App secret of the same Meta app.")
 		http.Error(w, "bad signature", 403)
 		return
 	}
@@ -504,8 +545,14 @@ func (s *server) crmMetaEvents(body []byte) {
 	for _, en := range ev.Entry {
 		wid, tok, err := s.crmPageToken(ctx, en.ID)
 		if err != nil || wid == "" {
+			why := "no Page or Instagram account with this ID is connected to a CRM workspace. Press Connect my Pages under Lead sources."
+			if err != nil && wid != "" {
+				why = "connected, but its access token failed: " + trunc(err.Error(), 150) + " Reconnect Facebook under Connected social."
+			}
+			s.hookLog(ctx, wid, ev.Object+" event", "Received for ID "+en.ID+" but "+why)
 			continue
 		}
+		s.hookLog(ctx, wid, ev.Object+" event", fmt.Sprintf("Received: %d change(s), %d message(s)", len(en.Changes), len(en.Messaging)))
 		for _, ch := range en.Changes {
 			switch ch.Field {
 			case "leadgen":
