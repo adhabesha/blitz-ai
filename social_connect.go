@@ -33,6 +33,9 @@ var providers = []provCfg{
 	{"instagram", "Instagram", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"},
 	{"facebook", "Facebook", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"},
 	{"tiktok", "TikTok", "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"},
+	{"x", "X (Twitter)", "X_CLIENT_ID", "X_CLIENT_SECRET"},
+	{"linkedin", "LinkedIn", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"},
+	{"pinterest", "Pinterest", "PINTEREST_APP_ID", "PINTEREST_APP_SECRET"},
 }
 
 func provOf(id string) *provCfg {
@@ -67,7 +70,10 @@ func provRedirect(id string) string {
 	return strings.TrimRight(env("BASE_URL"), "/") + "/auth/" + id + "/callback"
 }
 
-func authURL(p *provCfg, state string) string {
+func authURL(p *provCfg, state, uid string) string {
+	if u := moreAuthURL(p, state, uid); u != "" {
+		return u
+	}
 	cid, ru := env(p.IDEnv), provRedirect(p.ID)
 	switch p.ID {
 	case "instagram", "facebook":
@@ -128,6 +134,9 @@ type provToken struct {
 }
 
 func exchangeCode(ctx context.Context, p *provCfg, code string) (*provToken, error) {
+	if p.ID == "x" || p.ID == "linkedin" || p.ID == "pinterest" {
+		return moreExchange(ctx, p, code)
+	}
 	cid, sec, ru := env(p.IDEnv), env(p.SecretEnv), provRedirect(p.ID)
 	now := time.Now().Unix()
 	switch p.ID {
@@ -218,6 +227,7 @@ func (s *server) validToken(ctx context.Context, uid string, p *provCfg) (*provT
 			s.saveTok(ctx, uid, p.ID, t)
 		}
 	}
+	s.moreRefresh(ctx, uid, p, t)
 	if p.ID == "tiktok" && t.Exp-now < 3600 && t.Refresh != "" {
 		var a struct {
 			AccessToken  string `json:"access_token"`
@@ -247,14 +257,15 @@ func (s *server) socialStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", 401)
 		return
 	}
-	out := map[string]map[string]bool{}
+	out := map[string]map[string]any{}
 	for i := range providers {
 		p := &providers[i]
 		_, derr := s.db.Collection("users").Doc(uid).Collection("private").Doc("social_" + p.ID).Get(r.Context())
-		out[p.ID] = map[string]bool{"configured": p.configured(), "connected": derr == nil}
+		out[p.ID] = map[string]any{"configured": p.configured(), "connected": derr == nil, "needs": provNeeds(p), "redirect": provRedirect(p.ID)}
 	}
+	_, adm := s.adminOK(r)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"providers": out})
+	json.NewEncoder(w).Encode(map[string]any{"providers": out, "admin": adm})
 }
 
 func (s *server) socialStart(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +287,7 @@ func (s *server) socialStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"url": authURL(p, s.signState(uid+"~"+p.ID))})
+	json.NewEncoder(w).Encode(map[string]string{"url": authURL(p, s.signState(uid+"~"+p.ID), uid)})
 }
 
 func (s *server) socialDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -335,7 +346,7 @@ func (s *server) socialCallback(id string) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		t, err := exchangeCode(ctx, p, code)
+		t, err := exchangeCode(context.WithValue(ctx, uidKey{}, parts[0]), p, code)
 		if err != nil {
 			// Only show the platform's own answer; network errors can contain request URLs with secrets.
 			why := "could not reach " + p.Name + " to finish the login"
@@ -795,7 +806,7 @@ func (s *server) followerBaseline(ctx context.Context, uid, prov string, now flo
 func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn) (*Report, error) {
 	p := provOf(in.Query)
 	if p == nil {
-		return nil, userErr("Choose Instagram, Facebook or TikTok")
+		return nil, userErr("Choose a connected platform")
 	}
 	t, err := s.validToken(ctx, uid, p)
 	if err != nil {
@@ -807,6 +818,12 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		snap, err = fetchInstagram(ctx, t.Access)
 	case "facebook":
 		snap, err = fetchFacebook(ctx, t.Access)
+	case "x":
+		snap, err = fetchX(ctx, t.Access)
+	case "linkedin":
+		snap, err = fetchLinkedIn(ctx, t.Access)
+	case "pinterest":
+		snap, err = fetchPinterest(ctx, t.Access)
 	default:
 		snap, err = fetchTikTok(ctx, t.Access)
 	}

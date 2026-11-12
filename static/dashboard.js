@@ -207,20 +207,29 @@ function drawHistory(){
 $("hist-toggle").onclick=()=>{showAll=!showAll;drawHistory()};
 
 // ---------- Connected social (Instagram, Facebook, TikTok) ----------
-const PROV=[["instagram","Instagram","Business or Creator account"],["facebook","Facebook","A Facebook Page you manage"],["tiktok","TikTok","Your own TikTok account"]];
-const NA=[["X (Twitter)","X's API is paid for new developers, so it can't be connected for free."],["LinkedIn","LinkedIn only gives analytics API access to approved partners."],["Pinterest","Needs Pinterest's own API approval; planned after the three above."],["YouTube","Use the YouTube (auto) and Connected Google tabs."]];
+const PROV=[["instagram","Instagram","Business or Creator account"],["facebook","Facebook","A Facebook Page you manage"],["tiktok","TikTok","Your own TikTok account"],["x","X (Twitter)","Reading data needs an X API plan with read access (paid)"],["linkedin","LinkedIn","Connects your profile now; page analytics unlock once LinkedIn approves your app"],["pinterest","Pinterest","Business account; Pinterest API access"]];
+function keyBoxes(c,id,s,st,name){
+  const wrap=h("div","bz-note");wrap.style.cssText="display:grid;gap:8px;margin-top:8px";
+  wrap.appendChild(h("b",null,"Add your "+name+" developer keys to enable this"));
+  const red=h("div","bz-mut","Redirect URL to register on "+name+": "+(s.redirect||""));red.style.fontSize="12px";wrap.appendChild(red);
+  if(!st.admin){wrap.appendChild(h("p","bz-mut","Only the administrator can add keys. Ask them to open Admin > "+name+"."));c.appendChild(wrap);return}
+  const ins={};for(const n of A0(s.needs)){const l=h("label",null,n.label);l.style.cssText="display:grid;gap:4px;font-size:12px";const i=h("input");i.type=n.secret?"password":"text";i.autocomplete="off";i.placeholder="Paste "+n.label.toLowerCase();l.appendChild(i);wrap.appendChild(l);ins[n.key]=i}
+  const sv=h("button","bz-btn","Save keys"),m=h("div","bz-mut");sv.onclick=async()=>{sv.disabled=true;try{let n=0;for(const[k,i]of Object.entries(ins)){if(!i.value.trim())continue;await api("POST","/api/admin/config",{key:k,value:i.value.trim()});n++}if(!n){m.textContent="Paste the keys first.";sv.disabled=false;return}loadSocial()}catch(e){m.textContent=e.message;sv.disabled=false}};
+  add(wrap,sv,m);c.appendChild(wrap)}
+const A0=x=>Array.isArray(x)?x:[];
 async function loadSocial(){
   const st=await api("GET","/api/social/status"),box=$("sc-cards");box.innerHTML="";
   for(const[id,name,sub]of PROV){
     const s=(st.providers||{})[id]||{},c=h("div","bz-card s4");
     add(c,h("h3",null,name),h("p","bz-mut",sub));
-    if(!s.configured)c.appendChild(h("p","bz-note","Owner setup needed: add this platform's keys in Render (see SETUP-SOCIAL.md)."));
+    if(!s.configured)keyBoxes(c,id,s,st,name);
     else if(!s.connected){const b=h("button","bz-btn","Connect & Analyze");b.onclick=()=>connectSocial(id);c.appendChild(b)}
     else{const b=h("button","bz-btn","Analyze now"),d=h("button","bz-btn ghost","Disconnect");d.style.marginLeft="8px";b.onclick=()=>analyzeSocial(id,name);
       d.onclick=async()=>{if(!confirm("Disconnect "+name+"?"))return;await api("POST","/api/social/disconnect",{provider:id});loadSocial()};add(c,b,d)}
     box.appendChild(c);
   }
-  for(const[name,why]of NA){const c=h("div","bz-card s4");add(c,h("h3",null,name),h("p","bz-mut",why));box.appendChild(c)}
+  {const c=h("div","bz-card s4");add(c,h("h3",null,"YouTube"),h("p","bz-mut","Channel stats and growth plan. Uses the same Google connection as Connected Google."));
+    const b=h("button","bz-btn","Open YouTube analysis");b.onclick=()=>setKind("youtube");const g=h("button","bz-btn ghost","Connect Google");g.style.marginLeft="8px";g.onclick=()=>setKind("google");add(c,b,g);box.appendChild(c)}
 }
 async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}
 async function analyzeSocial(id,name){
