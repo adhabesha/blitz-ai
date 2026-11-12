@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
-<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"light"}catch(e){}</script>
+<script>if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add("embed");try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"light"}catch(e){}</script>
 </head><body class="bz">
 <div class="bz-shell">
 <aside class="bz-side">

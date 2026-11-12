@@ -270,3 +270,13 @@ $("seo-mode").onchange=seoMode;seoMode();
 function showMReport(){$("runbox").hidden=true;$("result").hidden=false;renderMarketing($("result"),hist,$("mr-company").value,$("mr-by").value)}
 document.querySelectorAll(".bz-nav").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.kind==="mreport")showMReport()}));
 ["mr-company","mr-by"].forEach(id=>$(id).addEventListener("input",()=>{if(kind==="mreport")showMReport()}));
+
+// embedded inside the CRM: switch tools on request, follow the theme, report height
+if(document.documentElement.classList.contains("embed")){
+  const go=k=>{const b=document.querySelector('.bz-nav[data-kind="'+k+'"]');if(b)b.click()};
+  const q=new URLSearchParams(location.search).get("kind");if(q)go(q);
+  window.addEventListener("message",e=>{if(e.origin===location.origin&&e.data&&e.data.bzKind)go(e.data.bzKind)});
+  window.addEventListener("storage",e=>{if(e.key==="bz-theme"&&e.newValue)setTheme(e.newValue)});
+  const post=()=>parent.postMessage({bzH:document.documentElement.scrollHeight},location.origin);
+  new ResizeObserver(post).observe(document.body);post();
+}

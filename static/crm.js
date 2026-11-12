@@ -311,9 +311,20 @@ function deptForm(d){
   const row=h("div","crm-row");add(row,s,d&&can("team","d")?x:null);add(b,f,row);modal(d?"Edit department":"New department",b)}
 
 // ---------------------------------------------------------------- shell
-const MENU=[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"],["chats","Chats","leads","send"],["automations","Automations","integrations","zap"],["sources","Sources","integrations","link"],["team","Team","team","share"]];
-function nav(k){S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));close();show(k)}
-async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];try{if(!S.team)S.team=await api("GET","/api/crm/team");await VIEWS[k]()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
+const SECTIONS=[
+ {t:"CRM",items:[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"]]},
+ {t:"Engage",items:[["chats","Chats","leads","send"],["automations","Automations","integrations","zap"],["sources","Lead sources","integrations","link"]]},
+ {t:"Analytics",fold:true,open:true,items:[["an:website","Website","reports","globe",{k:"website",sub:"Speed, SEO and fixes for any website"}],["an:youtube","YouTube","reports","play",{k:"youtube",sub:"Channel stats and growth plan"}],["an:google","Connected Google","reports","link",{k:"google",sub:"Connected Google analytics and search data"}],["an:socialc","Connected social","reports","share",{k:"socialc",sub:"Facebook, Instagram and TikTok: posts, views, fixes"}],["an:social","Other social (manual)","reports","users",{k:"social",sub:"Manual social profile analysis"}],["an:app","App","reports","phone",{k:"app",sub:"Store listing and app growth"}],["an:runads","Run ads","reports","zap",{k:"runads",sub:"Launch and manage paid campaigns"}],["an:adcreative","Ad creative","reports","film",{k:"adcreative",sub:"Scripts, briefs and finished ads"}],["an:seo","SEO & Ads","reports","search",{k:"seo",sub:"Keywords, competitors and market position"}],["an:mreport","Marketing report","reports","bars",{k:"mreport",sub:"All your results in one marketing report",b:"AI"}],["an:publish","Publish to all","reports","send",{k:"publish",sub:"Post to every connected account"}],["an:optimizer","Optimizer & Publish","reports","star",{k:"optimizer",sub:"Optimise and publish videos"}]]},
+ {t:"Admin",items:[["team","Team & access","team","share"]]}
+];
+const MENU=SECTIONS.flatMap(x=>x.items);
+let frameReady=false;
+function nav(k){S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
+async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];const an=k.startsWith("an:");$("anwrap").hidden=!an;$("view").hidden=an;
+  if(an){const it=MENU.find(m=>m[0]===k),o=it[4];setHead(it[1],o.sub);$("tabs").hidden=true;const f=$("anframe");
+    if(!frameReady){frameReady=true;f.src="/dashboard?embed=1&kind="+o.k}else f.contentWindow.postMessage({bzKind:o.k},location.origin);window.scrollTo(0,0);return}
+  try{if(!S.team)S.team=await api("GET","/api/crm/team");await VIEWS[k]()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
+window.addEventListener("message",e=>{if(e.origin===location.origin&&e.data&&e.data.bzH)$("anframe").style.height=Math.max(e.data.bzH,innerHeight-150)+"px"});
 function globalSearch(){
   const i=$("gsearch"),r=$("gres");let tm;
   i.oninput=()=>{clearTimeout(tm);tm=setTimeout(async()=>{const q=i.value.trim().toLowerCase();if(q.length<2){r.hidden=true;return}
@@ -322,12 +333,17 @@ function globalSearch(){
     if(!n)r.appendChild(h("div","bz-mut","No matches"));r.hidden=false},250)};
   document.addEventListener("click",ev=>{if(!ev.target.closest(".bx-search"))r.hidden=true})}
 function boot(){
-  const me=S.me;$("who").textContent=me.workspace.name+" · "+label(me.me.role);const n=$("nav");n.innerHTML="";let first=null;
-  for(const[k,l,m,ic]of MENU){if(!can(m,"v"))continue;first=first||k;const b=h("button","bz-nav",l);b.dataset.k=k;b.prepend(icon(ic,20));b.onclick=()=>nav(k);n.appendChild(b)}
+  const me=S.me;$("who").textContent=me.workspace.name+" \u00b7 "+label(me.me.role);const n=$("nav");n.innerHTML="";let first=null;
+  for(const sec of SECTIONS){const its=sec.items.filter(i=>can(i[2],"v"));if(!its.length)continue;
+    const sh=sec.fold&&!sec.open;const hd=h("div","bx-sec-h"+(sec.fold?" fold"+(sh?" shut":""):""));add(hd,h("span","tx",sec.t),sec.fold?h("span","car","\u25BC"):null);n.appendChild(hd);const grp=h("div","bx-grp"+(sh?" shut":""));n.appendChild(grp);
+    if(sec.fold)hd.onclick=()=>{hd.classList.toggle("shut");grp.classList.toggle("shut")};
+    for(const[k,l,m,ic,o]of its){if(!first&&!k.startsWith("an:"))first=k;const b=h("button","bz-nav");b.dataset.k=k;b.title=l;b.append(icon(ic,18),h("span",null,l));if(o&&o.b)b.appendChild(h("span","bdg",o.b));b.onclick=()=>nav(k);grp.appendChild(b)}}
+  try{if(localStorage.getItem("bz-rc")==="1")document.body.classList.add("rc")}catch(e){}
+  $("collapse").onclick=()=>{const c=document.body.classList.toggle("rc");try{localStorage.setItem("bz-rc",c?"1":"0")}catch(e){}};
   const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
-  if(!first){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
-  nav(first)}
+  if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
+  nav(first||"an:website")}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);
   if(st==="none"){c.appendChild(h("h3",null,"Set up your company CRM"));c.appendChild(h("p","bz-mut","Create a workspace for your company. You become the owner and can then invite your team, build departments and decide who can see what. If a colleague invited you, sign in with the invited email address and refresh this page."));
