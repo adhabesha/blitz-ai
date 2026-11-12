@@ -350,6 +350,14 @@ func (s *server) crmMetaConnect(w http.ResponseWriter, r *http.Request) {
 		if err := postForm(ctx, "https://graph.facebook.com/v21.0/"+p.ID+"/subscribed_apps", url.Values{"subscribed_fields": {"leadgen,messages,feed"}, "access_token": {p.Token}}, &out); err != nil {
 			warn = append(warn, p.Name+": "+trunc(err.Error(), 140))
 		}
+		if p.IG != nil && p.IG.ID != "" {
+			var o2 struct {
+				Success bool `json:"success"`
+			}
+			if err := postForm(ctx, "https://graph.facebook.com/v21.0/"+p.IG.ID+"/subscribed_apps", url.Values{"subscribed_fields": {"comments,messages"}, "access_token": {p.Token}}, &o2); err != nil {
+				warn = append(warn, "Instagram "+p.Name+": "+trunc(err.Error(), 140))
+			}
+		}
 	}
 	s.crmWS(c.wid).Set(ctx, map[string]any{"metaOwner": c.uid}, firestoreMerge())
 	jsonOut(w, map[string]any{"pages": len(pages), "warnings": warn})
