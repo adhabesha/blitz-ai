@@ -31,7 +31,22 @@ async function load(){
     card.appendChild(status);g.appendChild(card);
   }
 }
+async function loadUsers(){
+  const d=await api("GET","/api/admin/users"),box=$("users");box.innerHTML="";
+  const U=d.users,pend=U.filter(u=>u.status==="pending").length;$("u-n").textContent="("+U.length+" accounts, "+pend+" waiting"+(d.approvalOn?"":", approval is OFF")+")";
+  const t=h("table","crm-t");t.style.cssText="width:100%;border-collapse:collapse;font-size:13px";
+  t.innerHTML="<thead><tr><th align=left>Email</th><th align=left>Name</th><th align=left>Via</th><th align=left>Signed up</th><th align=left>Last seen</th><th align=left>Status</th><th></th></tr></thead>";
+  const order={pending:0,blocked:1,approved:2,admin:3};U.sort((a,b)=>order[a.status]-order[b.status]||b.created-a.created);
+  const b=h("tbody");for(const u of U){const tr=h("tr");tr.style.borderTop="1px solid var(--line)";
+    const dt=x=>x?new Date(x).toLocaleString():"never";
+    for(const x of[u.email+(u.verified?"":" (unverified)"),u.name,(u.provider||"").replace(".com",""),dt(u.created),dt(u.lastLogin)])tr.appendChild(h("td",null,x)).style.padding="8px 6px";
+    const st=h("td");st.style.padding="8px 6px";st.appendChild(h("span","bz-pill "+(u.status==="approved"||u.status==="admin"?"pass":u.status==="blocked"?"fail":"warn"),u.status));tr.appendChild(st);
+    const ac=h("td");ac.style.cssText="padding:8px 6px;white-space:nowrap";
+    const btn=(l,a)=>{const x=h("button","bz-mini",l);x.style.marginRight="4px";x.onclick=async()=>{if(a==="delete"&&!confirm("Delete this account permanently?"))return;if(a==="block"&&!confirm("Block "+u.email+"?"))return;try{await api("POST","/api/admin/users/set",{uid:u.uid,action:a});loadUsers()}catch(e){alert(e.message)}};ac.appendChild(x)};
+    if(u.status!=="admin"){if(u.status!=="approved")btn("Approve","approve");if(u.status==="approved")btn("Revoke","revoke");if(u.status!=="blocked")btn("Block","block");btn("Delete","delete")}
+    tr.appendChild(ac);b.appendChild(tr)}
+  t.appendChild(b);const w=h("div");w.style.overflow="auto";w.appendChild(t);box.appendChild(w)}
 onAuthStateChanged(auth,async u=>{
   if(!u){location.href="/app";return}
-  try{await load();$("main").hidden=false}catch(e){$("denied").hidden=false}
+  try{await load();$("main").hidden=false;loadUsers().catch(()=>{})}catch(e){$("denied").hidden=false}
 });

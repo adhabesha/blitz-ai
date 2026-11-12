@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -122,6 +123,9 @@ func (s *server) crmAuth(r *http.Request) (*crmReq, error) {
 	t, err := s.auth.VerifyIDToken(r.Context(), tok)
 	if err != nil {
 		return nil, err
+	}
+	if !s.approved(r.Context(), t) {
+		return nil, errors.New("awaiting approval")
 	}
 	c := &crmReq{s: s, r: r, ctx: r.Context(), uid: t.UID}
 	c.email, _ = t.Claims["email"].(string)

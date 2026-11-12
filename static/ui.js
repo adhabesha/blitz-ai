@@ -33,7 +33,9 @@ export async function api(m,path,b){
   if(!authRef.currentUser)throw new Error("Please sign in again.");
   const tok=await authRef.currentUser.getIdToken();
   const r=await fetch(path,{method:m,headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});
-  if(!r.ok)throw new Error(await r.text());
+  if(!r.ok){
+    if(r.status===401&&!location.pathname.startsWith("/pending")){try{const a=await fetch("/api/approval",{headers:{Authorization:"Bearer "+tok}});if(a.ok&&!(await a.json()).approved){(window.top||window).location.href="/pending";return new Promise(()=>{})}}catch(e){}}
+    throw new Error(await r.text())}
   return r.json();
 }
 export function copy(text,btn){

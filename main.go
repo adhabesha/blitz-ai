@@ -83,6 +83,10 @@ func main() {
 	mux.HandleFunc("/dashboard", s.page("dashboard.html"))
 	mux.HandleFunc("/app", s.page("auth.html"))
 	mux.HandleFunc("/admin", s.page("admin.html"))
+	mux.HandleFunc("/pending", s.page("pending.html"))
+	mux.HandleFunc("/api/approval", s.approvalState)
+	mux.HandleFunc("/api/admin/users", s.adminUsers)
+	mux.HandleFunc("/api/admin/users/set", s.adminUserSet)
 	mux.HandleFunc("/api/me", s.me)
 	mux.HandleFunc("/api/profile", s.saveProfile)
 	mux.HandleFunc("/api/admin/config", s.adminConfig)
@@ -184,6 +188,9 @@ func (s *server) uid(r *http.Request) (string, error) {
 	t, err := s.auth.VerifyIDToken(r.Context(), tok)
 	if err != nil {
 		return "", err
+	}
+	if !s.approved(r.Context(), t) {
+		return "", errors.New("awaiting approval")
 	}
 	return t.UID, nil
 }
