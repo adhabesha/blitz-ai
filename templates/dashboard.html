@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
-<script>try{var q0=location.search;if(!/[?&]embed=1/.test(q0)&&sessionStorage.getItem("bz-crm")&&/[?&](google|social)=/.test(q0)){sessionStorage.removeItem("bz-crm");location.replace("/crm"+q0+"&an="+(/[?&]google=/.test(q0)?"google":"socialc"))}}catch(e){}</script>
+<script>try{var q0=location.search;if(!/[?&]embed=1/.test(q0)&&sessionStorage.getItem("bz-crm")&&/[?&](google|social)=/.test(q0)){sessionStorage.removeItem("bz-crm");location.replace("/crm"+q0+"&an="+"socialc")}}catch(e){}</script>
 <script>if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add("embed");try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"light"}catch(e){}</script>
 </head><body class="bz">
 <div class="bz-shell">
@@ -11,7 +11,6 @@
 <div class="bz-logo"><i></i>Blitz AI</div>
 <button class="bz-nav on" data-kind="website" data-icon="globe">Website</button>
 <button class="bz-nav" data-kind="youtube" data-icon="play">YouTube (auto)</button>
-<button class="bz-nav" data-kind="google" data-icon="link">Connected Google</button>
 <button class="bz-nav" data-kind="socialc" data-icon="share">Connected social</button>
 <button class="bz-nav" data-kind="social" data-icon="users">Other social (manual)</button>
 <button class="bz-nav" data-kind="app" data-icon="phone">App</button>

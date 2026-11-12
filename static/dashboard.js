@@ -22,6 +22,7 @@ setTheme(document.documentElement.dataset.theme||"light");
 document.querySelectorAll(".bz-nav").forEach(b=>b.prepend(icon(b.dataset.icon,18)));
 
 function setKind(k){
+  if(k==="google")k="socialc";
   kind=k;
   document.querySelectorAll(".bz-nav").forEach(x=>x.classList.toggle("on",x.dataset.kind===k));
   document.querySelectorAll("#formbox>.form").forEach(f=>f.hidden=f.id!=="f-"+k);
@@ -37,7 +38,7 @@ function setKind(k){
   $("msg").textContent="";
   if(session[k]){current=session[k];renderReport($("result"),current,hist)}else{current=null;destroyCharts();$("result").hidden=true;$("result").innerHTML=""}
   drawHistory();
-  if(k==="google")loadGoogle(true).catch(e=>{$("msg").textContent=e.message});
+  if(k==="socialc")loadGoogle(true).catch(e=>{$("msg").textContent=e.message});
   if(k==="publish"&&refreshPub)refreshPub();
   if(k==="runads"&&refreshAds)refreshAds();
   if(k==="adcreative"&&refreshCreative)refreshCreative();
@@ -216,6 +217,7 @@ function keyBoxes(c,id,s,st,name){
   const ins={};for(const n of A0(s.needs)){const l=h("label",null,n.label);l.style.cssText="display:grid;gap:4px;font-size:12px";const i=h("input");i.type=n.secret?"password":"text";i.autocomplete="off";i.placeholder="Paste "+n.label.toLowerCase();l.appendChild(i);wrap.appendChild(l);ins[n.key]=i}
   const sv=h("button","bz-btn","Save keys"),m=h("div","bz-mut");sv.onclick=async()=>{sv.disabled=true;try{let n=0;for(const[k,i]of Object.entries(ins)){if(!i.value.trim())continue;await api("POST","/api/admin/config",{key:k,value:i.value.trim()});n++}if(!n){m.textContent="Paste the keys first.";sv.disabled=false;return}loadSocial()}catch(e){m.textContent=e.message;sv.disabled=false}};
   add(wrap,sv,m);c.appendChild(wrap)}
+let gCard;
 const A0=x=>Array.isArray(x)?x:[];
 async function loadSocial(){
   const st=await api("GET","/api/social/status"),box=$("sc-cards");box.innerHTML="";
@@ -228,8 +230,10 @@ async function loadSocial(){
       d.onclick=async()=>{if(!confirm("Disconnect "+name+"?"))return;await api("POST","/api/social/disconnect",{provider:id});loadSocial()};add(c,b,d)}
     box.appendChild(c);
   }
-  {const c=h("div","bz-card s4");add(c,h("h3",null,"YouTube"),h("p","bz-mut","Channel stats and growth plan. Uses the same Google connection as Connected Google."));
-    const b=h("button","bz-btn","Open YouTube analysis");b.onclick=()=>setKind("youtube");const g=h("button","bz-btn ghost","Connect Google");g.style.marginLeft="8px";g.onclick=()=>setKind("google");add(c,b,g);box.appendChild(c)}
+  {const c=h("div","bz-card s4");add(c,h("h3",null,"YouTube"),h("p","bz-mut","Analyze any channel by link or @handle. To analyze your own channel with private stats, use the Google card below."));
+    const b=h("button","bz-btn","Open YouTube analysis");b.onclick=()=>setKind("youtube");c.appendChild(b);box.appendChild(c)}
+  if(!gCard){const gf=$("f-google");gCard=h("div","bz-card s4");gCard.style.gridColumn="1/-1";add(gCard,h("h3",null,"Google (YouTube channel, Search Console, Analytics)"),h("p","bz-mut","Connect once to analyze your own YouTube channel, Search Console sites and Google Analytics properties."));const body=h("div","form");while(gf.firstChild)body.appendChild(gf.firstChild);gCard.appendChild(body)}
+  box.appendChild(gCard);
 }
 async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}
 async function analyzeSocial(id,name){
