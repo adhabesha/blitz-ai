@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"sort"
@@ -87,7 +88,7 @@ func (s *server) crmTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	full := c.can("team", 'v') || c.can("reports", 'v')
-	var mem []map[string]any
+	mem := []map[string]any{}
 	for _, m := range c.members() {
 		x := map[string]any{"uid": m["uid"], "name": m["name"], "role": m["role"], "dept": m["dept"], "status": m["status"]}
 		if full {
@@ -95,7 +96,7 @@ func (s *server) crmTeam(w http.ResponseWriter, r *http.Request) {
 		}
 		mem = append(mem, x)
 	}
-	var ds []map[string]any
+	ds := []map[string]any{}
 	for _, d := range c.depts() {
 		ds = append(ds, map[string]any{"id": d.ID, "name": d.Name, "parentId": d.Parent, "headUid": d.Head})
 	}
@@ -271,7 +272,62 @@ func (s *server) crmInvite(w http.ResponseWriter, r *http.Request) {
 		scope = ""
 	}
 	s.db.Collection("crm_invites").Doc(email).Set(c.ctx, map[string]any{"wid": c.wid, "role": role, "dept": dept, "scope": scope, "invitedBy": c.uid, "createdAt": time.Now()})
-	jsonOut(w, map[string]any{"ok": true, "joinUrl": strings.TrimRight(env("BASE_URL"), "/") + "/app"})
+	c.mailInvite(w, r, email, role, true)
+}
+
+func baseURL(r *http.Request) string {
+	b := strings.TrimRight(env("BASE_URL"), "/")
+	if b == "" {
+		b = "https://" + r.Host
+	}
+	return b
+}
+
+// mailInvite emails the invitation (when mail is configured) and always returns the link so it can be shared by hand.
+func (c *crmReq) mailInvite(w http.ResponseWriter, r *http.Request, email, role string, fresh bool) {
+	link := baseURL(r) + "/app"
+	out := map[string]any{"ok": true, "joinUrl": link, "mailReady": mailConfigured()}
+	if mailConfigured() {
+		subj, h, t := inviteMail(sv(c.ws, "name"), firstNonEmptyStr(c.s.crmDisplay(c), "A colleague"), label0(role), link)
+		ctx, cancel := context.WithTimeout(c.ctx, 20*time.Second)
+		defer cancel()
+		if err := sendMail(ctx, email, subj, h, t); err != nil {
+			out["emailed"], out["emailError"] = false, err.Error()
+		} else {
+			out["emailed"] = true
+			c.s.db.Collection("crm_invites").Doc(email).Set(c.ctx, map[string]any{"emailedAt": time.Now()}, firestoreMerge())
+		}
+	} else {
+		out["emailed"], out["emailError"] = false, "Email sending is not set up on the server yet, so share the link yourself."
+	}
+	jsonOut(w, out)
+}
+
+func label0(r string) string {
+	if r == "" {
+		return r
+	}
+	return strings.ToUpper(r[:1]) + strings.ReplaceAll(r[1:], "_", " ")
+}
+
+func (s *server) crmDisplay(c *crmReq) string { return firstNonEmptyStr(sv(c.m, "name"), c.email) }
+
+func (s *server) crmInviteResend(w http.ResponseWriter, r *http.Request) {
+	c := s.crmNeed(w, r)
+	if c == nil {
+		return
+	}
+	var in map[string]string
+	if !readBody(w, r, &in, 4<<10) {
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(in["email"]))
+	d, err := s.db.Collection("crm_invites").Doc(email).Get(c.ctx)
+	if !c.can("team", 'c') || err != nil || sv(d.Data(), "wid") != c.wid {
+		c.deny(w, "resend this invitation")
+		return
+	}
+	c.mailInvite(w, r, email, sv(d.Data(), "role"), false)
 }
 
 func (s *server) crmInviteCancel(w http.ResponseWriter, r *http.Request) {

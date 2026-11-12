@@ -80,7 +80,7 @@ func authURL(p *provCfg, state string) string {
 			q.Set("config_id", cfg)
 			q.Set("override_default_response_type", "true")
 		} else {
-			q.Set("scope", "pages_show_list,pages_read_engagement,read_insights"+ifs(env("PUBLISH_SCOPES") == "1", ",pages_manage_posts", ""))
+			q.Set("scope", "pages_show_list,pages_read_engagement,read_insights"+ifs(env("PUBLISH_SCOPES") == "1", ",pages_manage_posts", "")+ifs(env("CRM_SCOPES") == "1", ",leads_retrieval,pages_manage_metadata,pages_messaging,pages_manage_engagement,instagram_basic,instagram_manage_messages,instagram_manage_comments", ""))
 		}
 		return "https://www.facebook.com/v21.0/dialog/oauth?" + q.Encode()
 	}

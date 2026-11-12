@@ -85,6 +85,14 @@ func (s *server) crmInbound(ctx context.Context, wid string, f map[string]any, n
 	s.crmAddLead(ctx, wid, f, "", note)
 }
 
+func (s *server) crmInboundID(ctx context.Context, wid string, f map[string]any, note string) string {
+	if sv(f, "ownerUid") == "" {
+		f["ownerUid"] = s.crmPickOwner(ctx, wid)
+	}
+	id, _, _ := s.crmAddLead(ctx, wid, f, "", note)
+	return id
+}
+
 // ---------------------------------------------------------------- website form + webhook
 
 func (s *server) crmHook(w http.ResponseWriter, r *http.Request) {
@@ -480,6 +488,7 @@ func (s *server) crmMetaEvents(body []byte) {
 			Messaging []struct {
 				Sender  struct{ ID string } `json:"sender"`
 				Message struct {
+					Mid    string `json:"mid"`
 					Text   string `json:"text"`
 					IsEcho bool   `json:"is_echo"`
 				} `json:"message"`
@@ -511,8 +520,14 @@ func (s *server) crmMetaEvents(body []byte) {
 				}
 			case "feed", "comments":
 				var v struct {
-					Item    string `json:"item"`
-					Verb    string `json:"verb"`
+					Item      string `json:"item"`
+					Verb      string `json:"verb"`
+					CommentID string `json:"comment_id"`
+					ID        string `json:"id"`
+					PostID    string `json:"post_id"`
+					Media     struct {
+						ID string `json:"id"`
+					} `json:"media"`
 					Message string `json:"message"`
 					Text    string `json:"text"`
 					From    struct {
@@ -527,7 +542,10 @@ func (s *server) crmMetaEvents(body []byte) {
 				}
 				kind := ifs(ig, "ig_comment", "fb_comment")
 				f := map[string]any{"name": clip(firstNonEmptyStr(v.From.Name, v.From.Username, "Commenter"), 120), "source": kind, "sourceRef": kind + ":" + v.From.ID}
-				s.crmInbound(ctx, wid, f, "Comment: "+ctext(firstNonEmptyStr(v.Message, v.Text), 500))
+				ctxt := firstNonEmptyStr(v.Message, v.Text)
+				lid := s.crmInboundID(ctx, wid, f, "Comment: "+ctext(ctxt, 500))
+				s.crmFlow(ctx, flowEvent{wid: wid, tok: tok, pageID: en.ID, ig: ig, sender: v.From.ID, name: firstNonEmptyStr(v.From.Name, v.From.Username), text: ctxt,
+					commentID: firstNonEmptyStr(v.CommentID, ifs(ig, v.ID, "")), postID: firstNonEmptyStr(v.PostID, v.Media.ID), leadID: lid})
 			}
 		}
 		for _, m := range en.Messaging {
@@ -544,7 +562,8 @@ func (s *server) crmMetaEvents(body []byte) {
 				name = firstNonEmptyStr(p.Name, p.Username, name)
 			}
 			f := map[string]any{"name": clip(name, 120), "source": kind, "sourceRef": kind + ":" + m.Sender.ID}
-			s.crmInbound(ctx, wid, f, "Message: "+ctext(m.Message.Text, 500))
+			lid := s.crmInboundID(ctx, wid, f, "Message: "+ctext(m.Message.Text, 500))
+			s.crmFlow(ctx, flowEvent{wid: wid, tok: tok, pageID: en.ID, ig: ig, sender: m.Sender.ID, name: name, text: m.Message.Text, mid: m.Message.Mid, leadID: lid})
 		}
 	}
 }

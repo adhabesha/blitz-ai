@@ -774,7 +774,7 @@ func (s *server) crmConvert(w http.ResponseWriter, r *http.Request) {
 	}
 	title := clip(in.DealTitle, 160)
 	if title == "" {
-		title = firstNonEmptyStr(sv(l, "company"), sv(l, "name"), "New deal")
+		title = firstNonEmptyStr(sv(l, "name"), sv(l, "company"), "New deal")
 	}
 	value := in.Value
 	if value <= 0 {
@@ -785,8 +785,17 @@ func (s *server) crmConvert(w http.ResponseWriter, r *http.Request) {
 			in.ExpectedDate = ""
 		}
 	}
+	var brief []string
+	if n := strings.TrimSpace(sv(l, "notes")); n != "" {
+		brief = append(brief, n)
+	}
+	for _, k := range [][2]string{{"campaign", "Campaign"}, {"source", "Source"}, {"email", "Email"}, {"phone", "Phone"}} {
+		if v := sv(l, k[0]); v != "" {
+			brief = append(brief, k[1]+": "+v)
+		}
+	}
 	dref := c.s.crmWS(c.wid).Collection("deals").NewDoc()
-	dref.Set(c.ctx, map[string]any{"title": title, "stage": "qualified", "value": value, "contactId": contactID, "contactName": sv(l, "name"), "companyId": companyID, "companyName": sv(l, "company"), "leadId": in.ID,
+	dref.Set(c.ctx, map[string]any{"notes": clip(strings.Join(brief, "\n"), 2000), "title": title, "stage": "qualified", "value": value, "contactId": contactID, "contactName": sv(l, "name"), "companyId": companyID, "companyName": sv(l, "company"), "leadId": in.ID,
 		"ownerUid": owner, "source": sv(l, "source"), "expectedClose": in.ExpectedDate, "createdAt": now, "updatedAt": now, "createdBy": c.uid})
 	res["dealId"] = dref.ID
 	lref.Update(c.ctx, []firestore.Update{{Path: "status", Value: "converted"}, {Path: "updatedAt", Value: now}, {Path: "dealId", Value: dref.ID}})

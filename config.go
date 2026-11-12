@@ -44,9 +44,16 @@ type cfgItem struct {
 
 var adminItems = []cfgItem{
 	{"PUBLISH_SCOPES", "Request posting permissions (type 1 to enable)", "Publishing", "Turn this on only after enabling posting permissions in each developer app, then reconnect each account.", "", false},
+	{"CRM_SCOPES", "CRM chat automation permissions (type 1 to enable)", "Facebook", "Adds lead forms, Messenger and Instagram DM/comment permissions to the Facebook sign-in, then reconnect. If you use a Configuration ID, add the same permissions there instead.", "", false},
 	{"ADS_MAX_DAILY_BUDGET", "Max daily ad budget per campaign (safety cap)", "Core", "Default 20 in your ad account currency. Raise it only when you are ready to spend more.", "", false},
 	{"MEDIA_DIR", "Folder for uploaded media (optional)", "Core", "Where uploaded videos wait for scheduled posting. Default is the server temp folder, which is cleared on restart. Point it at a persistent disk (for example /var/data) so scheduled Instagram and TikTok posts survive restarts.", "", false},
 	{"BASE_URL", "Public app URL", "Core", "Your Render address, e.g. https://blitz-ai-5ow4.onrender.com (no slash at the end).", "", false},
+	{"MAIL_FROM", "Email sender (for invitations)", "Email", "For example: Blitz CRM <crm@yourdomain.com>. The domain must be verified with your email provider.", "", false},
+	{"RESEND_API_KEY", "Resend API key (easiest)", "Email", "Free at resend.com: create a key and verify your domain. Or use SMTP below instead.", "", true},
+	{"SMTP_HOST", "SMTP host (alternative to Resend)", "Email", "For example smtp.gmail.com, smtp.office365.com or your hosting provider's mail server.", "", false},
+	{"SMTP_PORT", "SMTP port", "Email", "587 (default) or 465.", "", false},
+	{"SMTP_USER", "SMTP username", "Email", "Usually the full email address.", "", false},
+	{"SMTP_PASS", "SMTP password", "Email", "For Gmail use an App Password.", "", true},
 	{"GEMINI_API_KEY", "Gemini API key", "AI", "From aistudio.google.com/app/apikey. Use a key from a separate project.", "gemini", true},
 	{"GEMINI_MODEL", "Gemini model (optional)", "AI", "Leave empty for the default. Change it if Google retires a model.", "", false},
 	{"YOUTUBE_API_KEY", "YouTube Data API key", "Google & YouTube", "Google Cloud > Credentials > API key (YouTube Data API v3 enabled).", "youtube", true},
