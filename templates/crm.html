@@ -1,0 +1,18 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CRM – Blitz AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/crm.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>window.FB={apiKey:{{.APIKey}},authDomain:{{.AuthDomain}},projectId:{{.ProjectID}}};</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bz-theme")||"light"}catch(e){}</script>
+</head><body class="bz">
+<div class="bz-shell">
+<aside class="bz-side"><div class="bz-logo"><i></i>Blitz CRM</div><div id="nav" class="crm-nav"></div>
+<a class="bz-nav bz-nav-link" href="/dashboard" style="margin-top:auto">&larr; Blitz AI tools</a></aside>
+<main class="bz-main">
+<header class="bz-top"><div><h1 id="title">CRM</h1><p id="sub" class="bz-mut"></p></div>
+<div class="bz-actions"><span class="crm-role" id="who"></span><div class="bz-theme"><button data-t="dark" title="Dark">&#9790;</button><button data-t="slate" title="Slate">&#9681;</button><button data-t="light" title="Light">&#9728;</button></div></div></header>
+<div id="view"><p class="bz-mut">Loading…</p></div>
+</main></div>
+<div id="modal" class="crm-modal" hidden></div>
+<script type="module" src="/static/crm.js"></script>
+</body></html>
