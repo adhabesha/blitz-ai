@@ -48,6 +48,7 @@ var adminItems = []cfgItem{
 	{"ADS_MAX_DAILY_BUDGET", "Max daily ad budget per campaign (safety cap)", "Core", "Default 20 in your ad account currency. Raise it only when you are ready to spend more.", "", false},
 	{"MEDIA_DIR", "Folder for uploaded media (optional)", "Core", "Where uploaded videos wait for scheduled posting. Default is the server temp folder, which is cleared on restart. Point it at a persistent disk (for example /var/data) so scheduled Instagram and TikTok posts survive restarts.", "", false},
 	{"BASE_URL", "Public app URL", "Core", "Your Render address, e.g. https://blitz-ai-5ow4.onrender.com (no slash at the end).", "", false},
+	{"CONTACT_EMAIL", "Public contact email (shown on Privacy page)", "Core", "Shown on /privacy, /terms and /data-deletion. Use a business address you are happy to make public.", "", false},
 	{"MAIL_FROM", "Email sender (for invitations)", "Email", "For example: Blitz CRM <crm@yourdomain.com>. The domain must be verified with your email provider.", "", false},
 	{"RESEND_API_KEY", "Resend API key (easiest)", "Email", "Free at resend.com: create a key and verify your domain. Or use SMTP below instead.", "", true},
 	{"SMTP_HOST", "SMTP host (alternative to Resend)", "Email", "For example smtp.gmail.com, smtp.office365.com or your hosting provider's mail server.", "", false},
