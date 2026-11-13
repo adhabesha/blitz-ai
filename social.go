@@ -8,10 +8,10 @@ import (
 	"unicode/utf8"
 )
 
-var platMult = map[string]float64{"instagram": 1, "tiktok": 2, "youtube": 0.8, "x": 0.25, "linkedin": 0.8, "facebook": 0.25}
+var platMult = map[string]float64{"instagram": 1, "tiktok": 2, "youtube": 0.8, "x": 0.25, "linkedin": 0.8, "facebook": 0.25, "pinterest": 0.3, "threads": 0.5, "reddit": 0.4, "bluesky": 0.5, "telegram": 0.3}
 
 // recommended posts per week (minimum to stay visible)
-var platFreq = map[string]float64{"instagram": 3, "tiktok": 5, "youtube": 1, "x": 10, "linkedin": 3, "facebook": 3}
+var platFreq = map[string]float64{"instagram": 3, "tiktok": 5, "youtube": 1, "x": 10, "linkedin": 3, "facebook": 3, "pinterest": 5, "threads": 5, "reddit": 3, "bluesky": 5, "telegram": 5}
 
 var ctaWords = []string{"link", "comment", "follow", "subscribe", "join", "dm", "download", "shop", "book", "sign up", "save", "share", "tag", "click", "try", "learn"}
 

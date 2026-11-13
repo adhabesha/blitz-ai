@@ -52,7 +52,7 @@ const num=i=>parseFloat($(i).value)||0;
 function live(){
   const f=num("s-followers"),box=$("live");
   if(!f){box.textContent="Live KPIs appear here as you type.";return}
-  const BM={instagram:1,tiktok:2,youtube:.8,x:.25,linkedin:.8,facebook:.25},FQ={instagram:3,tiktok:5,youtube:1,x:10,linkedin:3,facebook:3};
+  const BM={instagram:1,tiktok:2,youtube:.8,x:.25,linkedin:.8,facebook:.25,pinterest:.3,threads:.5,reddit:.4,bluesky:.5,telegram:.3},FQ={instagram:3,tiktok:5,youtube:1,x:10,linkedin:3,facebook:3,pinterest:5,threads:5,reddit:3,bluesky:5,telegram:5};
   const pl=$("s-platform").value,m=BM[pl]||1,base=f<1e4?[4,2]:f<1e5?[2.5,1]:[1.5,.5];
   const good=base[0]*m,ok=base[1]*m,er=(num("s-likes")+num("s-comments")+num("s-shares"))/f*100,pw=num("s-posts")/4.3,prev=num("s-prev");
   let t="Engagement "+er.toFixed(2)+"% ("+(er>=good?"good":er>=ok?"okay":"low")+", good \u2265 "+good.toFixed(1)+"%) \u00b7 "+pw.toFixed(1)+" posts/week (aim "+FQ[pl]+"+)";

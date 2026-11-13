@@ -854,7 +854,7 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		return nil, userErr("Could not read " + p.Name + " data (" + trunc(err.Error(), 180) + "). Try reconnecting; in development mode your own account must be added as a tester.")
 	}
 	if snap.Followers <= 0 {
-		return nil, userErr(p.Name + " returned no follower count. Accounts with very few followers may not expose it yet.")
+		return nil, userErr(p.Name + " is connected, but the account has 0 followers so far, so there is nothing to benchmark yet. Post a few times, get your first followers, then run Analyze again.")
 	}
 	posts := snap.Posts
 	sort.Slice(posts, func(i, j int) bool { return posts[i].When.After(posts[j].When) })
