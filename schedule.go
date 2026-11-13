@@ -258,3 +258,41 @@ func (s *server) scheduledCancel(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write([]byte(`{"ok":true}`))
 }
+
+// scheduledNow moves a waiting post's time to now so the scheduler sends it within seconds.
+func (s *server) scheduledNow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	uid, err := s.uid(r)
+	if err != nil {
+		http.Error(w, "unauthorized", 401)
+		return
+	}
+	var in struct {
+		ID string `json:"id"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in) != nil || !reHex.MatchString(in.ID) {
+		http.Error(w, "bad request", 400)
+		return
+	}
+	ref := s.db.Collection(schedColl).Doc(in.ID)
+	err = s.db.RunTransaction(r.Context(), func(ctx context.Context, tx *firestore.Transaction) error {
+		cur, err := tx.Get(ref)
+		if err != nil {
+			return err
+		}
+		m := cur.Data()
+		if m["uid"] != uid || m["status"] != "pending" {
+			return status.Error(codes.FailedPrecondition, "not waiting")
+		}
+		return tx.Update(ref, []firestore.Update{{Path: "when", Value: time.Now().UTC().Add(-time.Second)}})
+	})
+	if err != nil {
+		http.Error(w, "That post is not waiting any more.", 400)
+		return
+	}
+	go s.runDue()
+	w.Write([]byte(`{"ok":true}`))
+}

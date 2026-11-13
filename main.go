@@ -176,6 +176,7 @@ func main() {
 	mux.HandleFunc("/api/tiktok/creator", s.tiktokCreator)
 	mux.HandleFunc("/api/publish/scheduled", s.scheduledList)
 	mux.HandleFunc("/api/publish/scheduled/cancel", s.scheduledCancel)
+	mux.HandleFunc("/api/publish/scheduled/now", s.scheduledNow)
 	mux.HandleFunc("/media/", s.serveMedia)
 	mux.HandleFunc("/api/social/status", s.socialStatus)
 	mux.HandleFunc("/api/social/start", s.socialStart)

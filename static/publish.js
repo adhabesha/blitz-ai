@@ -318,16 +318,24 @@ async function submit(){
   ui.go.disabled=false;
 }
 const SN={pending:"Waiting",running:"Uploading",done:"Posted",failed:"Failed"};
+let schedTimer=null,pingTimer=null;
 async function loadSched(){
   let list;try{list=await api("GET","/api/publish/scheduled")}catch(e){return}
-  ui.sched.innerHTML="";if(!list.length)return;
-  ui.sched.appendChild(h("h4",null,"Scheduled posts (Instagram and TikTok)"));
+  ui.sched.innerHTML="";
+  clearTimeout(schedTimer);
+  if(!pingTimer)pingTimer=setInterval(()=>{if(!document.hidden)fetch("/healthz").catch(()=>{})},4*60*1000); // keeps the free server awake while this page is open
+  if(!list.length)return;
+  if(list.some(x=>x.status==="pending"||x.status==="running"))schedTimer=setTimeout(()=>{if(ui.sched.isConnected)loadSched()},15000);
+  ui.sched.appendChild(h("h4",null,"Scheduled posts (Instagram, TikTok and Telegram)"));
   for(const it of list){
     const row=h("div","pub-row"),st=h("span","bz-pill "+(it.status==="done"?"pass":it.status==="failed"?"fail":"warn"),(SN[it.status]||it.status).toUpperCase());
     const body=h("div");body.appendChild(h("b",null,(it.plats||[]).map(p=>PN[p]||p).join(" + ")+" · "+new Date(it.when).toLocaleString()));
     if(it.title)body.appendChild(h("p","bz-mut",it.title));
+    if(it.status==="pending"&&new Date(it.when)<new Date())body.appendChild(h("p","bz-mut","The time has passed. The free server may have been asleep. It will send within a minute, or press Post now."));
     for(const r of it.results||[])body.appendChild(h("p","bz-mut",(PN[r.platform]||r.platform)+": "+r.state+(r.message?" - "+r.message:"")));
-    if(it.status==="pending"){const b=h("button","bz-btn ghost","Cancel");b.onclick=async()=>{b.disabled=true;try{await api("POST","/api/publish/scheduled/cancel",{id:it.id})}catch(e){ui.msg.textContent=e.message}loadSched()};body.appendChild(b)}
+    if(it.status==="pending"){
+      const n=h("button","bz-btn","Post now");n.onclick=async()=>{n.disabled=true;n.textContent="Sending...";try{await api("POST","/api/publish/scheduled/now",{id:it.id})}catch(e){ui.msg.textContent=e.message}setTimeout(loadSched,6000)};body.appendChild(n);
+      const b=h("button","bz-btn ghost","Cancel");b.onclick=async()=>{b.disabled=true;try{await api("POST","/api/publish/scheduled/cancel",{id:it.id})}catch(e){ui.msg.textContent=e.message}loadSched()};body.appendChild(b)}
     add(row,st,body);ui.sched.appendChild(row);
   }
 }
