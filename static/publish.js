@@ -69,11 +69,17 @@ export function mountPublish(root,a){
   ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");ui.sched=h("div","pub-sched");
   add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,wl,ui.go,ui.wa,ui.bar,ui.msg,ui.jobs,ui.sched);
   drawType();
+  setTimeout(()=>{refresh().catch(()=>{})},0); // also load connections right away, in case the tab was opened before this page finished loading
   return refresh;
 }
 export async function refresh(){
-  try{const g=await api("GET","/api/google/status"),s=await api("GET","/api/social/status"),p=s.providers||{};
-    conn={youtube:!!g.connected,facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected,telegram:!!(p.telegram||{}).connected}}catch(e){conn={}}
+  // Each status is read on its own, with one retry, so one failing call can no longer lock every platform.
+  const one=async path=>{for(let i=0;i<3;i++){try{return await api("GET",path)}catch(e){if(i===2)throw e;await sleep(1200)}}};
+  const [g,s]=await Promise.allSettled([one("/api/google/status"),one("/api/social/status")]);
+  const gv=g.status==="fulfilled"?g.value:null,sv=s.status==="fulfilled"?s.value:null,p=(sv&&sv.providers)||{};
+  conn={youtube:!!(gv&&gv.connected),facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected,telegram:!!(p.telegram||{}).connected};
+  const bad=[];if(!gv)bad.push("Google: "+((g.reason&&g.reason.message)||"failed"));if(!sv)bad.push("Social: "+((s.reason&&s.reason.message)||"failed"));
+  if(ui.msg)ui.msg.textContent=bad.length?"Could not read your connections ("+bad.join(" | ").slice(0,300)+"). Reload the page and open Publish again.":"";
   drawPlats();
   takeDraft();loadSched();
 }
