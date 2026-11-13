@@ -152,12 +152,43 @@ func (s *server) pubTelegram(ctx context.Context, uid string, sp pubSpec) (strin
 		upErr = errors.New("Telegram refused the post: " + trunc(res.Description, 200))
 	}
 	if upErr != nil {
-		// Direct upload failed. Try again by letting Telegram download the file from this server.
-		link, lerr := tgByLink(ctx, base, method, field, f, sp.Path)
-		if lerr != nil {
-			return "", "", errors.New("Upload: " + scrub(upErr, t.Access).Error() + " | By link: " + scrub(lerr, t.Access).Error() + ". The bot must be an administrator of the channel and the channel id/username must be right.")
+		// 1) Same upload without the caption (the caption is then sent as a normal message).
+		f2 := map[string]string{"chat_id": t.UserID}
+		if f["supports_streaming"] != "" {
+			f2["supports_streaming"] = "true"
 		}
-		return link, "Posted by link after the direct upload failed.", nil
+		var r3 struct {
+			OK     bool `json:"ok"`
+			Result struct {
+				MessageID int `json:"message_id"`
+				Chat      struct {
+					Username string `json:"username"`
+				} `json:"chat"`
+			} `json:"result"`
+		}
+		if e3 := tgUpload(ctx, base+"/"+method, f2, field, sp.Path, &r3); e3 == nil && r3.OK {
+			var r4 struct{ OK bool }
+			getJSON(ctx, base+"/sendMessage?"+url.Values{"chat_id": {t.UserID}, "text": {text}}.Encode(), &r4)
+			link := ""
+			if un := r3.Result.Chat.Username; un != "" {
+				link = "https://t.me/" + un + "/" + itoa(r3.Result.MessageID)
+			}
+			return link, "Posted without a caption attached (Telegram refused the caption); the text followed as a separate message.", nil
+		}
+		// 2) Let Telegram download the file from this server.
+		link, lerr := tgByLink(ctx, base, method, field, f, sp.Path)
+		if lerr == nil {
+			return link, "Posted by link after the direct upload failed.", nil
+		}
+		// 3) Say exactly what works: can the bot send plain text to this chat at all?
+		var r5 struct {
+			OK bool `json:"ok"`
+		}
+		txt := "plain text to the chat works, so only media is refused"
+		if e5 := getJSON(ctx, base+"/sendMessage?"+url.Values{"chat_id": {t.UserID}, "text": {"Blitz AI connection test"}}.Encode(), &r5); e5 != nil {
+			txt = "even a plain text message is refused: " + scrub(e5, t.Access).Error()
+		}
+		return "", "", errors.New("Upload: " + scrub(upErr, t.Access).Error() + " | By link: " + scrub(lerr, t.Access).Error() + " | Test: " + txt + " | chat_id used: " + t.UserID)
 	}
 	if rest != "" {
 		var r2 struct{ OK bool }
