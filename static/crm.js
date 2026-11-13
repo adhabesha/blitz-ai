@@ -218,7 +218,7 @@ const VIEWS={
         else{const c=h("section","bz-card");c.appendChild(h("p","bz-mut","Connect Facebook or Instagram under Connected social in Blitz AI to compare ad spend with CRM revenue."));body.appendChild(c)}}catch(x){}};
     per.onchange=run;run()},
   async chats(){
-    setHead("Chats","Messenger and Instagram conversations, live");const v=V();v.innerHTML="";let data;try{data=A((await api("GET","/api/crm/chats")).chats)}catch(x){v.appendChild(h("p","bz-err",x.message));return}
+    setHead("Chats","Messenger, Instagram and WhatsApp conversations, live");const v=V();v.innerHTML="";let data;try{data=A((await api("GET","/api/crm/chats")).chats)}catch(x){v.appendChild(h("p","bz-err",x.message));return}
     if(!data.length){const c=h("section","bz-card");c.appendChild(h("p",null,"No conversations yet. They appear here as soon as someone messages or comments on a connected Page or Instagram account. Connect your Pages first under Lead sources."));v.appendChild(c);return}
     const box=h("div","bx-chat"),list=h("div","bx-cl"),pane=h("div","bx-ct");box.append(list,pane);v.appendChild(box);
     const open=c=>{S.chat=c.id;list.childNodes.forEach(n=>n.classList.toggle("on",n.dataset.id===c.id));pane.innerHTML="";const hd=h("div","bx-ph");hd.style.position="static";const s=h("span",null,label(c.status||"open"));hd.append(h("h2",null,(c.name||"Contact")+" · "+label(c.channel)),pill(c.status||"open"));
@@ -227,7 +227,10 @@ const VIEWS={
       const m=h("div","bx-cm");for(const x of A(c.msgs)){const b=h("div","bx-b "+x.d);b.append(x.t,h("small",null,ago(x.at)));m.appendChild(b)}pane.appendChild(m);m.scrollTop=m.scrollHeight;
       if(can("leads","e")){const f=h("div","bx-cf"),i=mk("input",{placeholder:"Reply as your team (pauses automations for 24 h)"}),sd=h("button","bz-btn","Send");const go=async()=>{if(!i.value.trim())return;sd.disabled=true;try{await api("POST","/api/crm/chat/send",{id:c.id,text:i.value});show("chats")}catch(x){msg(pane,x.message,1);sd.disabled=false}};sd.onclick=go;i.onkeydown=ev=>{if(ev.key==="Enter")go()};f.append(i,sd);pane.appendChild(f)}};
     for(const c of data){const it=h("div","bx-ci");it.dataset.id=c.id;const a=h("span","bx-av",(c.name||"?")[0].toUpperCase());a.style.background=c.channel==="instagram"?"#d6249f":"#1877f2";const t=h("div");add(t,h("b",null,c.name||"Contact"),h("small",null,(A(c.msgs).slice(-1)[0]||{}).t||""));add(it,a,t);it.onclick=()=>open(c);list.appendChild(it)}
-    open(data.find(c=>c.id===S.chat)||data[0])},
+    open(data.find(c=>c.id===S.chat)||data[0]);
+    clearInterval(S.chatTimer);const sig=d=>d.map(c=>c.id+":"+A(c.msgs).length+":"+(c.status||"")).join("|");let last=sig(data);
+    S.chatTimer=setInterval(async()=>{if(S.view!=="chats"||document.hidden){if(S.view!=="chats")clearInterval(S.chatTimer);return}
+      try{const d=A((await api("GET","/api/crm/chats")).chats);if(sig(d)===last)return;last=sig(d);const typing=document.querySelector(".bx-cf input");const txt=typing?typing.value:"";await VIEWS.chats();const ni=document.querySelector(".bx-cf input");if(ni&&txt){ni.value=txt;ni.focus()}}catch(x){}},4000)},
   async automations(){
     setHead("Automations","Reply to comments and messages automatically, and capture leads",[(()=>{if(!can("integrations","c"))return null;const b=h("button","bz-btn","+ New automation");b.onclick=()=>flowEditor(null);return b})()]);
     const v=V();v.innerHTML="";let fl;try{fl=A((await api("GET","/api/crm/flows")).flows)}catch(x){v.appendChild(h("p","bz-err",x.message));return}

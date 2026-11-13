@@ -95,7 +95,7 @@ func (s *server) crmFlowSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Give the automation a name.", 400)
 		return
 	}
-	if !inList([]string{"facebook", "instagram", "both"}, in.Channel) {
+	if !inList([]string{"facebook", "instagram", "both", "whatsapp", "all"}, in.Channel) {
 		in.Channel = "both"
 	}
 	if !inList([]string{"comment", "dm_keyword", "welcome", "default"}, in.Trigger) {
