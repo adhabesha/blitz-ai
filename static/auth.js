@@ -46,7 +46,7 @@ async function call(path,method,body){
 const TABS={website:"website",youtube:"youtube",instagram:"socialc",tiktok:"socialc",facebook:"socialc",app:"app"};
 const GOALS=[["website","\u{1F310} My website"],["youtube","\u25B6\uFE0F YouTube channel"],["instagram","\u{1F4F8} Instagram"],["tiktok","\u{1F3B5} TikTok"],["facebook","\u{1F465} Facebook page"],["app","\u{1F4F1} Mobile app"]];
 const ROLES=["Creator","Business owner","Marketer / agency","Developer"];
-function go(goals){const t=goals&&goals.length?TABS[goals[0]]:"";location.href="/dashboard"+(t?"?tab="+t:"")}
+function go(goals){const t=goals&&goals.length?TABS[goals[0]]:"";location.href="/crm"}
 
 function startOnboarding(me,user){
   ob={step:0,goals:[],role:""};$("card-auth").hidden=true;$("card-ob").hidden=false;

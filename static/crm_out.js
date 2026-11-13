@@ -66,7 +66,7 @@ async function prospector(){
       const ac=h("td");ac.style.whiteSpace="nowrap";
       if(!p.email&&p.domain&&can("leads","e")){const fb=h("button","bz-mini","Find email");fb.onclick=()=>busy(fb,async()=>{try{const r=await api("POST","/api/crm/prospect/find",{id:p.id});if(!r.found)alert("No email found on their website.");draw()}catch(x){alert(x.message)}});ac.appendChild(fb)}
       if(can("leads","e")){const eb=h("button","bz-mini","Edit");eb.onclick=()=>editP(p);ac.append(" ",eb)}
-      add(tr,pp,cm,em,h("td",null,p.phone||""),h("td",null,label(p.source)),ac);t.appendChild(tr)}
+      add(tr,pp,cm,em,(()=>{const t=h("td");if(p.phone){const a=h("a","ln",p.phone);a.href="tel:"+p.phone.replace(/[^+\d]/g,"");t.appendChild(a)}return t})(),h("td",null,label(p.source)),ac);t.appendChild(tr)}
     w.appendChild(t);hold.appendChild(w)}
   async function promote(thenSeq){const ids=[...sel];if(!ids.length){alert("Tick the prospects you want first.");return}
     const r=await api("POST","/api/crm/prospect/promote",{ids});S.data.leads=null;sel.clear();
@@ -98,13 +98,16 @@ async function seqEditor(seq){
   const paint=()=>{sh.innerHTML="";d.steps.forEach((st,i)=>{const c=card();c.appendChild(h("b",null,i===0?"Email 1":"Follow-up "+i));
       const dl=mk("input",{type:"number",min:0,max:60,value:st.delayDays});dl.oninput=()=>st.delayDays=+dl.value||0;const sj=mk("input",{value:st.subject});sj.oninput=()=>st.subject=sj.value;const bd=mk("textarea",{rows:5,value:st.body});bd.oninput=()=>st.body=bd.value;
       add(c,h("label",null,i===0?"Wait this many days after enrolling":"Wait this many days after the previous email"),dl,h("label",null,"Subject"),sj,h("label",null,"Message"),bd);
+      const tb=h("button","bz-mini","Send this email to me as a test");tb.style.marginRight="8px";tb.onclick=()=>busy(tb,async()=>{try{const r=await api("POST","/api/crm/sequence/test",{subject:st.subject,body:st.body});msg(c,"Test sent to "+r.sentTo+". Check your inbox and spam folder.")}catch(x){msg(c,x.message,1)}});c.appendChild(tb);
       if(d.steps.length>1){const rm=h("button","bz-mini","Remove");rm.onclick=()=>{d.steps.splice(i,1);paint()};c.appendChild(rm)}sh.appendChild(c)})};paint();
+  const EX=[{delayDays:0,subject:"Quick question, {{first_name}}",body:"Hi {{first_name}},\n\nI'm {{sender}} from TechET Solution. We help investors and companies in Dubai find the right apartments and villas, from shortlisting to viewings, payment plans and handover.\n\nIs property in Dubai something {{company}} is looking at this year?\n\nBest,\n{{sender}}"},{delayDays:3,subject:"Re: Quick question, {{first_name}}",body:"Hi {{first_name}},\n\nA short follow-up. Right now we are seeing strong rental yields in areas like Business Bay and JVC, and I can send 3 options that match your budget in one short email.\n\nWould that be useful?\n\n{{sender}}"},{delayDays:5,subject:"Should I close this?",body:"Hi {{first_name}},\n\nI don't want to fill your inbox. If Dubai property isn't a priority, just tell me and I will stop. If it is, reply with your budget and preferred area and I will send options.\n\n{{sender}}"}];
+  const ex=h("button","bz-mini","Load example (Dubai real estate)");ex.onclick=()=>{d.steps=JSON.parse(JSON.stringify(EX));paint()};
   const addB=h("button","bz-mini","+ Add follow-up");addB.onclick=()=>{if(d.steps.length<8){d.steps.push({delayDays:4,subject:"Re: ",body:""});paint()}};
   const ai=h("button","bz-btn ghost","Write with AI");ai.onclick=()=>busy(ai,async()=>{try{const r=await api("POST","/api/crm/outreach/draft",{template:true});d.steps=[{delayDays:0,subject:r.subject,body:r.body}].concat(A(r.followups).map((t,i)=>({delayDays:3+i*4,subject:"Re: "+r.subject,body:t})));paint()}catch(x){msg(b,x.message,1)}});
   const sv=h("button","bz-btn","Save sequence");sv.onclick=()=>busy(sv,async()=>{try{const o=f.get();o.weekdaysOnly=!!o.weekdaysOnly;await api("POST","/api/crm/sequence/save",{id:seq?seq.id:"",name:o.name,active:act.checked,steps:d.steps,windowStart:o.windowStart,windowEnd:o.windowEnd,weekdaysOnly:o.weekdaysOnly,dailyLimit:o.dailyLimit});close();show("sequences")}catch(x){msg(b,x.message,1)}});
   b.appendChild(h("p","bz-mut","Use {{first_name}}, {{company}}, {{title}} and {{sender}} in subjects and messages. An unsubscribe link and your address are added automatically. A person who replies is removed from the sequence."));
   if(!s.smtp)warn(b,"No SMTP mailbox is connected. Cold email should go from your own mailbox (SMTP_HOST, SMTP_USER, SMTP_PASS in Admin); transactional services like Resend forbid cold outreach.");
-  add(b,f,al,sh);const r=h("div","crm-row");add(r,addB,ai,sv);b.appendChild(r);modal(seq?"Edit sequence":"New sequence",b,true)}
+  add(b,f,al,sh);const r=h("div","crm-row");add(r,addB,ex,ai,sv);b.appendChild(r);modal(seq?"Edit sequence":"New sequence",b,true)}
 async function enrollView(seq){
   const b=h("div");try{const r=A((await api("GET","/api/crm/sequence/enrollments?seqId="+seq.id)).items);
     if(!r.length)b.appendChild(h("p","bz-mut","Nobody is enrolled yet."));else{const w=h("div","crm-wrap"),t=h("table","crm-t"),hd=h("tr");for(const c of["Lead","Email","Status","Next email","Opens",""])hd.appendChild(h("th",null,c));t.appendChild(hd);

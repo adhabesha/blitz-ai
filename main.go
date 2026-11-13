@@ -142,6 +142,7 @@ func main() {
 	mux.HandleFunc("/api/crm/sequence/enroll", s.crmSequenceEnroll)
 	mux.HandleFunc("/api/crm/sequence/enrollments", s.crmEnrollments)
 	mux.HandleFunc("/api/crm/sequence/stop", s.crmEnrollStop)
+	mux.HandleFunc("/api/crm/sequence/test", s.crmSequenceTest)
 	mux.HandleFunc("/api/crm/inbox", s.crmInbox)
 	mux.HandleFunc("/api/crm/inbox/add", s.crmInboxAdd)
 	mux.HandleFunc("/api/crm/inbox/handle", s.crmInboxHandle)

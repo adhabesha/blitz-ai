@@ -69,6 +69,13 @@ async function openRecord(e,rec,defaults){
   save.onclick=async()=>{const o=clean();save.disabled=true;try{await api("POST","/api/crm/save?e="+e,o);S.data[e]=null;close();refresh()}catch(x){msg(body,x.message,1);save.disabled=false}};
   if(isNew?can(e,"c"):can(e,"e"))acts.appendChild(save);
   if(e==="leads"&&rec&&rec.status!=="converted"&&can("deals","c")&&can("leads","e")){const c=h("button","bz-btn ghost","Convert to deal");c.onclick=()=>convertLead(rec);acts.appendChild(c)}
+  if((e==="leads"||e==="contacts")&&rec&&rec.phone){
+    const num=rec.phone.replace(/[^+\d]/g,""),wa=num.replace(/^\+/,"").replace(/^00/,"");
+    const lg=(t,x)=>{api("POST","/api/crm/activity",{relType:e,relId:rec.id,type:t,text:x}).catch(()=>{})};
+    const ca=h("a","bz-btn ghost","\u260E Call");ca.href="tel:"+num;ca.onclick=()=>lg("call","Call started from the CRM ("+rec.phone+")");
+    const wb=h("a","bz-btn ghost","WhatsApp");wb.href="https://wa.me/"+wa+"?text="+encodeURIComponent("Hi "+(rec.name||"").split(" ")[0]+", ");wb.target="_blank";wb.rel="noopener";wb.onclick=()=>lg("note","WhatsApp chat opened");
+    acts.append(ca,wb)}
+  if(e==="leads"&&rec&&/^ig_|^fb_/.test(rec.source||"")){const ig=h("button","bz-btn ghost",(rec.source||"").startsWith("ig")?"Instagram chat":"Messenger chat");ig.onclick=()=>{close();nav("chats")};acts.appendChild(ig)}
   if(e==="leads"&&rec&&rec.email&&can("leads","v")){const ce=h("button","bz-btn ghost","AI cold email");ce.onclick=()=>OUT.coldEmail(rec);acts.appendChild(ce)}
   if(rec&&can(e,"d")){const d=h("button","bz-btn ghost","Delete");d.onclick=async()=>{if(!confirm("Delete this "+spec.one+"?"))return;try{await api("POST","/api/crm/delete?e="+e,{id:rec.id});S.data[e]=null;close();refresh()}catch(x){msg(body,x.message,1)}};acts.appendChild(d)}
   const x=h("button","bz-mini","✕ Close");x.onclick=close;acts.appendChild(x);add(head,ttl,acts);P.appendChild(head);

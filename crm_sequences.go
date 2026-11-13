@@ -960,3 +960,37 @@ func (s *server) crmInboxReply(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonOut(w, map[string]bool{"ok": true})
 }
+
+// crmSequenceTest sends one email of a sequence to the signed-in person's own address so they can see it first.
+func (s *server) crmSequenceTest(w http.ResponseWriter, r *http.Request) {
+	c := s.crmNeed(w, r)
+	if c == nil {
+		return
+	}
+	if !c.can("leads", 'e') {
+		c.deny(w, "send tests")
+		return
+	}
+	var in struct{ Subject, Body string }
+	if !readBody(w, r, &in, 30<<10) || strings.TrimSpace(in.Subject) == "" || strings.TrimSpace(in.Body) == "" {
+		http.Error(w, "Write a subject and a message first.", 400)
+		return
+	}
+	if m := s.outboundReady(c.ws); m != "" {
+		http.Error(w, m, 400)
+		return
+	}
+	if !reEmailOK.MatchString(c.email) {
+		http.Error(w, "Your account has no email address.", 400)
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, 50*time.Second)
+	defer cancel()
+	en := map[string]any{"email": c.email, "name": "Alex Sample", "company": "Sample Company", "title": "Managing Director"}
+	st := map[string]any{"subject": "[TEST] " + in.Subject, "body": in.Body}
+	if err := s.sendSeqMail(ctx, "00000000000000000000", en, st, obOf(c.ws)); err != nil {
+		http.Error(w, "Could not send: "+trunc(err.Error(), 200), 502)
+		return
+	}
+	jsonOut(w, map[string]string{"sentTo": c.email})
+}

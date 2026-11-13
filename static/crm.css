@@ -106,3 +106,7 @@ body.rc .bx-sec-h{justify-content:center;padding:10px 0 4px}body.rc .bx-sec-h:be
 #anwrap{margin:0 -4px}#anframe{width:100%;min-height:calc(100vh - 150px);border:0;display:block;background:transparent;color-scheme:normal}
 .bx-head h1{background:linear-gradient(90deg,var(--ink),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .crm-pill.interested{background:rgba(52,211,153,.18);border-color:rgba(52,211,153,.5)}.crm-pill.follow_up{background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.5)}
+
+.crm-box{background:linear-gradient(var(--card2),var(--card2)),var(--bg2)}
+.bx-panel{background:linear-gradient(var(--card),var(--card)),var(--bg1)}
+.crm-box .bz-card b+label,.crm-box .bz-card b{display:block;margin-bottom:6px}
