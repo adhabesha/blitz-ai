@@ -396,6 +396,9 @@ func (s *server) crmPageToken(ctx context.Context, pageID string) (wid, tok stri
 	}
 	x := d.Data()
 	wid = sv(x, "wid")
+	if sv(x, "kind") == "whatsapp" {
+		return wid, "wa:" + sv(x, "token"), nil
+	}
 	if sv(x, "kind") == "instagram" {
 		pageID = sv(x, "pageId")
 	}
@@ -549,6 +552,10 @@ func (s *server) crmMetaEvents(body []byte) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()
+	if ev.Object == "whatsapp_business_account" {
+		s.waEvents(body)
+		return
+	}
 	ig := ev.Object == "instagram"
 	for _, en := range ev.Entry {
 		wid, tok, err := s.crmPageToken(ctx, en.ID)

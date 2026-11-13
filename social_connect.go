@@ -36,6 +36,10 @@ var providers = []provCfg{
 	{"x", "X (Twitter)", "X_CLIENT_ID", "X_CLIENT_SECRET"},
 	{"linkedin", "LinkedIn", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"},
 	{"pinterest", "Pinterest", "PINTEREST_APP_ID", "PINTEREST_APP_SECRET"},
+	{"threads", "Threads", "THREADS_APP_ID", "THREADS_APP_SECRET"},
+	{"reddit", "Reddit", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"},
+	{"bluesky", "Bluesky", "", ""},
+	{"telegram", "Telegram", "", ""},
 }
 
 func provOf(id string) *provCfg {
@@ -57,6 +61,9 @@ func fbConfigID() string {
 }
 
 func (p *provCfg) configured() bool {
+	if keyProv(p.ID) {
+		return true
+	}
 	if p.ID == "instagram" && env("INSTAGRAM_CONFIG_ID") == "" {
 		return false
 	}
@@ -134,6 +141,9 @@ type provToken struct {
 }
 
 func exchangeCode(ctx context.Context, p *provCfg, code string) (*provToken, error) {
+	if t, ok, err := extraExchange(ctx, p, code); ok {
+		return t, err
+	}
 	if p.ID == "x" || p.ID == "linkedin" || p.ID == "pinterest" {
 		return moreExchange(ctx, p, code)
 	}
@@ -228,6 +238,7 @@ func (s *server) validToken(ctx context.Context, uid string, p *provCfg) (*provT
 		}
 	}
 	s.moreRefresh(ctx, uid, p, t)
+	s.extraRefresh(ctx, uid, p, t)
 	if p.ID == "tiktok" && t.Exp-now < 3600 && t.Refresh != "" {
 		var a struct {
 			AccessToken  string `json:"access_token"`
@@ -261,7 +272,7 @@ func (s *server) socialStatus(w http.ResponseWriter, r *http.Request) {
 	for i := range providers {
 		p := &providers[i]
 		_, derr := s.db.Collection("users").Doc(uid).Collection("private").Doc("social_" + p.ID).Get(r.Context())
-		out[p.ID] = map[string]any{"configured": p.configured(), "connected": derr == nil, "needs": provNeeds(p), "redirect": provRedirect(p.ID)}
+		out[p.ID] = map[string]any{"configured": p.configured(), "connected": derr == nil, "needs": provNeeds(p), "redirect": provRedirect(p.ID), "keyForm": keyFields(p.ID)}
 	}
 	_, adm := s.adminOK(r)
 	w.Header().Set("Content-Type", "application/json")
@@ -824,6 +835,14 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		snap, err = fetchLinkedIn(ctx, t.Access)
 	case "pinterest":
 		snap, err = fetchPinterest(ctx, t.Access)
+	case "threads":
+		snap, err = fetchThreads(ctx, t.Access)
+	case "reddit":
+		snap, err = fetchReddit(ctx, t.Access)
+	case "bluesky":
+		snap, err = fetchBluesky(ctx, t.Access, t.UserID)
+	case "telegram":
+		snap, err = fetchTelegram(ctx, t.Access, t.UserID)
 	default:
 		snap, err = fetchTikTok(ctx, t.Access)
 	}

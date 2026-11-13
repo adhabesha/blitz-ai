@@ -167,4 +167,12 @@ async function obsettings(){
   const sv=h("button","bz-btn","Save");sv.disabled=!can("integrations","e");sv.onclick=()=>busy(sv,async()=>{try{const o=f.get();await api("POST","/api/crm/outbound/settings",o);await settings(true);msg(fc,"Saved.")}catch(x){msg(fc,x.message,1)}});add(fc,f,sv);v.appendChild(fc);
   const tc=card();add(tc,T("Doing cold email safely"),h("p","bz-mut","Warm up a new mailbox: start at 20-30 emails a day and raise slowly. Use a separate domain, not your main one. Set up SPF, DKIM and DMARC for the sending domain. Only email business contacts who could plausibly be interested, and honour unsubscribes (done automatically here). Laws such as CAN-SPAM, GDPR and UAE data rules apply to you as the sender."));v.appendChild(tc)}
 
-return{views:{prospects:prospector,sequences,inbox,obsettings},coldEmail,enrollModal}}
+async function waCard(){
+  const I=await api("GET","/api/crm/whatsapp"),c=card();c.appendChild(T("3. WhatsApp Business","Cloud API: chats and automations on WhatsApp"));
+  c.appendChild(h("p","bz-mut","Customers who message your WhatsApp Business number appear in Chats, become leads with their phone number, and can trigger Automations (choose WhatsApp only or All channels in the flow). You can only reply within 24 hours of their last message. This needs a WhatsApp Business account in Meta Business Suite; testing works with Meta's free test number."));
+  for(const n of A(I.numbers)){const r=h("div","crm-row");r.style.margin="6px 0";const x=h("button","bz-mini","Remove");x.onclick=async()=>{if(confirm("Disconnect this number?")){await api("POST","/api/crm/whatsapp/remove",{id:n.id});show("sources")}};add(r,h("b",null,n.name),h("small","bz-mut"," ID "+n.id),can("integrations","d")?x:null);c.appendChild(r)}
+  if(can("integrations","e")){const f=formEl([{k:"phoneId",label:"Phone number ID (Meta > WhatsApp > API setup)"},{k:"token",label:"Permanent access token (system user token)",type:"password"}],{});const b=h("button","bz-btn","Connect number");
+    b.onclick=()=>busy(b,async()=>{try{const r=await api("POST","/api/crm/whatsapp/connect",f.get());msg(c,"Connected "+(r.display||"number")+".");setTimeout(()=>show("sources"),1200)}catch(x){msg(c,x.message,1)}});add(c,f,b)}
+  c.appendChild(h("p","bz-mut","Then, in your Meta app: WhatsApp > Configuration > Webhook. Callback URL: "+I.webhookUrl+" and verify token: "+I.verifyToken+". Click Verify, then subscribe to the field: messages."+(I.appSecretSet?"":" (Also add FACEBOOK_APP_SECRET in Admin.)")));
+  return c}
+return{views:{prospects:prospector,sequences,inbox,obsettings},coldEmail,enrollModal,waCard}}

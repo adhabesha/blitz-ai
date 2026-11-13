@@ -168,7 +168,7 @@ func (s *server) adminConfig(w http.ResponseWriter, r *http.Request) {
 		base = "https://YOUR-APP.onrender.com"
 	}
 	redirects := map[string]string{}
-	for _, id := range []string{"google", "instagram", "facebook", "tiktok", "x", "linkedin", "pinterest"} {
+	for _, id := range []string{"google", "instagram", "facebook", "tiktok", "x", "linkedin", "pinterest", "threads", "reddit"} {
 		redirects[id] = base + "/auth/" + id + "/callback"
 	}
 	w.Header().Set("Content-Type", "application/json")

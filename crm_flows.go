@@ -199,6 +199,12 @@ func graphPost(ctx context.Context, u string, tok string, body map[string]any) e
 
 // sendDM sends a message to a person. For the first reply to a comment pass commentID.
 func sendDM(ctx context.Context, tok, pageID string, ig bool, to, commentID, text, btnTitle, btnURL string) error {
+	if strings.HasPrefix(tok, "wa:") {
+		if btnURL != "" {
+			text += "\n" + btnURL
+		}
+		return waSend(ctx, strings.TrimPrefix(tok, "wa:"), pageID, to, text)
+	}
 	g := "https://graph.facebook.com/v21.0/"
 	if commentID != "" {
 		if btnURL != "" {
@@ -230,7 +236,7 @@ func publicReply(ctx context.Context, tok string, ig bool, commentID, text strin
 
 type flowEvent struct {
 	wid, tok, pageID, sender, name, text, commentID, postID, mid, leadID string
-	ig                                                              bool
+	ig, wa                                                          bool
 }
 
 func fillVars(t, name string) string {
@@ -279,6 +285,9 @@ func (s *server) flowStat(ctx context.Context, wid, fid, key string) {
 // crmFlow handles one incoming DM or comment. It returns nothing; leads are created by the caller.
 func (s *server) crmFlow(ctx context.Context, e flowEvent) {
 	chn := ifs(e.ig, "instagram", "facebook")
+	if e.wa {
+		chn = "whatsapp"
+	}
 	cid := chn + ":" + e.sender
 	ref := s.crmWS(e.wid).Collection("convos").Doc(cid)
 	cv := map[string]any{}
@@ -330,7 +339,7 @@ func (s *server) crmFlow(ctx context.Context, e flowEvent) {
 			if f["active"] != true || sv(f, "trigger") != trig {
 				continue
 			}
-			if ch := sv(f, "channel"); ch != "both" && ch != chn {
+			if ch := sv(f, "channel"); ch != "all" && !(ch == "both" && chn != "whatsapp") && ch != chn {
 				continue
 			}
 			if needText && !flowMatches(f, e.text) {

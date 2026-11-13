@@ -21,7 +21,7 @@ const members=()=>A(S.team&&S.team.members);
 const ownerName=u=>{if(!u)return"Unassigned";const m=members().find(x=>x.uid===u);return m?m.name:"Former member"};
 const STC={new:"#2fc6f6",contacted:"#3e8bf1",qualified:"#8b5cf6",proposal:"#fbbf24",negotiation:"#f26a2e",won:"#34d399",converted:"#34d399",unqualified:"#f87171",lost:"#f87171"};
 const stc=s=>STC[s]||"#2fc6f6";
-const SOURCES=["manual","csv_import","web_form","meta_lead_ad","fb_dm","fb_comment","ig_dm","ig_comment","referral","phone","event","other"];
+const SOURCES=["manual","csv_import","web_form","meta_lead_ad","fb_dm","fb_comment","ig_dm","ig_comment","wa_dm","referral","phone","event","other"];
 const msg=(p,t,err)=>{let m=p.querySelector(".crm-msg");if(!m){m=h("div","crm-msg");p.appendChild(m)}m.textContent=t;m.className="crm-msg"+(err?" err":"")};
 const mk=(tag,props)=>Object.assign(document.createElement(tag),props||{});
 function avatar(uid){const n=ownerName(uid),s=h("span","bx-av",uid?n.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase():"?");let k=0;for(const c of uid||"")k=(k*31+c.charCodeAt(0))%360;s.style.background=uid?`hsl(${k} 55% 45%)`:"#94a3b8";s.title=n;return s}
@@ -289,7 +289,7 @@ function flowEditor(f,tpl){
   const info={comment:"Someone comments on a post or reel (optionally with a keyword)",dm_keyword:"Someone sends a message containing your keyword",welcome:"Someone messages you for the first time",default:"Any message no other automation answers"};
   const drawT=()=>{tg.innerHTML="";for(const k of Object.keys(TRIG)){const b=h("button",d.trigger===k?"on":"");add(b,h("b",null,TRIG[k]),h("small",null,info[k]));b.onclick=()=>{d.trigger=k;drawT();ex.hidden=false;kwl.hidden=k==="welcome"||k==="default";pl.hidden=k!=="comment";cl.hidden=k!=="comment"};tg.appendChild(b)}};drawT();s1.appendChild(tg);
   const ex=h("div","form");const nm=mk("input",{value:d.name,placeholder:"e.g. Spring offer"}),ch=mk("select"),ky=mk("input",{value:A(d.keywords).join(", "),placeholder:"price, info, guide (leave empty = any comment)"}),mt=mk("select"),po=mk("input",{value:d.postId,placeholder:"Optional: post ID to limit it to one post"}),cr=mk("input",{value:d.commentReply,placeholder:"Optional public reply, e.g. Thanks! Check your DMs"}),tgI=mk("input",{value:d.tag,placeholder:"Optional tag added to the lead"});
-  for(const[v2,t]of[["both","Facebook + Instagram"],["facebook","Facebook only"],["instagram","Instagram only"]])ch.appendChild(mk("option",{value:v2,textContent:t}));ch.value=d.channel;for(const[v2,t]of[["contains","Message contains the keyword"],["exact","Message is exactly the keyword"]])mt.appendChild(mk("option",{value:v2,textContent:t}));mt.value=d.match;
+  for(const[v2,t]of[["both","Facebook + Instagram"],["facebook","Facebook only"],["instagram","Instagram only"],["whatsapp","WhatsApp only"],["all","All channels"]])ch.appendChild(mk("option",{value:v2,textContent:t}));ch.value=d.channel;for(const[v2,t]of[["contains","Message contains the keyword"],["exact","Message is exactly the keyword"]])mt.appendChild(mk("option",{value:v2,textContent:t}));mt.value=d.match;
   const L=(t,el,cls)=>{const l=h("label",cls,t);l.appendChild(el);ex.appendChild(l);return l};L("Automation name",nm,"wide");L("Channel",ch);const kwl=L("Keywords (comma separated)",ky);L("Keyword matching",mt);const pl=L("Only this post (ID)",po);const cl=L("Public reply to the comment",cr,"wide");L("Tag the lead",tgI);kwl.hidden=d.trigger==="welcome"||d.trigger==="default";pl.hidden=d.trigger!=="comment";cl.hidden=d.trigger!=="comment";s1.appendChild(ex);body.appendChild(s1);
   const s2=h("div","bx-sec");s2.appendChild(h("h3",null,"2. What should it send?"));const stp=h("div");s2.appendChild(stp);
   const drawS=()=>{stp.innerHTML="";d.steps.forEach((s,i)=>{const b=h("div","bx-step "+s.type);const top=h("div","crm-row");top.style.cssText="margin:0 0 8px;justify-content:space-between";top.appendChild(h("b",null,(i+1)+". "+(s.type==="ask"?"Ask a question and save the answer":"Send a message")));const rm=h("button","bz-mini","Remove");rm.onclick=()=>{d.steps.splice(i,1);drawS()};top.appendChild(rm);b.appendChild(top);
@@ -326,6 +326,7 @@ function deptForm(d){
 // ---------------------------------------------------------------- outbound (prospecting, sequences, smart inbox)
 const OUT=outbound({h,add,api,copy,S,can,mk,formEl,modal,close,msg,setHead,V,label,pill,ago,date,ownerOpts,load,show:k=>show(k),A,icon,openRecord:(e,r)=>openRecord(e,r)});
 Object.assign(VIEWS,OUT.views);
+{const base=VIEWS.sources;VIEWS.sources=async function(){await base.call(VIEWS);try{V().appendChild(await OUT.waCard())}catch(x){}}}
 // ---------------------------------------------------------------- shell
 const SECTIONS=[
  {t:"CRM",items:[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"]]},

@@ -208,7 +208,7 @@ function drawHistory(){
 $("hist-toggle").onclick=()=>{showAll=!showAll;drawHistory()};
 
 // ---------- Connected social (Instagram, Facebook, TikTok) ----------
-const PROV=[["instagram","Instagram","Business or Creator account"],["facebook","Facebook","A Facebook Page you manage"],["tiktok","TikTok","Your own TikTok account"],["x","X (Twitter)","Reading data needs an X API plan with read access (paid)"],["linkedin","LinkedIn","Connects your profile now; page analytics unlock once LinkedIn approves your app"],["pinterest","Pinterest","Business account; Pinterest API access"]];
+const PROV=[["instagram","Instagram","Business or Creator account"],["facebook","Facebook","A Facebook Page you manage"],["tiktok","TikTok","Your own TikTok account"],["x","X (Twitter)","Reading data needs an X API plan with read access (paid)"],["linkedin","LinkedIn","Connects your profile now; page analytics unlock once LinkedIn approves your app"],["pinterest","Pinterest","Business account; Pinterest API access"],["threads","Threads","Your Threads profile (same Instagram login), posts and insights"],["reddit","Reddit","Your Reddit profile and posts"],["bluesky","Bluesky","Handle plus an app password, no developer app needed"],["telegram","Telegram","Your channel or group, using your own bot token"]];
 function keyBoxes(c,id,s,st,name){
   const wrap=h("div","bz-note");wrap.style.cssText="display:grid;gap:8px;margin-top:8px";
   wrap.appendChild(h("b",null,"Add your "+name+" developer keys to enable this"));
@@ -225,6 +225,8 @@ async function loadSocial(){
     const s=(st.providers||{})[id]||{},c=h("div","bz-card s4");
     add(c,h("h3",null,name),h("p","bz-mut",sub));
     if(!s.configured)keyBoxes(c,id,s,st,name);
+    else if(!s.connected&&A0(s.keyForm).length){const wrap=h("div");wrap.style.cssText="display:grid;gap:8px;margin-top:8px";const ins={};for(const f of s.keyForm){const l=h("label",null,f.label);l.style.cssText="display:grid;gap:4px;font-size:12px";const i=h("input");i.type=f.secret?"password":"text";i.autocomplete="off";l.appendChild(i);wrap.appendChild(l);ins[f.k]=i}
+      const b=h("button","bz-btn","Connect "+name),m=h("div","bz-mut");b.onclick=async()=>{b.disabled=true;m.textContent="";try{await api("POST","/api/social/connectkey",{provider:id,a:ins.a.value,b:ins.b.value});loadSocial()}catch(e){m.textContent=e.message;b.disabled=false}};add(wrap,b,m);c.appendChild(wrap)}
     else if(!s.connected){const b=h("button","bz-btn","Connect & Analyze");b.onclick=()=>connectSocial(id);c.appendChild(b)}
     else{const b=h("button","bz-btn","Analyze now"),d=h("button","bz-btn ghost","Disconnect");d.style.marginLeft="8px";b.onclick=()=>analyzeSocial(id,name);
       d.onclick=async()=>{if(!confirm("Disconnect "+name+"?"))return;await api("POST","/api/social/disconnect",{provider:id});loadSocial()};add(c,b,d)}

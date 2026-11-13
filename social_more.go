@@ -24,6 +24,9 @@ func pkcePair(uid string) (verifier, challenge string) {
 }
 
 func moreAuthURL(p *provCfg, state, uid string) string {
+	if u := extraAuthURL(p, state); u != "" {
+		return u
+	}
 	cid, ru := env(p.IDEnv), provRedirect(p.ID)
 	switch p.ID {
 	case "x":
@@ -238,9 +241,12 @@ func fetchPinterest(ctx context.Context, tok string) (*socialSnap, error) {
 // provNeeds lists the developer keys still missing for a provider (empty when configured).
 func provNeeds(p *provCfg) []map[string]any {
 	var out []map[string]any
+	if keyProv(p.ID) {
+		return out
+	}
 	idl, sl := "Client ID", "Client secret"
 	switch p.ID {
-	case "pinterest":
+	case "pinterest", "threads":
 		idl, sl = "App ID", "App secret"
 	case "tiktok":
 		idl = "Client key"
