@@ -76,7 +76,7 @@ var jobs = struct {
 var (
 	videoExt  = map[string]bool{".mp4": true, ".mov": true, ".m4v": true}
 	imageExt  = map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
-	typePlats = map[string][]string{"short": {"youtube", "tiktok", "facebook", "instagram"}, "video": {"youtube", "facebook", "instagram"}, "image": {"facebook", "instagram"}}
+	typePlats = map[string][]string{"short": {"youtube", "tiktok", "facebook", "instagram", "telegram"}, "video": {"youtube", "facebook", "instagram", "telegram"}, "image": {"facebook", "instagram", "telegram"}}
 	reMedia   = regexp.MustCompile(`^[0-9a-f]{32}\.[a-z0-9]{3,4}$`)
 )
 
@@ -369,6 +369,8 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 				link, note, err = s.pubInstagram(ctx, uid, sp)
 			case "tiktok":
 				link, note, err = s.pubTikTok(ctx, uid, sp)
+			case "telegram":
+				link, note, err = s.pubTelegram(ctx, uid, sp)
 			}
 			if err != nil {
 				log.Println("publish", p, err)

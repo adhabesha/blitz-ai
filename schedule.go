@@ -27,7 +27,7 @@ const schedColl = "scheduled_posts"
 
 var reHex = regexp.MustCompile(`^[0-9a-f]{20}$`)
 
-func appScheduled(p string) bool { return p == "instagram" || p == "tiktok" }
+func appScheduled(p string) bool { return p == "instagram" || p == "tiktok" || p == "telegram" }
 
 func (s *server) saveScheduled(ctx context.Context, uid string, sp pubSpec, plats []string) (string, error) {
 	spec, _ := json.Marshal(sp)

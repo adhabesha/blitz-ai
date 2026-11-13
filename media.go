@@ -200,6 +200,15 @@ func preflight(sp pubSpec, info *vidInfo, iw, ih int) map[string]verdict {
 }
 
 func platformVerdict(p string, sp pubSpec, info *vidInfo, iw, ih int) verdict {
+	if p == "telegram" {
+		if sp.Type == "image" && sp.Size > 10<<20 {
+			return verdict{Block: "Telegram bots accept photos up to 10 MB. Compress the image."}
+		}
+		if sp.Type != "image" && sp.Size > 50<<20 {
+			return verdict{Block: "Telegram bots accept videos up to 50 MB. Compress the video."}
+		}
+		return verdict{}
+	}
 	if sp.Type == "image" {
 		if p == "instagram" {
 			if sp.Ext == ".png" {

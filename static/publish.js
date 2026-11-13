@@ -1,14 +1,15 @@
 import{h,add,api,copyBox}from"./ui.js";
 
 const TYPES={
-  short:{label:"Short / Reel",hint:"Vertical video (9:16), up to about 3 minutes. Goes to YouTube Shorts, TikTok, Facebook Reels and Instagram Reels.",accept:"video/mp4,video/quicktime",plats:["youtube","tiktok","facebook","instagram"]},
-  video:{label:"Normal video",hint:"Landscape or square video. Goes to YouTube, Facebook and Instagram (Instagram publishes all videos as Reels).",accept:"video/mp4,video/quicktime",plats:["youtube","facebook","instagram"]},
-  image:{label:"Image",hint:"JPG works everywhere (Instagram does not accept PNG through its API). Goes to Facebook and Instagram.",accept:"image/jpeg,image/png",plats:["facebook","instagram"]}
+  short:{label:"Short / Reel",hint:"Vertical video (9:16), up to about 3 minutes. Goes to YouTube Shorts, TikTok, Facebook Reels and Instagram Reels.",accept:"video/mp4,video/quicktime",plats:["youtube","tiktok","facebook","instagram","telegram"]},
+  video:{label:"Normal video",hint:"Landscape or square video. Goes to YouTube, Facebook and Instagram (Instagram publishes all videos as Reels).",accept:"video/mp4,video/quicktime",plats:["youtube","facebook","instagram","telegram"]},
+  image:{label:"Image",hint:"JPG works everywhere (Instagram does not accept PNG through its API). Goes to Facebook and Instagram.",accept:"image/jpeg,image/png",plats:["facebook","instagram","telegram"]}
 };
-const PN={youtube:"YouTube",facebook:"Facebook Page",instagram:"Instagram",tiktok:"TikTok"};
+const PN={youtube:"YouTube",facebook:"Facebook Page",instagram:"Instagram",tiktok:"TikTok",telegram:"Telegram"};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null,tt=null,ttInfo=null;
 function verdict(p){
+  if(p==="telegram"&&file){const mb=file.size/1048576;if(type==="image"&&mb>10)return{block:"photo over 10 MB"};if(type!=="image"&&mb>50)return{block:"video over 50 MB"};return{}}
   if(!meta)return{};
   const{w,h,d}=meta,r=w/h,t=type;
   if(type==="image"){
@@ -59,14 +60,20 @@ export function mountPublish(root,a){
   const lab=(t,el)=>{const l=h("label",null,t);l.appendChild(el);return l};
   const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): Blitz AI uploads at this time",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
+  const shareWA=async()=>{const t=((ui.title.value?ui.title.value+"\n\n":"")+ui.cap.value).trim();if(!t&&!file){ui.msg.textContent="Choose a file or write a caption first.";return false}
+    try{if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:t});return true}}catch(e){if(e&&e.name==="AbortError")return false}
+    window.open("https://wa.me/?text="+encodeURIComponent(t),"_blank","noopener");ui.msg.textContent="Your browser cannot attach the file for you. WhatsApp opened with the text: attach the video or photo in the group yourself.";return true};
+  ui.wa=h("button","bz-btn ghost","Share to a WhatsApp group");ui.wa.style.marginLeft="8px";ui.wa.title="Opens your share window with the video or photo and caption. Pick WhatsApp, then the group.";ui.wa.onclick=shareWA;
+  ui.waChk=document.createElement("input");ui.waChk.type="checkbox";const wl=h("label","pub-wa");wl.style.cssText="display:flex;gap:8px;align-items:center;margin:8px 0";add(wl,ui.waChk,h("span",null,"Also share to a WhatsApp group when I press Publish (not for scheduled posts: a person has to tap send in WhatsApp)"));
+  ui.go.onclick=async()=>{if(ui.waChk.checked&&!ui.when.value)shareWA();submit()};
   ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");ui.sched=h("div","pub-sched");
-  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,ui.go,ui.bar,ui.msg,ui.jobs,ui.sched);
+  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,wl,ui.go,ui.wa,ui.bar,ui.msg,ui.jobs,ui.sched);
   drawType();
   return refresh;
 }
 export async function refresh(){
   try{const g=await api("GET","/api/google/status"),s=await api("GET","/api/social/status"),p=s.providers||{};
-    conn={youtube:!!g.connected,facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected}}catch(e){conn={}}
+    conn={youtube:!!g.connected,facebook:!!(p.facebook||{}).connected,instagram:!!(p.instagram||{}).connected,tiktok:!!(p.tiktok||{}).connected,telegram:!!(p.telegram||{}).connected}}catch(e){conn={}}
   drawPlats();
   takeDraft();loadSched();
 }
@@ -88,7 +95,7 @@ function drawType(){
 function drawPlats(){
   const t=TYPES[type],scheduled=!!ui.when.value;
   ui.plats.innerHTML="";
-  for(const p of["youtube","facebook","instagram","tiktok"]){
+  for(const p of["youtube","facebook","instagram","tiktok","telegram"]){
     const okType=t.plats.includes(p),okSched=true,connected=!!conn[p];
     const v=verdict(p),usable=okType&&okSched&&connected&&!v.block;
     if(!usable)plats.delete(p);
