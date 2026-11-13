@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -23,6 +25,17 @@ func mailConfigured() bool {
 
 // sendMail sends through Resend (RESEND_API_KEY) or plain SMTP (SMTP_HOST/PORT/USER/PASS).
 func sendMail(ctx context.Context, to, subject, htmlBody, textBody string) error {
+	return sendMailH(ctx, to, subject, htmlBody, textBody, nil, false)
+}
+
+// smtpReady says whether a real mailbox (SMTP) is configured; cold outreach should go through it.
+func smtpReady() bool {
+	return env("MAIL_FROM") != "" && env("SMTP_HOST") != "" && env("SMTP_USER") != ""
+}
+
+// sendMailH is sendMail with extra headers (Reply-To, List-Unsubscribe...). With preferSMTP the own mailbox is used
+// even when a Resend key exists, because transactional services forbid cold outreach.
+func sendMailH(ctx context.Context, to, subject, htmlBody, textBody string, hdr map[string]string, preferSMTP bool) error {
 	from := env("MAIL_FROM")
 	if !mailConfigured() {
 		return errors.New("email sending is not set up yet (add MAIL_FROM and either RESEND_API_KEY or SMTP_HOST, SMTP_USER, SMTP_PASS in Admin)")
@@ -30,8 +43,17 @@ func sendMail(ctx context.Context, to, subject, htmlBody, textBody string) error
 	if strings.ContainsAny(to+from+subject, "\r\n") {
 		return errors.New("invalid header")
 	}
-	if k := env("RESEND_API_KEY"); k != "" {
-		b, _ := json.Marshal(map[string]any{"from": from, "to": []string{to}, "subject": subject, "html": htmlBody, "text": textBody})
+	for k, v := range hdr {
+		if strings.ContainsAny(k+v, "\r\n") {
+			return errors.New("invalid header")
+		}
+	}
+	if k := env("RESEND_API_KEY"); k != "" && !(preferSMTP && smtpReady()) {
+		pl := map[string]any{"from": from, "to": []string{to}, "subject": subject, "html": htmlBody, "text": textBody}
+		if len(hdr) > 0 {
+			pl["headers"] = hdr
+		}
+		b, _ := json.Marshal(pl)
 		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.resend.com/emails", bytes.NewReader(b))
 		req.Header.Set("Authorization", "Bearer "+k)
 		req.Header.Set("Content-Type", "application/json")
@@ -50,8 +72,21 @@ func sendMail(ctx context.Context, to, subject, htmlBody, textBody string) error
 	addr := net.JoinHostPort(host, port)
 	boundary := fmt.Sprintf("b%d", time.Now().UnixNano())
 	var msg bytes.Buffer
-	fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%s\r\n\r\n", from, to, subject, boundary)
-	fmt.Fprintf(&msg, "--%s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n--%s\r\nContent-Type: text/html; charset=utf-8\r\n\r\n%s\r\n--%s--\r\n", boundary, textBody, boundary, htmlBody, boundary)
+	fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%d.%s>\r\nMIME-Version: 1.0\r\n", from, to, mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), time.Now().UnixNano(), hostOf(from))
+	for k, v := range hdr {
+		fmt.Fprintf(&msg, "%s: %s\r\n", k, v)
+	}
+	fmt.Fprintf(&msg, "Content-Type: multipart/alternative; boundary=%s\r\n\r\n", boundary)
+	b64 := func(t string) string {
+		e := base64.StdEncoding.EncodeToString([]byte(t))
+		var o strings.Builder
+		for len(e) > 76 {
+			o.WriteString(e[:76] + "\r\n")
+			e = e[76:]
+		}
+		return o.String() + e
+	}
+	fmt.Fprintf(&msg, "--%s\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s--\r\n", boundary, b64(textBody), boundary, b64(htmlBody), boundary)
 	auth := smtp.PlainAuth("", env("SMTP_USER"), env("SMTP_PASS"), host)
 	addrOnly := from
 	if i := strings.LastIndex(from, "<"); i >= 0 {
@@ -100,6 +135,17 @@ func sendMail(ctx context.Context, to, subject, htmlBody, textBody string) error
 	case <-ctx.Done():
 		return errors.New("the mail server did not answer in time")
 	}
+}
+
+func hostOf(from string) string {
+	a := from
+	if i := strings.LastIndex(a, "<"); i >= 0 {
+		a = strings.Trim(a[i:], "<> ")
+	}
+	if i := strings.LastIndex(a, "@"); i >= 0 {
+		return a[i+1:]
+	}
+	return "localhost"
 }
 
 func inviteMail(workspace, inviter, role, link string) (string, string, string) {

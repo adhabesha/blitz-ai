@@ -1,6 +1,7 @@
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
+import{outbound}from"./crm_out.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const $=i=>document.getElementById(i);
@@ -68,6 +69,7 @@ async function openRecord(e,rec,defaults){
   save.onclick=async()=>{const o=clean();save.disabled=true;try{await api("POST","/api/crm/save?e="+e,o);S.data[e]=null;close();refresh()}catch(x){msg(body,x.message,1);save.disabled=false}};
   if(isNew?can(e,"c"):can(e,"e"))acts.appendChild(save);
   if(e==="leads"&&rec&&rec.status!=="converted"&&can("deals","c")&&can("leads","e")){const c=h("button","bz-btn ghost","Convert to deal");c.onclick=()=>convertLead(rec);acts.appendChild(c)}
+  if(e==="leads"&&rec&&rec.email&&can("leads","v")){const ce=h("button","bz-btn ghost","AI cold email");ce.onclick=()=>OUT.coldEmail(rec);acts.appendChild(ce)}
   if(rec&&can(e,"d")){const d=h("button","bz-btn ghost","Delete");d.onclick=async()=>{if(!confirm("Delete this "+spec.one+"?"))return;try{await api("POST","/api/crm/delete?e="+e,{id:rec.id});S.data[e]=null;close();refresh()}catch(x){msg(body,x.message,1)}};acts.appendChild(d)}
   const x=h("button","bz-mini","✕ Close");x.onclick=close;acts.appendChild(x);add(head,ttl,acts);P.appendChild(head);
   if(spec.key){const bar=h("div","bx-stages");const drawBar=()=>{bar.innerHTML="";const st=spec.stages();const idx=st.indexOf(cur);st.forEach((s,i)=>{const b=h("button","bx-stage"+(i<=idx&&idx>=0?" done":""),label(s));b.style.setProperty("--c",stc(idx>=0?cur:s));b.onclick=async()=>{if(e==="leads"&&s==="converted"){if(rec)convertLead(rec);return}let lr;if(s==="lost"&&e==="deals"){lr=prompt("Why was this deal lost? (optional)");if(lr===null)return}cur=s;drawBar();if(rec&&can(e,"e")){try{const o={id:rec.id,[spec.key]:s};if(lr!=null)o.lostReason=lr;await api("POST","/api/crm/save?e="+e,o);rec[spec.key]=s;S.data[e]=null;tl&&timeline(e,rec,tl,body)}catch(er){msg(body,er.message,1)}}};bar.appendChild(b)})};drawBar();P.appendChild(bar)}
@@ -314,10 +316,14 @@ function deptForm(d){
   x.onclick=async()=>{if(!confirm("Delete this department?"))return;try{await api("POST","/api/crm/dept/delete",{id:d.id});close();show("team")}catch(e){msg(b,e.message,1)}};
   const row=h("div","crm-row");add(row,s,d&&can("team","d")?x:null);add(b,f,row);modal(d?"Edit department":"New department",b)}
 
+// ---------------------------------------------------------------- outbound (prospecting, sequences, smart inbox)
+const OUT=outbound({h,add,api,copy,S,can,mk,formEl,modal,close,msg,setHead,V,label,pill,ago,date,ownerOpts,load,show:k=>show(k),A,icon,openRecord:(e,r)=>openRecord(e,r)});
+Object.assign(VIEWS,OUT.views);
 // ---------------------------------------------------------------- shell
 const SECTIONS=[
  {t:"CRM",items:[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"]]},
  {t:"Engage",items:[["chats","Chats","leads","send"],["automations","Automations","integrations","zap"],["sources","Lead sources","integrations","link"]]},
+ {t:"Outbound",items:[["prospects","Prospector","leads","search"],["sequences","Sequences","leads","send"],["inbox","Smart inbox","leads","userplus"],["obsettings","Outbound settings","leads","zap"]]},
  {t:"Analytics",fold:true,open:true,items:[["an:website","Website","reports","globe",{k:"website",sub:"Speed, SEO and fixes for any website"}],["an:youtube","YouTube","reports","play",{k:"youtube",sub:"Channel stats and growth plan"}],["an:socialc","Connected social","reports","share",{k:"socialc",sub:"Facebook, Instagram, TikTok, X, LinkedIn, Pinterest, YouTube and Google: connect once, analyze everything"}],["an:social","Other social (manual)","reports","users",{k:"social",sub:"Manual social profile analysis"}],["an:app","App","reports","phone",{k:"app",sub:"Store listing and app growth"}],["an:runads","Run ads","reports","zap",{k:"runads",sub:"Launch and manage paid campaigns"}],["an:adcreative","Ad creative","reports","film",{k:"adcreative",sub:"Scripts, briefs and finished ads"}],["an:seo","SEO & Ads","reports","search",{k:"seo",sub:"Keywords, competitors and market position"}],["an:mreport","Marketing report","reports","bars",{k:"mreport",sub:"All your results in one marketing report",b:"AI"}],["an:publish","Publish to all","reports","send",{k:"publish",sub:"Post to every connected account"}],["an:optimizer","Optimizer & Publish","reports","star",{k:"optimizer",sub:"Optimise and publish videos"}]]},
  {t:"Admin",items:[["team","Team & access","team","share"]]}
 ];
