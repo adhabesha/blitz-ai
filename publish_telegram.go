@@ -1,11 +1,68 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
+
+// tgUpload sends a multipart upload with a known Content-Length. Telegram answers 502 Bad Gateway to chunked (streamed) uploads,
+// so the body is built completely first. Files are capped at 50 MB, so this fits in memory.
+func tgUpload(ctx context.Context, u string, fields map[string]string, fileField, path string, out any) error {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			return err
+		}
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	part, err := mw.CreateFormFile(fileField, filepath.Base(path))
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(part, f); err != nil {
+		return err
+	}
+	if err = mw.Close(); err != nil {
+		return err
+	}
+	body, ctype := buf.Bytes(), mw.FormDataContentType()
+	var last error
+	for try := 0; try < 3; try++ {
+		if try > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(try) * 3 * time.Second):
+			}
+		}
+		req, e := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+		if e != nil {
+			return e
+		}
+		req.Header.Set("Content-Type", ctype)
+		if last = doJSON(req, out); last == nil {
+			return nil
+		}
+		if !strings.Contains(last.Error(), "502") && !strings.Contains(last.Error(), "504") && !strings.Contains(last.Error(), "429") {
+			return last
+		}
+	}
+	return last
+}
 
 // pubTelegram posts a video or photo (with caption) to the connected Telegram channel or group through the person's own bot.
 func (s *server) pubTelegram(ctx context.Context, uid string, sp pubSpec) (string, string, error) {
@@ -36,7 +93,7 @@ func (s *server) pubTelegram(ctx context.Context, uid string, sp pubSpec) (strin
 			} `json:"chat"`
 		} `json:"result"`
 	}
-	if err := postMultipart(ctx, base+"/"+method, f, field, sp.Path, &res); err != nil {
+	if err := tgUpload(ctx, base+"/"+method, f, field, sp.Path, &res); err != nil {
 		return "", "", scrub(err, t.Access)
 	}
 	if !res.OK {
