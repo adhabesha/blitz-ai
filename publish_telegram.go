@@ -11,8 +11,62 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
+
+// tgServe holds files that Telegram may fetch by link for a few minutes (fallback when a direct upload is refused).
+var tgServe sync.Map
+
+func (s *server) tgFile(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tg/"), "/")
+	if len(parts) < 1 || len(parts[0]) < 16 {
+		http.NotFound(w, r)
+		return
+	}
+	v, ok := tgServe.Load(parts[0])
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, v.(string))
+}
+
+// tgByLink asks Telegram to download the file from this server instead of receiving an upload.
+func tgByLink(ctx context.Context, base, method, field string, f map[string]string, path string) (string, error) {
+	pub := strings.TrimRight(env("BASE_URL"), "/")
+	if pub == "" {
+		return "", errors.New("BASE_URL is not set in Admin, so Telegram cannot fetch the file by link")
+	}
+	tok := randHex(12)
+	tgServe.Store(tok, path)
+	defer func() { time.AfterFunc(2*time.Minute, func() { tgServe.Delete(tok) }) }()
+	q := url.Values{}
+	for k, v := range f {
+		q.Set(k, v)
+	}
+	q.Set(field, pub+"/tg/"+tok+"/"+url.PathEscape(filepath.Base(path)))
+	var res struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+		Result      struct {
+			MessageID int `json:"message_id"`
+			Chat      struct {
+				Username string `json:"username"`
+			} `json:"chat"`
+		} `json:"result"`
+	}
+	if err := getJSON(ctx, base+"/"+method+"?"+q.Encode(), &res); err != nil {
+		return "", err
+	}
+	if !res.OK {
+		return "", errors.New(trunc(res.Description, 200))
+	}
+	if un := res.Result.Chat.Username; un != "" {
+		return "https://t.me/" + un + "/" + itoa(res.Result.MessageID), nil
+	}
+	return "", nil
+}
 
 // tgUpload sends a multipart upload with a known Content-Length. Telegram answers 502 Bad Gateway to chunked (streamed) uploads,
 // so the body is built completely first. Files are capped at 50 MB, so this fits in memory.
@@ -93,11 +147,17 @@ func (s *server) pubTelegram(ctx context.Context, uid string, sp pubSpec) (strin
 			} `json:"chat"`
 		} `json:"result"`
 	}
-	if err := tgUpload(ctx, base+"/"+method, f, field, sp.Path, &res); err != nil {
-		return "", "", scrub(err, t.Access)
+	upErr := tgUpload(ctx, base+"/"+method, f, field, sp.Path, &res)
+	if upErr == nil && !res.OK {
+		upErr = errors.New("Telegram refused the post: " + trunc(res.Description, 200))
 	}
-	if !res.OK {
-		return "", "", errors.New("Telegram refused the post: " + trunc(res.Description, 200) + ". Make sure the bot is an administrator of the channel.")
+	if upErr != nil {
+		// Direct upload failed. Try again by letting Telegram download the file from this server.
+		link, lerr := tgByLink(ctx, base, method, field, f, sp.Path)
+		if lerr != nil {
+			return "", "", errors.New("Upload: " + scrub(upErr, t.Access).Error() + " | By link: " + scrub(lerr, t.Access).Error() + ". The bot must be an administrator of the channel and the channel id/username must be right.")
+		}
+		return link, "Posted by link after the direct upload failed.", nil
 	}
 	if rest != "" {
 		var r2 struct{ OK bool }
