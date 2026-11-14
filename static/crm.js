@@ -2,7 +2,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-ap
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
 import{outbound}from"./crm_out.js";
-import{mobile}from"./crm_mobile.js";
+import{phoneApp}from"./crm_mobile.js";
 let MOBI=null;
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
@@ -56,6 +56,7 @@ const quick=async(e,o)=>{await api("POST","/api/crm/save?e="+e,o);S.data[e]=null
 
 // ---------------------------------------------------------------- record slider (Bitrix-style card)
 async function openRecord(e,rec,defaults){
+  if(MOBI&&MOBI.record){MOBI.record(e,rec,defaults);return}
   const spec=ENT[e],isNew=!rec;
   if(e==="deals"||e==="contacts"){await Promise.all([load("companies"),load("contacts")])}
   if(e==="tasks"){const m=$("modal");}
@@ -342,7 +343,7 @@ const SECTIONS=[
 ];
 const MENU=SECTIONS.flatMap(x=>x.items);
 let frameReady=false;
-function nav(k){S.view=k;if(MOBI)MOBI.sync(k);document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
+function nav(k){if(MOBI&&MOBI.nav(k))return;S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
 async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];const an=k.startsWith("an:");$("anwrap").hidden=!an;$("view").hidden=an;
   if(an){const it=MENU.find(m=>m[0]===k),o=it[4];setHead(it[1],o.sub);$("tabs").hidden=true;const f=$("anframe");
     if(!frameReady){frameReady=true;const ex=new URLSearchParams(location.search);const keep=["google","social","p","why"].filter(x=>ex.get(x)).map(x=>"&"+x+"="+encodeURIComponent(ex.get(x))).join("");f.src="/dashboard?embed=1&kind="+o.k+keep;if(keep)history.replaceState(null,"","/crm")}else f.contentWindow.postMessage({bzKind:o.k},location.origin);window.scrollTo(0,0);return}
@@ -366,7 +367,8 @@ function boot(){
   const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
   if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
-  const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));try{MOBI=mobile({h,icon,S,MENU,SECTIONS,nav,can,openRecord,ENT,label,refresh})}catch(e){}
+  const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));const ph=matchMedia("(max-width:760px)");ph.onchange=()=>location.reload();
+  if(ph.matches){try{MOBI=phoneApp({h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,coldEmail:r=>OUT.coldEmail(r)});if(wk)MOBI.nav(wk[0]);return}catch(e){console.error(e);MOBI=null;document.body.classList.remove("mapp-on")}}
   nav(wk?wk[0]:(first||"an:website"))}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);

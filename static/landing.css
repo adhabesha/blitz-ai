@@ -108,3 +108,7 @@ footer{border-top:1px solid var(--line);padding:30px 0;background:var(--bg)}.foo
 .ticks b{color:var(--ink)}
 .fg-main .ticks{grid-template-columns:repeat(2,1fr);gap:9px 24px}
 @media(max-width:760px){.fgroups{grid-template-columns:1fr}.fg-main .ticks{grid-template-columns:1fr}}
+
+.agg{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:900px;margin:0 auto 22px}
+.agg span{border:1px solid rgba(218,96,44,.5);background:rgba(218,96,44,.08);color:var(--ink);border-radius:99px;padding:9px 16px;font-size:14.5px}
+.agg-out{max-width:760px;margin:0 auto;text-align:center;color:var(--mut);font-size:16px}.agg-out b{color:var(--ink)}
