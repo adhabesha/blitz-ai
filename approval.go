@@ -16,8 +16,8 @@ import (
 )
 
 type apprCache struct {
-	ok  bool
-	exp time.Time
+	ok, full bool
+	exp      time.Time
 }
 
 var (
@@ -26,6 +26,9 @@ var (
 )
 
 func approvalOn() bool { return env("APPROVAL_REQUIRED") != "0" }
+
+// starterOn: new sign-ups get instant limited ("starter") access; an admin approval upgrades them to full access. STARTER_ACCESS=0 goes back to approval-only.
+func starterOn() bool { return approvalOn() && env("STARTER_ACCESS") != "0" }
 
 func isAdminEmail(email string, verified bool) bool {
 	if !verified || email == "" {
@@ -50,28 +53,43 @@ func tokVerified(t *auth.Token) (string, bool) {
 	return strings.ToLower(strings.TrimSpace(email)), v
 }
 
-// approved reports whether the signed-in person may use the app. Pending accounts are recorded and the admin is notified once.
+// approved reports whether the signed-in person may use the app at all (starter or full access).
+// Brand-new accounts are recorded and the admin is notified once.
 func (s *server) approved(ctx context.Context, t *auth.Token) bool {
+	ok, _ := s.access(ctx, t)
+	return ok
+}
+
+// hasFull reports whether the person has full access (approved by an admin, or approval is switched off).
+func (s *server) hasFull(ctx context.Context, t *auth.Token) bool {
+	_, full := s.access(ctx, t)
+	return full
+}
+
+func (s *server) access(ctx context.Context, t *auth.Token) (ok, full bool) {
 	if !approvalOn() {
-		return true
+		return true, true
 	}
 	email, ver := tokVerified(t)
 	if isAdminEmail(email, ver) {
-		return true
+		return true, true
 	}
 	apprMu.Lock()
-	if c, ok := apprC[t.UID]; ok && time.Now().Before(c.exp) {
+	if c, hit := apprC[t.UID]; hit && time.Now().Before(c.exp) {
 		apprMu.Unlock()
-		return c.ok
+		return c.ok, c.full
 	}
 	apprMu.Unlock()
-	ok := false
 	ref := s.db.Collection("approved_users").Doc(t.UID)
 	d, err := ref.Get(ctx)
 	if err == nil {
-		ok, _ = d.Data()["approved"].(bool)
+		x := d.Data()
+		full, _ = x["approved"].(bool)
+		blocked, _ := x["blocked"].(bool)
+		ok = full || (starterOn() && !blocked)
 	} else {
-		ref.Set(ctx, map[string]any{"approved": false, "pending": true, "email": email, "createdAt": time.Now()})
+		ref.Set(ctx, map[string]any{"approved": false, "pending": true, "starter": starterOn(), "email": email, "createdAt": time.Now()})
+		ok = starterOn()
 		go s.notifyAdminSignup(email)
 	}
 	ttl := 10 * time.Second
@@ -79,9 +97,22 @@ func (s *server) approved(ctx context.Context, t *auth.Token) bool {
 		ttl = 60 * time.Second
 	}
 	apprMu.Lock()
-	apprC[t.UID] = apprCache{ok, time.Now().Add(ttl)}
+	apprC[t.UID] = apprCache{ok, full, time.Now().Add(ttl)}
 	apprMu.Unlock()
-	return ok
+	return ok, full
+}
+
+// needFull wraps a handler that spends money, sends messages to other people or publishes: starter accounts get a friendly 403.
+func (s *server) needFull(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if t, err := s.auth.VerifyIDToken(r.Context(), tok); err == nil && s.approved(r.Context(), t) && !s.hasFull(r.Context(), t) {
+			base := strings.TrimRight(env("BASE_URL"), "/")
+			http.Error(w, "This is part of full access (cold outreach, posting to all channels, launching ads, inviting a team). Book a short walkthrough and we will switch it on: "+base+"/#demo", 403)
+			return
+		}
+		h(w, r)
+	}
 }
 
 func (s *server) notifyAdminSignup(email string) {
@@ -95,7 +126,7 @@ func (s *server) notifyAdminSignup(email string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	base := strings.TrimRight(env("BASE_URL"), "/")
-	sendMail(ctx, to, "New sign-up waiting for your approval", "<p>"+email+" signed up and is waiting for approval.</p><p><a href=\""+base+"/admin\">Open the admin console</a> to approve or block.</p>", email+" signed up and is waiting for approval: "+base+"/admin")
+	sendMail(ctx, to, "New sign-up: "+email, "<p>"+email+" signed up and has starter access.</p><p><a href=\""+base+"/admin\">Open the admin console</a> to give full access (approve) or block.</p>", email+" signed up and has starter access: "+base+"/admin")
 }
 
 func (s *server) apprForget(uid string) {
@@ -114,7 +145,8 @@ func (s *server) approvalState(w http.ResponseWriter, r *http.Request) {
 	}
 	email, _ := tokVerified(t)
 	s.apprForget(t.UID)
-	jsonOut(w, map[string]any{"approved": s.approved(r.Context(), t), "email": email})
+	ok, full := s.access(r.Context(), t)
+	jsonOut(w, map[string]any{"approved": ok, "full": full, "email": email})
 }
 
 // ---------------------------------------------------------------- admin: sign-ups

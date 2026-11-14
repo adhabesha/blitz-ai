@@ -110,3 +110,9 @@ body.rc .bx-sec-h{justify-content:center;padding:10px 0 4px}body.rc .bx-sec-h:be
 .crm-box{background:linear-gradient(var(--card2),var(--card2)),var(--bg2)}
 .bx-panel{background:linear-gradient(var(--card),var(--card)),var(--bg1)}
 .crm-box .bz-card b+label,.crm-box .bz-card b{display:block;margin-bottom:6px}
+
+/* free starter plan banner */
+.fx-starter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;padding:9px 16px;background:rgba(218,96,44,.14);border-bottom:1px solid rgba(218,96,44,.35);font-size:13px;color:var(--ink)}
+.fx-starter span{flex:1;min-width:220px}
+.fx-starter-go{background:linear-gradient(135deg,#e0652f,#cf5522);color:#fff;border-radius:8px;padding:6px 12px;font-weight:600;text-decoration:none;white-space:nowrap}
+.fx-starter-x{background:none;border:0;color:var(--mut);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}

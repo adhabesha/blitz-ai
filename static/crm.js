@@ -21,7 +21,7 @@ const members=()=>A(S.team&&S.team.members);
 const ownerName=u=>{if(!u)return"Unassigned";const m=members().find(x=>x.uid===u);return m?m.name:"Former member"};
 const STC={new:"#6f9bea",contacted:"#4f7cc4",qualified:"#98a6c6",proposal:"#fbbf24",negotiation:"#da602c",won:"#34d399",converted:"#34d399",unqualified:"#f87171",lost:"#f87171"};
 const stc=s=>STC[s]||"#6f9bea";
-const SOURCES=["manual","csv_import","web_form","meta_lead_ad","fb_dm","fb_comment","ig_dm","ig_comment","wa_dm","referral","phone","event","other"];
+const SOURCES=["manual","csv_import","web_form","meta_lead_ad","fb_dm","fb_comment","ig_dm","ig_comment","wa_dm","demo_request","referral","phone","event","other"];
 const msg=(p,t,err)=>{let m=p.querySelector(".crm-msg");if(!m){m=h("div","crm-msg");p.appendChild(m)}m.textContent=t;m.className="crm-msg"+(err?" err":"")};
 const mk=(tag,props)=>Object.assign(document.createElement(tag),props||{});
 function avatar(uid){const n=ownerName(uid),s=h("span","bx-av",uid?n.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase():"?");let k=0;for(const c of uid||"")k=(k*31+c.charCodeAt(0))%360;s.style.background=uid?`hsl(${k} 55% 45%)`:"#94a3b8";s.title=n;return s}
@@ -371,5 +371,12 @@ function gate(st,me){
     const f=formEl([{k:"name",label:"Company name",req:1},{k:"me",label:"Your name"}],{});const b=h("button","bz-btn","Create workspace");b.onclick=async()=>{b.disabled=true;try{await api("POST","/api/crm/workspace",f.get());start()}catch(x){msg(c,x.message,1);b.disabled=false}};add(c,f,b)}
   else if(st==="unverified")c.appendChild(h("p",null,"An invitation is waiting for "+me.email+". Verify your email address (check your inbox for the ficx verification email), sign in again and refresh this page."));
   else if(st==="disabled")c.appendChild(h("p","bz-err","Your access to this workspace was turned off by an administrator."))}
-async function start(){try{const me=await api("GET","/api/crm/me");S.me=me;if(me.state!=="ok"){gate(me.state,me);return}S.team=await api("GET","/api/crm/team");boot()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
+async function starterBar(){try{
+  if(sessionStorage.getItem("fx-starter-x"))return;
+  const t=await auth.currentUser.getIdToken(),a=await (await fetch("/api/approval",{headers:{Authorization:"Bearer "+t}})).json();
+  if(!a||a.full!==false||document.querySelector(".fx-starter"))return;
+  const bar=h("div","fx-starter"),txt=h("span",null,"You are on the free starter plan. Cold outreach, posting to all channels, launching ads and inviting a team unlock after a short walkthrough."),go=h("a","fx-starter-go","Book a demo"),x=h("button","fx-starter-x","\u00d7");
+  go.href="/#demo";go.target="_blank";x.title="Hide";x.onclick=()=>{try{sessionStorage.setItem("fx-starter-x","1")}catch(e){}bar.remove()};
+  add(bar,txt,go,x);const top=document.querySelector(".bx-top");if(top)top.after(bar)}catch(e){}}
+async function start(){try{const me=await api("GET","/api/crm/me");S.me=me;if(me.state!=="ok"){gate(me.state,me);return}S.team=await api("GET","/api/crm/team");boot();starterBar()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
 onAuthStateChanged(auth,u=>{if(!u){location.href="/app";return}start()});
