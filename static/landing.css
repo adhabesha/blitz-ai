@@ -112,3 +112,4 @@ footer{border-top:1px solid var(--line);padding:30px 0;background:var(--bg)}.foo
 .agg{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:900px;margin:0 auto 22px}
 .agg span{border:1px solid rgba(218,96,44,.5);background:rgba(218,96,44,.08);color:var(--ink);border-radius:99px;padding:9px 16px;font-size:14.5px}
 .agg-out{max-width:760px;margin:0 auto;text-align:center;color:var(--mut);font-size:16px}.agg-out b{color:var(--ink)}
+.logo{display:inline-flex;align-items:center;padding:6px 12px;border-radius:14px;background:rgba(255,255,255,.07);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);box-shadow:0 0 18px rgba(111,155,234,.30),inset 0 1px 0 rgba(255,255,255,.12)}

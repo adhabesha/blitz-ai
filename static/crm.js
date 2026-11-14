@@ -1,5 +1,5 @@
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
 import{outbound}from"./crm_out.js";
 import{phoneApp}from"./crm_mobile.js";
@@ -7,6 +7,7 @@ let MOBI=null;
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const $=i=>document.getElementById(i);
+const logout=async()=>{try{await signOut(auth)}catch(e){}location.href="/app"};
 const S={me:null,team:null,data:{},view:"dashboard",sub:{leads:"kanban",deals:"kanban"},charts:[],q:{},chat:null};
 const V=()=>$("view");
 document.querySelectorAll(".bz-theme button").forEach(b=>b.onclick=()=>{document.documentElement.dataset.theme=b.dataset.t;try{localStorage.setItem("bz-theme",b.dataset.t)}catch(e){}});
@@ -338,7 +339,7 @@ const SECTIONS=[
  {t:"CRM",items:[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"]]},
  {t:"Engage",items:[["chats","Chats","leads","send"],["automations","Automations","integrations","zap"],["sources","Lead sources","integrations","link"]]},
  {t:"Outbound",items:[["prospects","Prospector","leads","search"],["sequences","Sequences","leads","send"],["inbox","Smart inbox","leads","userplus"],["obsettings","Outbound settings","leads","zap"]]},
- {t:"Analytics",fold:true,open:true,items:[["an:website","Website","reports","globe",{k:"website",sub:"Speed, SEO and fixes for any website"}],["an:youtube","YouTube","reports","play",{k:"youtube",sub:"Channel stats and growth plan"}],["an:socialc","Connected social","reports","share",{k:"socialc",sub:"Facebook, Instagram, TikTok, X, LinkedIn, Pinterest, YouTube and Google: connect once, analyze everything"}],["an:social","Other social (manual)","reports","users",{k:"social",sub:"Manual social profile analysis"}],["an:app","App","reports","phone",{k:"app",sub:"Store listing and app growth"}],["an:runads","Run ads","reports","zap",{k:"runads",sub:"Launch and manage paid campaigns"}],["an:adcreative","Ad creative","reports","film",{k:"adcreative",sub:"Scripts, briefs and finished ads"}],["an:seo","SEO & Ads","reports","search",{k:"seo",sub:"Keywords, competitors and market position"}],["an:mreport","Marketing report","reports","bars",{k:"mreport",sub:"All your results in one marketing report",b:"AI"}],["an:publish","Publish to all","reports","send",{k:"publish",sub:"Post to every connected account"}],["an:optimizer","Optimizer & Publish","reports","star",{k:"optimizer",sub:"Optimise and publish videos"}]]},
+ {t:"Analytics",fold:true,open:true,items:[["an:website","Website","reports","globe",{k:"website",sub:"Speed, SEO and fixes for any website"}],["an:youtube","YouTube","reports","play",{k:"youtube",sub:"Channel stats and growth plan"}],["an:socialc","Connected accounts (live)","reports","share",{k:"socialc",sub:"Facebook, Instagram, TikTok, X, LinkedIn, Pinterest, YouTube and Google: connect once, analyze everything"}],["an:social","Other social (manual)","reports","users",{k:"social",sub:"Manual social profile analysis"}],["an:app","App","reports","phone",{k:"app",sub:"Store listing and app growth"}],["an:runads","Run ads","reports","zap",{k:"runads",sub:"Launch and manage paid campaigns"}],["an:adcreative","Ad creative","reports","film",{k:"adcreative",sub:"Scripts, briefs and finished ads"}],["an:seo","SEO & Ads","reports","search",{k:"seo",sub:"Keywords, competitors and market position"}],["an:mreport","Marketing report","reports","bars",{k:"mreport",sub:"All your results in one marketing report",b:"AI"}],["an:publish","Publish to all","reports","send",{k:"publish",sub:"Post to every connected account"}],["an:optimizer","Optimizer & Publish","reports","star",{k:"optimizer",sub:"Optimise and publish videos"}]]},
  {t:"Admin",items:[["team","Team & access","team","share"]]}
 ];
 const MENU=SECTIONS.flatMap(x=>x.items);
@@ -364,11 +365,11 @@ function boot(){
     for(const[k,l,m,ic,o]of its){if(!first&&!k.startsWith("an:"))first=k;const b=h("button","bz-nav");b.dataset.k=k;b.title=l;b.append(icon(ic,18),h("span",null,l));if(o&&o.b)b.appendChild(h("span","bdg",o.b));b.onclick=()=>nav(k);grp.appendChild(b)}}
   try{if(localStorage.getItem("bz-rc")==="1")document.body.classList.add("rc")}catch(e){}
   $("collapse").onclick=()=>{const c=document.body.classList.toggle("rc");try{localStorage.setItem("bz-rc",c?"1":"0")}catch(e){}};
-  const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
+  const lo=$("logout");if(lo)lo.onclick=logout;const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
   if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
   const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));const ph=matchMedia("(max-width:760px)");ph.onchange=()=>location.reload();
-  if(ph.matches){try{MOBI=phoneApp({h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,coldEmail:r=>OUT.coldEmail(r)});if(wk)MOBI.nav(wk[0]);return}catch(e){console.error(e);MOBI=null;document.body.classList.remove("mapp-on")}}
+  if(ph.matches){try{MOBI=phoneApp({h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,logout,coldEmail:r=>OUT.coldEmail(r)});if(wk)MOBI.nav(wk[0]);return}catch(e){console.error(e);MOBI=null;document.body.classList.remove("mapp-on")}}
   nav(wk?wk[0]:(first||"an:website"))}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);

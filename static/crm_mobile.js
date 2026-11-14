@@ -5,7 +5,7 @@
 // Zoho (header + action buttons + Overview/Details/Related tabs), Bitrix24 (bottom menu, timeline, call from CRM),
 // Pipedrive (offline banner, agenda) and the TeamGram rebuild (floating create button, one-tap lists).
 export function phoneApp(X){
-  const {h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members}=X;
+  const {h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,logout}=X;
   document.body.classList.add("mapp-on");
   const root=h("div","ma");root.id="mapp";
   const stage=h("div","ma-stage"),tabbar=h("nav","ma-tabs"),fab=h("button","ma-fab","+");
@@ -26,14 +26,22 @@ export function phoneApp(X){
   function sheet(title,fill){closeSheet();ov=h("div","ma-ov");const sh=h("div","ma-sheet"),hd=h("div","ma-sh-h"),x=h("button","ma-x","×");x.type="button";x.onclick=closeSheet;
     add(hd,h("b",null,title),x);const b=h("div","ma-sh-b");add(sh,h("i","ma-grab"),hd,b);ov.appendChild(sh);ov.onclick=e=>{if(e.target===ov)closeSheet()};fill(b);root.appendChild(ov);requestAnimationFrame(()=>ov&&ov.classList.add("in"))}
 
-  // ---------------------------------------------------------------- navigation stack (back button + Android back)
-  const stack=[];let tab="home";
-  function chrome(){const deep=stack.length>1;root.classList.toggle("deep",deep)}
+  // ---------------------------------------------------------------- navigation stack
+  // History: [exit][app base][pushed screens...]. Back closes sheets, then pops a screen, then goes Home from any
+  // other tab, and only on Home (nothing open) does it leave the app.
+  const stack=[];let tab="home",depth=0,silent=false;
+  function chrome(){root.classList.toggle("deep",stack.length>1)}
   function mount(scr){stack.forEach(s=>s.root.hidden=true);stack.push(scr);stage.appendChild(scr.root);chrome()}
-  function push(scr){history.pushState({ma:stack.length},"");mount(scr)}
+  function push(scr){history.pushState({ma:"s"},"");depth++;mount(scr)}
   function pop(){if(stack.length<2)return;const s=stack.pop();if(s.onclose)s.onclose();s.root.remove();const p=stack[stack.length-1];p.root.hidden=false;if(p.onshow)p.onshow();chrome()}
   function back(){if(stack.length>1)history.back()}
-  addEventListener("popstate",()=>{closeSheet();pop()});
+  addEventListener("popstate",e=>{
+    if(silent){silent=false;return}
+    if(ov){closeSheet();history.pushState({ma:"app"},"");return}
+    if(stack.length>1){depth=Math.max(0,depth-1);pop();return}
+    if(tab!=="home"){history.pushState({ma:"app"},"");go("home");return}
+    if(e.state&&e.state.ma==="exit"){history.back();return}      // already on the exit marker: leave the app
+    history.pushState({ma:"app"},"")}); // safety: stay in the app
   function resetTo(scr){while(stack.length){const s=stack.pop();if(s.onclose)s.onclose();s.root.remove()}mount(scr)}
   function screen(title,o={}){
     const r=h("section","ma-scr"),top=h("header","ma-top"),body=h("div","ma-body"),scr={root:r,top,body};
@@ -53,7 +61,7 @@ export function phoneApp(X){
     ["tasks","Tasks","check",can("tasks","v")],
     ["menu","Menu","grid",true]].filter(t=>t[3]);
   function drawTabs(){tabbar.innerHTML="";for(const[k,l,ic]of TABS()){const b=h("button","ma-tab"+(k===tab?" on":""));b.type="button";b.dataset.k=k;add(b,icon(ic,23),h("span",null,l));b.onclick=()=>go(k);tabbar.appendChild(b)}}
-  function go(k){tab=k;closeSheet();drawTabs();const fn={home,chats,crm,tasks,menu}[k];resetTo(fn());fab.hidden=!(k==="home"||k==="crm"||k==="tasks")||!creatable().length}
+  function go(k){if(depth>0){const d=depth;depth=0;silent=true;history.go(-d)}tab=k;closeSheet();drawTabs();const fn={home,chats,crm,tasks,menu}[k];resetTo(fn());fab.hidden=!(k==="home"||k==="crm"||k==="tasks")||!creatable().length}
   const creatable=()=>["leads","deals","contacts","companies","tasks"].filter(e=>can(e,"c"));
   fab.onclick=()=>sheet("Create new",b=>{const g=h("div","ma-list");for(const e of creatable()){const r=h("button","ma-row");r.type="button";add(r,h("span","ma-dot "+e),h("b",null,"New "+ENT[e].one));r.onclick=()=>{closeSheet();if(e==="tasks")newTask();else record(e,null)};g.appendChild(r)}b.appendChild(g)});
 
@@ -240,6 +248,7 @@ export function phoneApp(X){
       for(const[k,l,,ic]of its){const r=h("button","ma-mrow");r.type="button";add(r,(()=>{const s=h("span","ma-mi");s.appendChild(icon(ic,20));return s})(),h("b",null,l),h("span","ma-chev","›"));r.onclick=()=>legacy(k,l);g.appendChild(r)}b.appendChild(g)}
     b.appendChild(h("h4","ma-grp","Appearance"));const t=h("div","ma-seg in");for(const[k,l]of[["dark","Dark"],["slate","Slate"],["light","Light"]]){const x=h("button","ma-segb"+(document.documentElement.dataset.theme===k?" on":""),l);x.type="button";x.onclick=()=>{const o=document.querySelector('.bz-theme button[data-t="'+k+'"]');if(o)o.click();[...t.children].forEach(y=>y.classList.toggle("on",y===x))};t.appendChild(x)}b.appendChild(t);
     const al=h("a","ma-mrow solo");al.href="/dashboard";add(al,(()=>{const s=h("span","ma-mi");s.appendChild(icon("bars",20));return s})(),h("b",null,"Analytics home"),h("span","ma-chev","›"));b.appendChild(al);
+    const lo=h("button","ma-mrow solo bad");lo.type="button";add(lo,(()=>{const x=h("span","ma-mi");x.appendChild(icon("userminus",20));return x})(),h("b",null,"Log out"),h("span","ma-chev","\u203A"));lo.onclick=()=>sheet("Log out of ficx?",bd=>{const g=h("div","ma-list"),y=h("button","ma-row bad");y.type="button";y.appendChild(h("b",null,"Yes, log me out"));y.onclick=()=>logout();const n=h("button","ma-row");n.type="button";n.appendChild(h("b",null,"Stay signed in"));n.onclick=closeSheet;add(g,y,n);bd.appendChild(g)});b.appendChild(lo);
     return scr}
 
   // Other sections (analytics, outbound, automations, team …) open inside the app with a native top bar.
@@ -251,7 +260,7 @@ export function phoneApp(X){
 
   // ---------------------------------------------------------------- start
   drawTabs();
-  history.replaceState({ma:0},"");
+  history.replaceState({ma:"exit"},"");history.pushState({ma:"app"},"");
   const api2={
     // used by crm.js: route desktop calls to the phone screens
     nav(k){if(k==="chats"||k==="tasks"){go(k);return true}if(["leads","deals","contacts","companies"].includes(k)){S.ma=S.ma||{};S.ma.crm=k;go("crm");return true}if(k==="dashboard"||k==="home"){go("home");return true}const it=SECTIONS.flatMap(s=>s.items).find(i=>i[0]===k);if(it){legacy(k,it[1]);return true}return false},

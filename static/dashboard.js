@@ -217,7 +217,8 @@ function keyBoxes(c,id,s,st,name){
   const ins={};for(const n of A0(s.needs)){const l=h("label",null,n.label);l.style.cssText="display:grid;gap:4px;font-size:12px";const i=h("input");i.type=n.secret?"password":"text";i.autocomplete="off";i.placeholder="Paste "+n.label.toLowerCase();l.appendChild(i);wrap.appendChild(l);ins[n.key]=i}
   const sv=h("button","bz-btn","Save keys"),m=h("div","bz-mut");sv.onclick=async()=>{sv.disabled=true;try{let n=0;for(const[k,i]of Object.entries(ins)){if(!i.value.trim())continue;await api("POST","/api/admin/config",{key:k,value:i.value.trim()});n++}if(!n){m.textContent="Paste the keys first.";sv.disabled=false;return}loadSocial()}catch(e){m.textContent=e.message;sv.disabled=false}};
   add(wrap,sv,m);c.appendChild(wrap)}
-let gCard;
+import{liveCards,reconcile}from"./live_cards.js";
+let gCard,live=null,liveIds=new Set();
 const A0=x=>Array.isArray(x)?x:[];
 async function loadSocial(){
   const st=await api("GET","/api/social/status"),box=$("sc-cards");box.innerHTML="";
@@ -236,6 +237,9 @@ async function loadSocial(){
     const b=h("button","bz-btn","Open YouTube analysis");b.onclick=()=>setKind("youtube");c.appendChild(b);box.appendChild(c)}
   if(!gCard){const gf=$("f-google");gCard=h("div","bz-card s4");gCard.style.gridColumn="1/-1";add(gCard,h("h3",null,"Google (YouTube channel, Search Console, Analytics)"),h("p","bz-mut","Connect once to analyze your own YouTube channel, Search Console sites and Google Analytics properties."));const body=h("div","form");while(gf.firstChild)body.appendChild(gf.firstChild);gCard.appendChild(body)}
   box.appendChild(gCard);
+  liveIds=new Set(PROV.filter(p=>((st.providers||{})[p[0]]||{}).connected).map(p=>p[0]));
+  if(!live)live=liveCards($("sc-live"),{uid:auth.currentUser.uid,api,getHist:()=>hist,addHist:r=>{hist.unshift(r);drawHistory()},connected:liveIds,name:id=>(PROV.find(p=>p[0]===id)||[id,id])[1],open:r=>show(r,true),say:m=>{$("msg").textContent=m}});
+  live.o.connected=liveIds;live.draw();
 }
 async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}
 async function analyzeSocial(id,name){
@@ -245,7 +249,7 @@ async function analyzeSocial(id,name){
   draw();
   try{
     const r=await api("POST","/api/evaluate",{kind:"social_connected",query:id,useAI:$("ai").checked});
-    hist.unshift(r);S[1][1]="done";S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();show(r,true);
+    hist.unshift(r);try{reconcile(auth.currentUser.uid,id,r)}catch(x){}S[1][1]="done";S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();if(live)live.draw();show(r,true);
   }catch(e){const i=S.findIndex(x=>x[1]==="active");if(i>=0){S[i][1]="fail";S[i][0]=e.message}draw()}
 }
 

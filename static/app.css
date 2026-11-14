@@ -208,3 +208,27 @@ html[data-theme=light] .fx-on-light{display:block!important}
 .bz-logo{padding:2px 10px 16px}.bz-logo .fx-lg{height:34px}
 .auth-logo .fx-lg{height:46px}
 .fx-badge{font:700 10px/1 ui-monospace,Consolas,monospace;letter-spacing:.14em;color:var(--accent);border:1px solid currentColor;border-radius:6px;padding:4px 7px;opacity:.95}
+
+/* Logo plate: frosted strip, rounded edge and a soft glow so the mark stays visible on every theme */
+.bz-logo,.bx-brand,.auth-logo{display:inline-flex;align-items:center;gap:10px;padding:7px 14px;border-radius:14px;background:rgba(255,255,255,.07);-webkit-backdrop-filter:blur(12px) saturate(1.3);backdrop-filter:blur(12px) saturate(1.3);border:1px solid rgba(255,255,255,.18);box-shadow:0 0 18px rgba(111,155,234,.30),inset 0 1px 0 rgba(255,255,255,.12)}
+html[data-theme=light] .bz-logo,html[data-theme=light] .bx-brand,html[data-theme=light] .auth-logo{background:rgba(255,255,255,.72);border-color:rgba(14,24,52,.14);box-shadow:0 0 14px rgba(14,24,52,.14),inset 0 1px 0 #fff}
+.bz-nh{margin:14px 12px 4px;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);opacity:.85}
+/* live account cards */
+.lv-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:18px 0 10px;flex-wrap:wrap}.lv-head h2{margin:0;font-size:20px}.lv-head p{margin:4px 0 0}
+.lv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lv-card{background:var(--card2,var(--card));border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.lv-top{display:flex;gap:12px;align-items:center}.lv-top b{display:block;font-size:16px}
+.lv-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.lv-card.big .lv-kpis{grid-template-columns:repeat(4,1fr)}
+.lv-kpis div{background:var(--field);border-radius:12px;padding:9px 10px;min-width:0}.lv-kpis small{display:block;color:var(--mut);font-size:11.5px}.lv-kpis b{font-size:16px}
+.lv-sum{display:flex;gap:8px}.lv-sum span{padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:600}
+.lv-todo{background:rgba(251,191,36,.16);color:#fbbf24}.lv-ok,.lv-done{background:rgba(52,211,153,.16);color:#34d399}
+.lv-i{margin:0;font-size:13.5px;color:var(--mut)}
+.lv-issues{display:grid;gap:10px}
+.lv-issue{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:12px;border-radius:14px;background:var(--field);border-left:4px solid #fbbf24}.lv-issue.fail{border-left-color:#f87171}
+.lv-issue p{margin:4px 0 0;color:var(--mut);font-size:13.5px}
+.lv-again{display:block;font-style:normal;font-size:11.5px;font-weight:700;color:#f87171;margin-bottom:4px}
+.lv-dn summary{cursor:pointer;color:var(--mut);padding:6px 0}.lv-donei{margin:6px 0;color:var(--mut);font-size:13.5px}.lv-tick{color:#34d399;font-weight:700}
+.lv-bar{display:flex;gap:8px;margin-top:auto}
+@media(max-width:760px){.lv-grid{grid-template-columns:1fr}.lv-kpis,.lv-card.big .lv-kpis{grid-template-columns:repeat(2,1fr)}.lv-issue{flex-direction:column}}
+html[data-theme=slate] .bz-logo,html[data-theme=slate] .bx-brand,html[data-theme=slate] .auth-logo{background:rgba(14,24,52,.94);border-color:rgba(255,255,255,.28);box-shadow:0 0 18px rgba(170,200,255,.55),inset 0 1px 0 rgba(255,255,255,.18)}
+html[data-theme=slate] .fx-on-dark{display:inline-block}html[data-theme=slate] .fx-on-light{display:none}

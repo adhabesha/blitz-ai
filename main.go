@@ -333,6 +333,12 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 		rep, err = s.evalCampaigns(ctx, uid, in)
 	case "social_connected":
 		rep, err = s.evalConnectedSocial(ctx, uid, in)
+		if rep != nil {
+			if rep.Meta == nil {
+				rep.Meta = map[string]string{}
+			}
+			rep.Meta["provider"] = in.Query
+		}
 	default:
 		err = userErr("Unknown evaluation type")
 	}

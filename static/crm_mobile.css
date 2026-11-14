@@ -25,7 +25,8 @@ input,select,textarea{font-size:16px!important}
 .ma.deep .ma-body{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 /* home */
 .home .ma-top{align-items:center;gap:12px}
-.ma-logo{width:40px;height:40px;border-radius:12px}
+.ma-logo{width:42px;height:42px;padding:5px;border-radius:13px;background:rgba(255,255,255,.08);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);box-shadow:0 0 14px rgba(111,155,234,.35)}
+html[data-theme=light] .ma-logo{background:rgba(14,24,52,.9);border-color:rgba(14,24,52,.2)}
 .ma-hi{flex:1;min-width:0}.ma-hi small{color:var(--mut);font-size:12px;display:block}.ma-hi h1{margin:0;font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ma-kpis{display:grid;grid-auto-flow:column;grid-auto-columns:62%;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:4px -14px 14px;padding:0 14px 4px;scrollbar-width:none}
 .ma-kpis::-webkit-scrollbar{display:none}
