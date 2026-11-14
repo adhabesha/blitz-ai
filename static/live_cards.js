@@ -6,6 +6,9 @@ const A=x=>Array.isArray(x)?x:[];
 const key=c=>(c.category||"")+"|"+c.name;
 const ago=t=>{if(!t)return"never";const s=(Date.now()-new Date(t))/1000;return s<60?"just now":s<3600?Math.floor(s/60)+" min ago":s<86400?Math.floor(s/3600)+" h ago":new Date(t).toLocaleDateString()};
 const GC={"g:yt":"YouTube","g:sc":"Search (Google)","g:ga":"Traffic (GA4)"};
+const srcName={"g:yt":"YouTube","g:sc":"Search Console","g:ga":"Google Analytics"};
+const LINK={"g:sc":["Open Search Console","https://search.google.com/search-console"],"g:ga":["Open Google Analytics","https://analytics.google.com/"]};
+const API={"g:sc":["Enable the Search Console API","https://console.cloud.google.com/apis/library/searchconsole.googleapis.com"],"g:ga":["Enable the Analytics Data API","https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com"]};
 const open=(r,id)=>A(r&&r.checks).filter(c=>c.status!=="pass"&&(!GC[id]||c.category===GC[id]));
 const kpisFor=(r,id)=>{const k=A(r&&r.kpis);if(!GC[id])return k;const cls=l=>/search|position|click|impression|ctr/i.test(l)?"g:sc":/session|users|key event|bounce|conversion|engaged|traffic/i.test(l)?"g:ga":"g:yt";return k.filter(x=>cls(x.label||"")===id)};
 function store(uid,id){const k="fx-fix:"+uid+":"+id;
@@ -31,7 +34,15 @@ export function liveCards(box,o){
       const top=h("div","lv-top"),sc=h("span","bz-score "+(r?(r.score>=75?"pass":r.score>=50?"warn":"fail"):"warn"),r?String(r.score):"–");
       const ti=h("div");add(ti,h("b",null,nm),h("small","bz-mut",r?(GC[id]?"Google":(r.target||""))+" · updated "+ago(r.createdAt):"Not analysed yet"));add(top,sc,ti);c.appendChild(top);
       if(!r){const b=h("button","bz-btn",busy.has(id)?"Reading…":"Analyse now");b.disabled=busy.has(id);b.onclick=()=>refresh(id);c.appendChild(b);g.appendChild(c);continue}
-      const ks=h("div","lv-kpis");const kk=kpisFor(r,id);if(GC[id]&&!kk.length&&!open(r,id).length&&!A(r.checks).some(x=>x.category===GC[id])){c.appendChild(h("p","bz-mut","This Google account has no data for this source yet."));const rf0=h("button","bz-btn","Refresh");rf0.onclick=()=>refresh(id);c.appendChild(rf0);g.appendChild(c);continue}
+      const ks=h("div","lv-kpis");const kk=kpisFor(r,id);if(GC[id]&&!kk.length&&!A(r.checks).some(x=>x.category===GC[id])){sc.textContent="\u2013";sc.className="bz-score warn";
+        const gi=o.googleInfo?o.googleInfo():null,nt=A(r.notes).find(n=>n.indexOf(srcName[id])>=0&&/^Skipped/.test(n));
+        const why=h("div","lv-why");
+        if(id==="g:sc"&&gi&&!A(gi.sites).length)why.appendChild(h("p",null,"Google found no Search Console site that you own on this account. Add and verify your website, wait a day for data, then press Refresh."));
+        else if(id==="g:ga"&&gi&&!A(gi.properties).length)why.appendChild(h("p",null,"Google found no Google Analytics 4 property on this account. Create one for your website and install its tag, wait 24\u201348 hours, then press Refresh."));
+        else if(nt)why.appendChild(h("p",null,"Google said: "+nt.replace(/^Skipped /,"")));
+        else why.appendChild(h("p",null,"No data came back for this source yet. Make sure it is ticked on the Google card above and press Refresh."));
+        if(LINK[id]){const a=h("a",null,LINK[id][0]+" \u2192");a.href=LINK[id][1];a.target="_blank";a.rel="noopener";why.appendChild(a);why.appendChild(document.createTextNode("  "));const b=h("a",null,API[id][0]+" \u2192");b.href=API[id][1];b.target="_blank";b.rel="noopener";why.appendChild(b)}
+        c.appendChild(why);const rf0=h("button","bz-btn","Refresh");rf0.onclick=()=>refresh(id);c.appendChild(rf0);g.appendChild(c);continue}
       for(const k of kk.slice(0,exp.has(id)?8:3)){const d=h("div");add(d,h("small",null,k.label),h("b",null,k.value));ks.appendChild(d)}c.appendChild(ks);
       const iss=open(r,id).filter(x=>!v.done[key(x)]).sort((a,b)=>((a.status==="fail"?0:1)-(b.status==="fail"?0:1))||b.impact-a.impact);
       const dn=Object.keys(v.done);

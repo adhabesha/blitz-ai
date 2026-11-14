@@ -232,3 +232,4 @@ html[data-theme=light] .bz-logo,html[data-theme=light] .bx-brand,html[data-theme
 @media(max-width:760px){.lv-grid{grid-template-columns:1fr}.lv-kpis,.lv-card.big .lv-kpis{grid-template-columns:repeat(2,1fr)}.lv-issue{flex-direction:column}}
 html[data-theme=slate] .bz-logo,html[data-theme=slate] .bx-brand,html[data-theme=slate] .auth-logo{background:rgba(14,24,52,.94);border-color:rgba(255,255,255,.28);box-shadow:0 0 18px rgba(170,200,255,.55),inset 0 1px 0 rgba(255,255,255,.18)}
 html[data-theme=slate] .fx-on-dark{display:inline-block}html[data-theme=slate] .fx-on-light{display:none}
+.lv-why{font-size:13.5px;color:var(--mut)}.lv-why p{margin:0 0 8px}.lv-why a{color:var(--accent);font-weight:600;margin-right:10px;display:inline-block}

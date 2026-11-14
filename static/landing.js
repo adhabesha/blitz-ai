@@ -1,6 +1,9 @@
 (()=>{
 const $=s=>document.querySelector(s);
 let grade=null;
+document.documentElement.classList.add("js");
+// slide in from the sides
+try{const so=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");so.unobserve(e.target)}}),{threshold:.15,rootMargin:"0px 0px -6% 0px"});document.querySelectorAll(".sl").forEach(el=>so.observe(el))}catch(e){document.querySelectorAll(".sl").forEach(el=>el.classList.add("in"))}
 // reveal on scroll
 try{const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
  document.querySelectorAll(".pain,.steps li,.feat,.plan,.gres,details").forEach(el=>{el.classList.add("rv");io.observe(el)})}catch(e){document.querySelectorAll(".rv").forEach(el=>el.classList.add("in"))}

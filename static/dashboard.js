@@ -239,7 +239,7 @@ async function loadSocial(){
   box.appendChild(gCard);
   liveIds=new Set(PROV.filter(p=>((st.providers||{})[p[0]]||{}).connected).map(p=>p[0]));
   const gOn=await loadGoogle(false).catch(()=>null);
-  if(!lvc)lvc=liveCards($("sc-live"),{uid:auth.currentUser.uid,api,getHist:()=>hist,addHist:r=>{hist.unshift(r);drawHistory()},connected:liveIds,name:id=>(PROV.find(p=>p[0]===id)||[id,id])[1],open:r=>show(r,true),say:m=>{$("msg").textContent=m},googleRun:()=>api("POST","/api/evaluate",{kind:"google",site:$("g-site").value,property:$("g-prop").value,channel:$("g-chan").checked,useAI:false})});
+  if(!lvc)lvc=liveCards($("sc-live"),{uid:auth.currentUser.uid,api,getHist:()=>hist,addHist:r=>{hist.unshift(r);drawHistory()},connected:liveIds,name:id=>(PROV.find(p=>p[0]===id)||[id,id])[1],open:r=>show(r,true),say:m=>{$("msg").textContent=m},googleInfo:()=>gA,googleRun:()=>api("POST","/api/evaluate",{kind:"google",site:$("g-site").value,property:$("g-prop").value,channel:$("g-chan").checked,useAI:false})});
   lvc.o.connected=liveIds;lvc.o.google=!!gOn;lvc.draw();
 }
 async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}

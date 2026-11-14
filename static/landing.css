@@ -131,7 +131,6 @@ footer{border-top:1px solid var(--line);padding:30px 0;background:var(--bg)}.foo
 .featsplit .pic{position:sticky;top:96px}
 .featsplit .fgroups{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
 .featsplit .fg-main .ticks{grid-template-columns:1fr 1fr}
-.featsplit .fg:last-child{grid-column:1/-1}
 .featsplit .ticks{gap:7px;font-size:14.5px}
 #unified .agg{margin-top:44px}
 #unified .wrap+.wrap{margin-top:0}
@@ -146,3 +145,19 @@ footer{border-top:1px solid var(--line);padding:30px 0;background:var(--bg)}.foo
  .featsplit .fg-main .ticks{grid-template-columns:1fr}
 }
 html,body{overflow-x:hidden}.hero{overflow-x:clip}
+
+.featsplit{align-items:stretch}
+.featsplit .pic{position:relative;top:0}.featsplit .pic img{height:100%;max-height:none;object-fit:cover}
+.fright{display:grid;gap:16px;align-content:start}
+.fright .fg-main .ticks{grid-template-columns:1fr 1fr}
+.fbottom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px}
+.fbottom .fg{display:flex;flex-direction:column}
+/* slide in from the sides as the page scrolls */
+.js .sl{opacity:0;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
+.js .sl-l{transform:translateX(-70px)}.js .sl-r{transform:translateX(70px)}
+.js .sl.in{opacity:1;transform:none}
+.js .sl.d2{transition-delay:.08s}.js .sl.d3{transition-delay:.16s}.js .sl.d4{transition-delay:.24s}
+@media(max-width:1000px){.fbottom{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.featsplit .pic img{height:auto;max-height:380px}.fright .fg-main .ticks{grid-template-columns:1fr}.js .sl-l{transform:translateX(-36px)}.js .sl-r{transform:translateX(36px)}}
+@media(max-width:620px){.fbottom{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.js .sl{opacity:1;transform:none;transition:none}}
