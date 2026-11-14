@@ -49,7 +49,7 @@ func pickAct(list []actVal, types []string) float64 {
 }
 
 type perf struct {
-	ID, Name, Camp, Obj, Status, Label       string
+	ID, Name, Camp, Obj, Status, Label        string
 	Spend, Impr, Clicks, Link, Results, Value float64
 	Freq                                      float64
 }
@@ -356,6 +356,10 @@ func (s *server) evalCampaigns(ctx context.Context, uid string, in evalIn) (*Rep
 		dt.Rows = append(dt.Rows, Row{Cells: []string{c.Name, ran, res, win, next}})
 	}
 	r.Tables = []Table{ct, wt, dt}
+	if r.Meta == nil {
+		r.Meta = map[string]string{}
+	}
+	r.Meta["account"] = acct
 
 	// checks
 	const C = "Ad performance"
@@ -404,6 +408,23 @@ func (s *server) evalCampaigns(ctx context.Context, uid string, in evalIn) (*Rep
 			if len(r.Plan) >= 8 {
 				break
 			}
+		}
+	}
+	opt := 0
+	for _, c := range camps {
+		if c.ID == "" || c.Spend < 2 || opt >= 4 {
+			continue
+		}
+		switch {
+		case c.Freq > 3:
+			r.Plan = append(r.Plan, PlanItem{Title: "Reach new people with \"" + trunc(c.Name, 40) + "\": review and widen its audience", Why: fmt.Sprintf("Frequency is %.1f, so the same people keep seeing it. See the age groups that respond best, then widen or test a new audience.", c.Freq), Impact: 4, Effort: 2, Auto: "ads:audience:" + c.ID + ":" + acct})
+			opt++
+		case hasValue && c.roas() >= 3:
+			r.Plan = append(r.Plan, PlanItem{Title: "Scale \"" + trunc(c.Name, 40) + "\": raise the daily budget 20%", Why: fmt.Sprintf("ROAS is %.2fx. Raise gradually (about 20%% every 3 days) and stop if ROAS falls under 2x.", c.roas()), Impact: 5, Effort: 1, Auto: "ads:scale:" + c.ID + ":20:" + acct})
+			opt++
+		case c.ctr() < 1:
+			r.Plan = append(r.Plan, PlanItem{Title: "Tighten the audience of \"" + trunc(c.Name, 40) + "\"", Why: fmt.Sprintf("CTR is %.2f%%. Check which age groups click and convert, then focus the budget or test a narrower audience.", c.ctr()), Impact: 4, Effort: 2, Auto: "ads:audience:" + c.ID + ":" + acct})
+			opt++
 		}
 	}
 	r.Plan = append(r.Plan, PlanItem{Title: "Document each campaign and re-run this report monthly", Why: "Keep the Campaign documentation table as your running record of what ran, what it returned and what you test next.", Impact: 3, Effort: 1})

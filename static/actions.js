@@ -1,5 +1,6 @@
 import{h,add,api,copy,copyBox}from"./ui.js";
 import{applyBtn,noApply,siteApply,sendToPublish}from"./apply.js";
+import{audienceFix,scaleFix}from"./adsopt.js";
 
 const M=r=>{const m=Object.assign({},r.meta||{});m.domain=m.domain||(r.kind==="website"?r.target:"");m.name=m.name||m.channel||m.title||m.domain||r.target||"your brand";m.url=m.url||(m.domain?"https://"+m.domain+"/":"");return m};
 const originOf=m=>{try{return new URL(m.url).origin}catch(e){return"https://"+(m.domain||"example.com")}};
@@ -315,6 +316,7 @@ export function fixFromCheck(ch,r){
     if(/Average rating|Number of ratings|Current-version/.test(n))return snip("review");
     if(/Days since last update/.test(n))return snip("release");
   }
+  if((r.kind==="campaigns"||r.kind==="adsperf")&&/Ad frequency|Click-through rate/i.test(n))return c=>audienceFix(c,{account:(r.meta||{}).account});
   for(const[re,fn]of T)if(re.test(n))return fn;
   return howto;
 }
@@ -331,6 +333,8 @@ export function fixFromText(text,r){
 }
 export function fixFromPlan(p,r){
   if(p.auto&&p.auto.startsWith("optimize-video:")){const id=p.auto.split(":")[1];return(c,rr)=>videoFix(c,rr,{videoId:id})}
+  if(p.auto&&p.auto.startsWith("ads:scale:")){const q=p.auto.split(":");return c=>scaleFix(c,{id:q[2],pct:parseFloat(q[3]),account:q[4]})}
+  if(p.auto&&p.auto.startsWith("ads:audience:")){const q=p.auto.split(":");return c=>audienceFix(c,{id:q[2],account:q[3]})}
   if(p.auto&&p.auto.startsWith("ads:")){const q=p.auto.split(":");return(c)=>{
     const body=q[1]==="pause"?{type:"pause",id:q[2],account:q[3]}:{type:"budget",id:q[2],value:parseFloat(q[3]),account:q[4]};
     c.appendChild(h("p","bz-note","This changes your live Meta campaign. Check it in Ads Manager if unsure."));

@@ -119,6 +119,8 @@ func main() {
 	mux.HandleFunc("/api/ads/accounts", s.adsAccountsHandler)
 	mux.HandleFunc("/api/ads/launch", s.needFull(s.adsLaunch))
 	mux.HandleFunc("/api/ads/action", s.needFull(s.adsAction))
+	mux.HandleFunc("/api/ads/targeting", s.needFull(s.adsTargeting))
+	mux.HandleFunc("/api/ads/optimize", s.needFull(s.adsOptimize))
 	mux.HandleFunc("/api/adcreative", s.adCreative)
 	mux.HandleFunc("/crm", s.page("crm.html"))
 	mux.HandleFunc("/crm/form/", s.crmPublicForm)

@@ -480,6 +480,10 @@ func (s *server) evalAdsPerf(ctx context.Context, uid string, in evalIn) (*Repor
 	}
 	r.Tables = []Table{ct, at}
 	const C = "Ad performance"
+	if r.Meta == nil {
+		r.Meta = map[string]string{}
+	}
+	r.Meta["account"] = acct
 	add := func(c Check) { r.Checks = append(r.Checks, c) }
 	add(chk(C, "Click-through rate", rate(ctr, 1, 0.5), fmt.Sprintf("%.2f%%", ctr), "Test new images and headlines; narrow the audience; make the offer clearer.", 5))
 	maxFreq := 0.0

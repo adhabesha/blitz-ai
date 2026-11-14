@@ -89,7 +89,7 @@ async function autoAnalyze(){
     if(!found.length){S[1]=["Nothing to analyze: this Google account has no YouTube channel, verified Search Console site or GA4 property.","fail"];draw();return}
     S[1]=["Found "+found.join(", "),"done"];S[2][1]="active";draw();
     const r=await api("POST","/api/evaluate",{kind:"google",site:$("g-site").value,property:$("g-prop").value,channel:$("g-chan").checked,useAI:$("ai").checked});
-    hist.unshift(r);drawHistory();S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();show(r,true);
+    hist.unshift(r);drawHistory();try{for(const x of["g:yt","g:sc","g:ga"])reconcile(auth.currentUser.uid,x,r)}catch(x){}if(lvc)lvc.draw();S[2][1]="done";S[3]=["Ready \u2013 your report is below","done"];draw();show(r,true);
   }catch(e){const i=S.findIndex(s=>s[1]==="active");if(i>=0){S[i][1]="fail";S[i][0]=e.message}draw()}
 }
 $("g-btn").onclick=async()=>{try{const r=await api("POST","/api/google/start");try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}};
@@ -238,8 +238,9 @@ async function loadSocial(){
   if(!gCard){const gf=$("f-google");gCard=h("div","bz-card s4");gCard.style.gridColumn="1/-1";add(gCard,h("h3",null,"Google (YouTube channel, Search Console, Analytics)"),h("p","bz-mut","Connect once to analyze your own YouTube channel, Search Console sites and Google Analytics properties."));const body=h("div","form");while(gf.firstChild)body.appendChild(gf.firstChild);gCard.appendChild(body)}
   box.appendChild(gCard);
   liveIds=new Set(PROV.filter(p=>((st.providers||{})[p[0]]||{}).connected).map(p=>p[0]));
-  if(!lvc)lvc=liveCards($("sc-live"),{uid:auth.currentUser.uid,api,getHist:()=>hist,addHist:r=>{hist.unshift(r);drawHistory()},connected:liveIds,name:id=>(PROV.find(p=>p[0]===id)||[id,id])[1],open:r=>show(r,true),say:m=>{$("msg").textContent=m}});
-  lvc.o.connected=liveIds;lvc.draw();
+  const gOn=await loadGoogle(false).catch(()=>null);
+  if(!lvc)lvc=liveCards($("sc-live"),{uid:auth.currentUser.uid,api,getHist:()=>hist,addHist:r=>{hist.unshift(r);drawHistory()},connected:liveIds,name:id=>(PROV.find(p=>p[0]===id)||[id,id])[1],open:r=>show(r,true),say:m=>{$("msg").textContent=m},googleRun:()=>api("POST","/api/evaluate",{kind:"google",site:$("g-site").value,property:$("g-prop").value,channel:$("g-chan").checked,useAI:false})});
+  lvc.o.connected=liveIds;lvc.o.google=!!gOn;lvc.draw();
 }
 async function connectSocial(id){try{const r=await api("POST","/api/social/start",{provider:id});try{sessionStorage.setItem("bz-crm","1")}catch(x){}(window.top||window).location.href=r.url}catch(e){$("msg").textContent=e.message}}
 async function analyzeSocial(id,name){
