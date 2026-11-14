@@ -2,6 +2,8 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-ap
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
 import{outbound}from"./crm_out.js";
+import{mobile}from"./crm_mobile.js";
+let MOBI=null;
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const $=i=>document.getElementById(i);
@@ -78,7 +80,7 @@ async function openRecord(e,rec,defaults){
   if(e==="leads"&&rec&&/^ig_|^fb_/.test(rec.source||"")){const ig=h("button","bz-btn ghost",(rec.source||"").startsWith("ig")?"Instagram chat":"Messenger chat");ig.onclick=()=>{close();nav("chats")};acts.appendChild(ig)}
   if(e==="leads"&&rec&&rec.email&&can("leads","v")){const ce=h("button","bz-btn ghost","AI cold email");ce.onclick=()=>OUT.coldEmail(rec);acts.appendChild(ce)}
   if(rec&&can(e,"d")){const d=h("button","bz-btn ghost","Delete");d.onclick=async()=>{if(!confirm("Delete this "+spec.one+"?"))return;try{await api("POST","/api/crm/delete?e="+e,{id:rec.id});S.data[e]=null;close();refresh()}catch(x){msg(body,x.message,1)}};acts.appendChild(d)}
-  const x=h("button","bz-mini","✕ Close");x.onclick=close;acts.appendChild(x);add(head,ttl,acts);P.appendChild(head);
+  const x=h("button","bz-mini bx-xclose","✕ Close");x.onclick=close;acts.appendChild(x);add(head,ttl,acts);P.appendChild(head);
   if(spec.key){const bar=h("div","bx-stages");const drawBar=()=>{bar.innerHTML="";const st=spec.stages();const idx=st.indexOf(cur);st.forEach((s,i)=>{const b=h("button","bx-stage"+(i<=idx&&idx>=0?" done":""),label(s));b.style.setProperty("--c",stc(idx>=0?cur:s));b.onclick=async()=>{if(e==="leads"&&s==="converted"){if(rec)convertLead(rec);return}let lr;if(s==="lost"&&e==="deals"){lr=prompt("Why was this deal lost? (optional)");if(lr===null)return}cur=s;drawBar();if(rec&&can(e,"e")){try{const o={id:rec.id,[spec.key]:s};if(lr!=null)o.lostReason=lr;await api("POST","/api/crm/save?e="+e,o);rec[spec.key]=s;S.data[e]=null;tl&&timeline(e,rec,tl,body)}catch(er){msg(body,er.message,1)}}};bar.appendChild(b)})};drawBar();P.appendChild(bar)}
   const body=h("div","bx-pb");P.appendChild(body);
   const left=h("div"),sec=h("div","bx-sec");sec.appendChild(h("h3",null,e==="deals"?"About the deal":"About"));sec.appendChild(f);left.appendChild(sec);
@@ -221,13 +223,13 @@ const VIEWS={
     setHead("Chats","Messenger, Instagram and WhatsApp conversations, live");const v=V();v.innerHTML="";let data;try{data=A((await api("GET","/api/crm/chats")).chats)}catch(x){v.appendChild(h("p","bz-err",x.message));return}
     if(!data.length){const c=h("section","bz-card");c.appendChild(h("p",null,"No conversations yet. They appear here as soon as someone messages or comments on a connected Page or Instagram account. Connect your Pages first under Lead sources."));v.appendChild(c);return}
     const box=h("div","bx-chat"),list=h("div","bx-cl"),pane=h("div","bx-ct");box.append(list,pane);v.appendChild(box);
-    const open=c=>{S.chat=c.id;list.childNodes.forEach(n=>n.classList.toggle("on",n.dataset.id===c.id));pane.innerHTML="";const hd=h("div","bx-ph");hd.style.position="static";const s=h("span",null,label(c.status||"open"));hd.append(h("h2",null,(c.name||"Contact")+" · "+label(c.channel)),pill(c.status||"open"));
+    const phone=matchMedia("(max-width:760px)");const open=(c,tap)=>{S.chat=c.id;if(tap&&phone.matches){S.chatOpen=true;box.classList.add("mopen")}list.childNodes.forEach(n=>n.classList.toggle("on",n.dataset.id===c.id));pane.innerHTML="";const hd=h("div","bx-ph");hd.style.position="static";const s=h("span",null,label(c.status||"open"));const bk=h("button","bx-back","\u2039");bk.type="button";bk.setAttribute("aria-label","Back to chats");bk.onclick=()=>{S.chatOpen=false;box.classList.remove("mopen")};hd.append(bk,h("h2",null,(c.name||"Contact")+" · "+label(c.channel)),pill(c.status||"open"));
       if(c.flowName)hd.appendChild(h("small","bz-mut","Automation: "+c.flowName));if(c.status==="human"&&can("leads","e")){const r=h("button","bz-mini","Resume automation");r.onclick=async()=>{await api("POST","/api/crm/chat/resume",{id:c.id});show("chats")};hd.appendChild(r)}pane.appendChild(hd);
       if(c.lastError)pane.appendChild(h("p","crm-msg err",c.lastError));
       const m=h("div","bx-cm");for(const x of A(c.msgs)){const b=h("div","bx-b "+x.d);b.append(x.t,h("small",null,ago(x.at)));m.appendChild(b)}pane.appendChild(m);m.scrollTop=m.scrollHeight;
       if(can("leads","e")){const f=h("div","bx-cf"),i=mk("input",{placeholder:"Reply as your team (pauses automations for 24 h)"}),sd=h("button","bz-btn","Send");const go=async()=>{if(!i.value.trim())return;sd.disabled=true;try{await api("POST","/api/crm/chat/send",{id:c.id,text:i.value});show("chats")}catch(x){msg(pane,x.message,1);sd.disabled=false}};sd.onclick=go;i.onkeydown=ev=>{if(ev.key==="Enter")go()};f.append(i,sd);pane.appendChild(f)}};
-    for(const c of data){const it=h("div","bx-ci");it.dataset.id=c.id;const a=h("span","bx-av",(c.name||"?")[0].toUpperCase());a.style.background=c.channel==="instagram"?"#d6249f":"#1877f2";const t=h("div");add(t,h("b",null,c.name||"Contact"),h("small",null,(A(c.msgs).slice(-1)[0]||{}).t||""));add(it,a,t);it.onclick=()=>open(c);list.appendChild(it)}
-    open(data.find(c=>c.id===S.chat)||data[0]);
+    for(const c of data){const it=h("div","bx-ci");it.dataset.id=c.id;const a=h("span","bx-av",(c.name||"?")[0].toUpperCase());a.style.background=c.channel==="instagram"?"#d6249f":"#1877f2";const t=h("div");add(t,h("b",null,c.name||"Contact"),h("small",null,(A(c.msgs).slice(-1)[0]||{}).t||""));add(it,a,t);it.onclick=()=>open(c,1);list.appendChild(it)}
+    open(data.find(c=>c.id===S.chat)||data[0]);if(S.chatOpen&&phone.matches)box.classList.add("mopen");
     clearInterval(S.chatTimer);const sig=d=>d.map(c=>c.id+":"+A(c.msgs).length+":"+(c.status||"")).join("|");let last=sig(data);
     S.chatTimer=setInterval(async()=>{if(S.view!=="chats"||document.hidden){if(S.view!=="chats")clearInterval(S.chatTimer);return}
       try{const d=A((await api("GET","/api/crm/chats")).chats);if(sig(d)===last)return;last=sig(d);const typing=document.querySelector(".bx-cf input");const txt=typing?typing.value:"";await VIEWS.chats();const ni=document.querySelector(".bx-cf input");if(ni&&txt){ni.value=txt;ni.focus()}}catch(x){}},4000)},
@@ -340,7 +342,7 @@ const SECTIONS=[
 ];
 const MENU=SECTIONS.flatMap(x=>x.items);
 let frameReady=false;
-function nav(k){S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
+function nav(k){S.view=k;if(MOBI)MOBI.sync(k);document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
 async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];const an=k.startsWith("an:");$("anwrap").hidden=!an;$("view").hidden=an;
   if(an){const it=MENU.find(m=>m[0]===k),o=it[4];setHead(it[1],o.sub);$("tabs").hidden=true;const f=$("anframe");
     if(!frameReady){frameReady=true;const ex=new URLSearchParams(location.search);const keep=["google","social","p","why"].filter(x=>ex.get(x)).map(x=>"&"+x+"="+encodeURIComponent(ex.get(x))).join("");f.src="/dashboard?embed=1&kind="+o.k+keep;if(keep)history.replaceState(null,"","/crm")}else f.contentWindow.postMessage({bzKind:o.k},location.origin);window.scrollTo(0,0);return}
@@ -364,7 +366,8 @@ function boot(){
   const pm=$("plusm");pm.innerHTML="";for(const e of["leads","deals","contacts","companies","tasks"])if(can(e,"c")){const b=h("button",null,label(ENT[e].one));b.onclick=()=>{pm.hidden=true;openRecord(e,null)};pm.appendChild(b)}
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
   if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
-  const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));nav(wk?wk[0]:(first||"an:website"))}
+  const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));try{MOBI=mobile({h,icon,S,MENU,SECTIONS,nav,can,openRecord,ENT,label,refresh})}catch(e){}
+  nav(wk?wk[0]:(first||"an:website"))}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);
   if(st==="none"){c.appendChild(h("h3",null,"Set up your company CRM"));c.appendChild(h("p","bz-mut","Create a workspace for your company. You become the owner and can then invite your team, build departments and decide who can see what. If a colleague invited you, sign in with the invited email address and refresh this page."));

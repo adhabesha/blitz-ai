@@ -96,3 +96,15 @@ footer{border-top:1px solid var(--line);padding:30px 0;background:var(--bg)}.foo
  body{padding-bottom:0}
 }
 @media (max-width:560px){.gform{flex-direction:column}.nav-in{gap:12px}.signin{display:none}.mock-cols{grid-template-columns:repeat(2,1fr)}.mock-cols .col:nth-child(3){display:none}.cta-row .btn{width:100%}}
+
+.lead2{color:var(--mut);margin:8px 0 28px}
+.fgroups{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.fg{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px}
+.fg-main{grid-column:1/-1;border-color:rgba(218,96,44,.55)}
+.fg .tag{display:inline-block;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#da602c;font-weight:700;margin-bottom:8px}
+.fg h3{margin:0 0 12px}
+.ticks{list-style:none;margin:0;padding:0;display:grid;gap:9px;color:var(--mut);font-size:15px}
+.ticks li{padding-left:24px;position:relative}.ticks li:before{content:"\2713";position:absolute;left:0;color:#da602c;font-weight:700}
+.ticks b{color:var(--ink)}
+.fg-main .ticks{grid-template-columns:repeat(2,1fr);gap:9px 24px}
+@media(max-width:760px){.fgroups{grid-template-columns:1fr}.fg-main .ticks{grid-template-columns:1fr}}
