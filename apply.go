@@ -294,7 +294,7 @@ func (s *server) siteApply(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "EXISTS", 409)
 			return
 		}
-		link, err := ghPutFile(ctx, c, target, in.Content, sha, "Blitz AI: "+ifs(found, "update ", "add ")+in.File)
+		link, err := ghPutFile(ctx, c, target, in.Content, sha, "ficx: "+ifs(found, "update ", "add ")+in.File)
 		if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
@@ -319,7 +319,7 @@ func (s *server) siteApply(w http.ResponseWriter, r *http.Request) {
 			reply("Your page already has this. Nothing to change.", "")
 			return
 		}
-		link, err := ghPutFile(ctx, c, c.HTML, out, sha, "Blitz AI: update "+strings.Join(changed, ", "))
+		link, err := ghPutFile(ctx, c, c.HTML, out, sha, "ficx: update "+strings.Join(changed, ", "))
 		if err != nil {
 			http.Error(w, err.Error(), 400)
 			return
@@ -465,7 +465,7 @@ func (s *server) applyPost(w http.ResponseWriter, r *http.Request) {
 		msg := err.Error()
 		switch {
 		case strings.Contains(msg, "(#200)") || strings.Contains(msg, "pages_manage_posts") || strings.Contains(msg, "permission"):
-			http.Error(w, "Facebook refused the edit: Blitz AI needs the pages_manage_posts permission. Add it in your Meta configuration (SETUP-SOCIAL.md), then Disconnect and Connect Facebook again.", 400)
+			http.Error(w, "Facebook refused the edit: ficx needs the pages_manage_posts permission. Add it in your Meta configuration (SETUP-SOCIAL.md), then Disconnect and Connect Facebook again.", 400)
 		default:
 			http.Error(w, "Facebook did not accept the edit (it only allows changing the text of some post types): "+trunc(msg, 180), 400)
 		}

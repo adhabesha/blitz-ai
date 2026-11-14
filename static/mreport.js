@@ -13,7 +13,7 @@ export function renderMarketing(box,hist,company,by){
   const avg=Math.round(reps.reduce((a,r)=>a+r.score,0)/reps.length);
   const bad=[];for(const r of reps)for(const c of r.checks||[])if(c.status==="fail")bad.push({r,c});
   const sum=h("div","rp-card");sum.appendChild(h("h3",null,"Executive summary"));
-  sum.appendChild(h("p",null,"Overall score "+avg+"/100 across "+reps.length+" area"+(reps.length===1?"":"s")+". "+bad.length+" critical issue"+(bad.length===1?"":"s")+" found. The highest-impact actions are listed below, each with ready-to-use content inside Blitz AI."));
+  sum.appendChild(h("p",null,"Overall score "+avg+"/100 across "+reps.length+" area"+(reps.length===1?"":"s")+". "+bad.length+" critical issue"+(bad.length===1?"":"s")+" found. The highest-impact actions are listed below, each with ready-to-use content inside ficx."));
   const bars=h("div","bz-bars");for(const r of reps){const row=h("div"),l=h("div","bz-bar-l");add(l,h("span",null,NAMES[r.kind]||r.kind),h("b",null,r.score+"%"));const bar=h("div","bz-bar"),i=h("i");i.style.width=r.score+"%";i.style.background=tone(r.score);bar.appendChild(i);add(row,l,bar);bars.appendChild(row)}
   sum.appendChild(bars);wrap.appendChild(sum);
   const acts=[];for(const r of reps){for(const p of r.plan||[])acts.push({t:p.title,w:p.why,s:(p.impact||1)/Math.max(1,p.effort||1),k:r.kind});for(const c of r.checks||[])if(c.status!=="pass")acts.push({t:c.name+": "+c.fix,w:"Impact "+c.impact+"/5",s:c.impact/3,k:r.kind})}

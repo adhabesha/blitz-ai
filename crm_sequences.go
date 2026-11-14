@@ -580,7 +580,7 @@ func (s *server) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	x := d.Data()
 	if r.Method != http.MethodPost {
-		page("Unsubscribe", `<p>Stop receiving emails from this sender at <b>`+html.EscapeString(sv(x, "email"))+`</b>?</p><form method=post><button style="padding:10px 22px;font-size:15px;border:0;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer">Yes, unsubscribe me</button></form>`)
+		page("Unsubscribe", `<p>Stop receiving emails from this sender at <b>`+html.EscapeString(sv(x, "email"))+`</b>?</p><form method=post><button style="padding:10px 22px;font-size:15px;border:0;border-radius:8px;background:#da602c;color:#fff;cursor:pointer">Yes, unsubscribe me</button></form>`)
 		return
 	}
 	wid, em := sv(x, "wid"), sv(x, "email")

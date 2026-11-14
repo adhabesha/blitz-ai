@@ -4,7 +4,7 @@ import{fixFromCheck,fixFromPlan,fixFromText,mount,renderViral}from"./actions.js"
 let charts=[];
 export const destroyCharts=()=>{charts.forEach(c=>c.destroy());charts=[]};
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const pal=()=>(css("--pal")||"#2563eb,#60a5fa,#14b8a6,#7c3aed,#f59e0b,#ef4444").split(",").map(x=>x.trim());
+const pal=()=>(css("--pal")||"#da602c,#6f9bea,#34d399,#fbbf24,#f87171,#98a6c6").split(",").map(x=>x.trim());
 const nf=v=>Number(v||0).toLocaleString();
 const compact=v=>Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(v);
 const tone=s=>s>=75?"#16a34a":s>=50?"#f59e0b":"#ef4444";

@@ -73,7 +73,7 @@ func (s *server) adsAccounts(ctx context.Context, uid string) ([]adAcct, string,
 	if lastErr != nil {
 		return nil, "", userErr("Could not read ad accounts: " + trunc(lastErr.Error(), 220))
 	}
-	return nil, "", userErr("No ad account found. In Meta Business settings create an ad account with a payment method, assign it to your Blitz AI app, then reconnect Instagram.")
+	return nil, "", userErr("No ad account found. In Meta Business settings create an ad account with a payment method, assign it to your ficx app, then reconnect Instagram.")
 }
 
 func (s *server) adsAccountsHandler(w http.ResponseWriter, r *http.Request) {

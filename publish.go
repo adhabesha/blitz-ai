@@ -253,7 +253,7 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 			it.State, it.Message = "failed", "Not posted: "+v.Block
 			reasons = append(reasons, p+": "+v.Block)
 		} else if sp.Schedule != nil && appScheduled(p) {
-			it.State, it.Message = "scheduled", "Scheduled. Blitz AI will upload it at your chosen time (see Scheduled posts below). You can close this page."
+			it.State, it.Message = "scheduled", "Scheduled. ficx will upload it at your chosen time (see Scheduled posts below). You can close this page."
 			schedPlats = append(schedPlats, p)
 			runnable++
 		} else {

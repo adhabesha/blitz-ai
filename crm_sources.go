@@ -224,7 +224,7 @@ func (s *server) crmPublicForm(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contact %[1]s</title>
-<style>body{font-family:Inter,system-ui,sans-serif;background:#f1f5fc;margin:0;padding:24px;color:#0f1b3d}form{max-width:460px;margin:0 auto;background:#fff;border-radius:18px;padding:26px;box-shadow:0 12px 34px rgba(15,27,61,.1);display:grid;gap:12px}h1{margin:0 0 4px;font-size:22px}label{font-size:13px;color:#5b6b8f;display:grid;gap:5px}input,textarea{font:inherit;padding:10px 12px;border:1px solid #d6deef;border-radius:10px}button{background:#f26a2e;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:600;cursor:pointer}.m{font-size:14px}.hp{position:absolute;left:-9999px}</style></head><body>
+<style>body{font-family:Inter,system-ui,sans-serif;background:#f2f8f8;margin:0;padding:24px;color:#0e1834}form{max-width:460px;margin:0 auto;background:#fff;border-radius:18px;padding:26px;box-shadow:0 12px 34px rgba(14,24,52,.1);display:grid;gap:12px}h1{margin:0 0 4px;font-size:22px}label{font-size:13px;color:#4f5f80;display:grid;gap:5px}input,textarea{font:inherit;padding:10px 12px;border:1px solid #d6deef;border-radius:10px}button{background:#da602c;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:600;cursor:pointer}.m{font-size:14px}.hp{position:absolute;left:-9999px}</style></head><body>
 <form id="f"><h1>Contact %[1]s</h1><label>Your name<input name="name" required maxlength="120"></label><label>Email<input name="email" type="email" maxlength="160"></label><label>Phone<input name="phone" maxlength="40"></label><label>Company (optional)<input name="company" maxlength="120"></label><label>How can we help?<textarea name="message" rows="4" maxlength="2000"></textarea></label>
 <input class="hp" name="hp" tabindex="-1" autocomplete="off"><button>Send</button><div class="m" id="m"></div></form>
 <script>document.getElementById("f").onsubmit=async e=>{e.preventDefault();const m=document.getElementById("m"),d=Object.fromEntries(new FormData(e.target));d.source="web_form";d.form=location.href;
@@ -317,7 +317,7 @@ func (s *server) fbUserPages(ctx context.Context, uid string) ([]crmFBPage, erro
 	return d.Data, nil
 }
 
-// connect links the Pages the signed-in person connected to Blitz AI (Connected social > Facebook) to this workspace.
+// connect links the Pages the signed-in person connected to ficx (Connected social > Facebook) to this workspace.
 func (s *server) crmMetaConnect(w http.ResponseWriter, r *http.Request) {
 	c := s.crmNeed(w, r)
 	if c == nil {
@@ -335,7 +335,7 @@ func (s *server) crmMetaConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(pages) == 0 {
-		http.Error(w, "No Facebook Pages were shared with Blitz AI. Reconnect Facebook and tick your Page.", 400)
+		http.Error(w, "No Facebook Pages were shared with ficx. Reconnect Facebook and tick your Page.", 400)
 		return
 	}
 	var warn []string

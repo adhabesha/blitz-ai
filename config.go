@@ -53,7 +53,7 @@ var adminItems = []cfgItem{
 	{"COMPANY_ADDRESS", "Company postal address (in every cold email footer)", "Outbound", "Required by anti-spam laws for cold email. Can also be set inside Outbound > Settings.", "", false},
 	{"REPLY_TO", "Reply-to address for outreach (optional)", "Outbound", "Where replies should go. Leave empty to reply to the sending mailbox.", "", false},
 	{"CONTACT_EMAIL", "Public contact email (shown on Privacy page)", "Core", "Shown on /privacy, /terms and /data-deletion. Use a business address you are happy to make public.", "", false},
-	{"MAIL_FROM", "Email sender (for invitations)", "Email", "For example: Blitz CRM <crm@yourdomain.com>. The domain must be verified with your email provider.", "", false},
+	{"MAIL_FROM", "Email sender (for invitations)", "Email", "For example: ficx CRM <crm@yourdomain.com>. The domain must be verified with your email provider.", "", false},
 	{"RESEND_API_KEY", "Resend API key (easiest)", "Email", "Free at resend.com: create a key and verify your domain. Or use SMTP below instead.", "", true},
 	{"SMTP_HOST", "SMTP host (alternative to Resend)", "Email", "For example smtp.gmail.com, smtp.office365.com or your hosting provider's mail server.", "", false},
 	{"SMTP_PORT", "SMTP port", "Email", "587 (default) or 465.", "", false},

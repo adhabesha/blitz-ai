@@ -26,7 +26,7 @@ export const siteStatus=async(force)=>{if(!siteCache||force)siteCache=await api(
 function setupCard(domain,done){
   const card=h("div","apply-setup");
   card.appendChild(h("h4",null,"Connect your website to apply fixes directly"));
-  card.appendChild(h("p","bz-mut","Blitz AI changes your site by committing to the GitHub repository that your host (GitHub Pages, Netlify, Vercel, Cloudflare Pages) deploys from. Every change is one commit you can revert."));
+  card.appendChild(h("p","bz-mut","ficx changes your site by committing to the GitHub repository that your host (GitHub Pages, Netlify, Vercel, Cloudflare Pages) deploys from. Every change is one commit you can revert."));
   const steps=h("ol","bz-mut");
   for(const t of["GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens > Generate new token.","Repository access: only select repositories, pick your website repo.","Permissions > Repository permissions > Contents: Read and write. Generate and copy the token."])steps.appendChild(h("li",null,t));
   card.appendChild(steps);

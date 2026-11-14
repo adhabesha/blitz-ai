@@ -6,7 +6,7 @@ let win;
 function create() {
   win = new BrowserWindow({
     width: 1320, height: 860, minWidth: 420, minHeight: 640,
-    backgroundColor: "#050b1f", autoHideMenuBar: true, show: false, title: "Blitz AI",
+    backgroundColor: "#0e1834", autoHideMenuBar: true, show: false, title: "ficx",
     icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true }
   });
@@ -22,7 +22,7 @@ function create() {
     return { action: "deny" };
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate([{
-    label: "Blitz AI",
+    label: "ficx",
     submenu: [
       { label: "Dashboard", accelerator: "CmdOrCtrl+D", click: () => win.loadURL(BASE + "/dashboard") },
       { label: "Admin console", accelerator: "CmdOrCtrl+Shift+A", click: () => win.loadURL(BASE + "/admin") },

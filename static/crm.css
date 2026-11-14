@@ -1,13 +1,13 @@
-/* Blitz CRM: Bitrix24-style layout, using the app's own colour variables */
+/* ficx CRM: Bitrix24-style layout, using the app's own colour variables */
 body.bx{display:block}
 .bx-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--card2);border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
 .bx-top .sp{flex:1}
-.bx-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;color:var(--ink);text-decoration:none;white-space:nowrap}.bx-brand b{color:var(--accent);font-weight:700}
+.bx-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;color:var(--ink);text-decoration:none;white-space:nowrap}.bx-brand .fx-lg{height:28px}
 .bx-brand i{width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--accent2))}
 .bx-search{position:relative;flex:0 1 460px;min-width:140px}.bx-search input{width:100%;border-radius:99px;padding:9px 16px}
 .bx-gres{position:absolute;top:110%;left:0;right:0;background:var(--card2);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);max-height:60vh;overflow:auto;z-index:40}
 .bx-gres div{padding:9px 14px;cursor:pointer;font-size:13.5px;display:flex;justify-content:space-between;gap:10px}.bx-gres div:hover{background:var(--field)}.bx-gres small{color:var(--mut)}
-.bx-plus{background:var(--accent);color:#fff;border:0;border-radius:99px;padding:9px 20px;font:inherit;font-weight:600;cursor:pointer}
+.bx-plus{background:linear-gradient(135deg,#e0652f,#cf5522);color:#fff;border:0;border-radius:99px;padding:9px 20px;font:inherit;font-weight:600;cursor:pointer}
 .bx-create{position:relative}.bx-menu{position:absolute;right:0;top:115%;background:var(--card2);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:170px;padding:6px;z-index:40}
 .bx-menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font:inherit;padding:9px 12px;border-radius:9px;cursor:pointer}.bx-menu button:hover{background:var(--field)}
 .bx-body{display:grid;grid-template-columns:var(--rw,244px) minmax(0,1fr);min-height:calc(100vh - 58px);transition:grid-template-columns .2s}
@@ -28,7 +28,7 @@ body.rc{--rw:68px}
 .bx-bulk{display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--accent);color:#fff;border-radius:12px;margin-bottom:10px;font-size:13px}.bx-bulk select{width:auto}.bx-bulk .bz-mini{background:#fff;color:#111}
 .crm-pill{display:inline-block;padding:2px 10px;border-radius:6px;font-size:11.5px;font-weight:600;background:var(--field);border:1px solid var(--line)}
 .crm-pill.won,.crm-pill.converted,.crm-pill.qualified,.crm-pill.done{background:rgba(52,211,153,.18);border-color:rgba(52,211,153,.5)}.crm-pill.lost,.crm-pill.unqualified,.crm-pill.error{background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.5)}
-.crm-pill.new,.crm-pill.open{background:rgba(34,211,238,.18);border-color:rgba(34,211,238,.5)}.crm-pill.proposal,.crm-pill.negotiation,.crm-pill.contacted,.crm-pill.human{background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.5)}
+.crm-pill.new,.crm-pill.open{background:rgba(111,155,234,.2);border-color:rgba(111,155,234,.5)}.crm-pill.proposal,.crm-pill.negotiation,.crm-pill.contacted,.crm-pill.human{background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.5)}
 /* kanban */
 .bx-funnel{display:flex;gap:3px;margin-bottom:10px;height:8px}.bx-funnel i{flex:1;border-radius:4px}
 .crm-kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(252px,1fr);gap:8px;overflow:auto;padding-bottom:10px;align-items:start}
@@ -80,19 +80,19 @@ body.rc{--rw:68px}
 .bx-step textarea{width:100%}
 
 /* ---- advanced / techy shell ---- */
-.bx-top:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--brand),transparent 80%);opacity:.85}
-.bx-rail{position:sticky;top:58px;height:calc(100vh - 58px);overflow:hidden;display:flex;flex-direction:column;color:#dbe6ff;border-right:1px solid rgba(255,255,255,.08);
- background:radial-gradient(420px 260px at 0% 0%,rgba(34,211,238,.22),transparent 70%),radial-gradient(360px 300px at 100% 100%,rgba(139,92,246,.25),transparent 70%),linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px) 0 0/100% 28px,linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px) 0 0/28px 100%,linear-gradient(180deg,#0a1a45,#081338)}
+.bx-top:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--brand),var(--accent2),transparent 80%);opacity:.85}
+.bx-rail{position:sticky;top:58px;height:calc(100vh - 58px);overflow:hidden;display:flex;flex-direction:column;color:#e3ebfa;border-right:1px solid rgba(255,255,255,.08);
+ background:radial-gradient(420px 260px at 0% 0%,rgba(218,96,44,.16),transparent 70%),radial-gradient(360px 300px at 100% 100%,rgba(60,100,190,.24),transparent 70%),linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px) 0 0/100% 28px,linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px) 0 0/28px 100%,linear-gradient(180deg,#0e1834,#0a1229)}
 .bx-navs{flex:1;overflow:auto;padding:12px 10px;scrollbar-width:thin}
 .bx-sec-h{display:flex;align-items:center;justify-content:space-between;font:600 10px/1 ui-monospace,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;color:rgba(160,185,235,.7);padding:14px 10px 7px;cursor:default;user-select:none}
 .bx-sec-h.fold{cursor:pointer}.bx-sec-h.fold:hover{color:#fff}.bx-sec-h .car{transition:.15s;font-size:9px}.bx-sec-h.shut .car{transform:rotate(-90deg)}
 .bx-sec-h:before{content:"//";color:var(--accent);margin-right:6px}.bx-sec-h .tx{flex:1}
 .bx-navs .bz-nav{width:100%;display:flex;flex-direction:row;align-items:center;gap:12px;padding:9px 12px;margin:1px 0;font-size:13.5px;color:inherit;opacity:.8;border-radius:11px;border:1px solid transparent;position:relative;white-space:nowrap;transition:.12s}
 .bx-navs .bz-nav svg{flex:none;opacity:.85}.bx-navs .bz-nav:hover{opacity:1;background:rgba(255,255,255,.08);transform:translateX(2px)}
-.bx-navs .bz-nav.on{opacity:1;color:#fff;background:linear-gradient(90deg,rgba(34,211,238,.26),rgba(139,92,246,.2));border-color:rgba(34,211,238,.4);box-shadow:0 0 22px rgba(34,211,238,.18)}
+.bx-navs .bz-nav.on{opacity:1;color:#fff;background:linear-gradient(90deg,rgba(218,96,44,.30),rgba(218,96,44,.08));border-color:rgba(218,96,44,.45);box-shadow:0 0 22px rgba(218,96,44,.16)}
 .bx-navs .bz-nav.on:before{content:"";position:absolute;left:-10px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:var(--accent);box-shadow:0 0 12px var(--accent)}
 .bx-navs .bz-nav.on svg{color:var(--accent);opacity:1}
-.bx-navs .bz-nav .bdg{margin-left:auto;font:600 9px ui-monospace,monospace;letter-spacing:.08em;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,.35);color:#e9defe}
+.bx-navs .bz-nav .bdg{margin-left:auto;font:600 9px ui-monospace,monospace;letter-spacing:.08em;padding:2px 6px;border-radius:6px;background:rgba(218,96,44,.3);color:#ffd9c7}
 .bx-grp{overflow:hidden}.bx-grp.shut{display:none}
 .bx-rfoot{display:flex;align-items:center;gap:9px;padding:11px 14px;border-top:1px solid rgba(255,255,255,.08);font:11px ui-monospace,Consolas,monospace;color:rgba(190,210,250,.75)}
 .bx-rfoot .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:bxp 2s infinite}@keyframes bxp{50%{opacity:.35}}
@@ -104,7 +104,7 @@ body.rc .bx-sec-h{justify-content:center;padding:10px 0 4px}body.rc .bx-sec-h:be
 .bz-card,.crm-kpi,.bx-flow,.bx-sec{backdrop-filter:blur(8px)}
 .crm-kpi{background:linear-gradient(160deg,var(--card2),var(--field))}
 #anwrap{margin:0 -4px}#anframe{width:100%;min-height:calc(100vh - 150px);border:0;display:block;background:transparent;color-scheme:normal}
-.bx-head h1{background:linear-gradient(90deg,var(--ink),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.bx-head h1{color:var(--ink)}
 .crm-pill.interested{background:rgba(52,211,153,.18);border-color:rgba(52,211,153,.5)}.crm-pill.follow_up{background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.5)}
 
 .crm-box{background:linear-gradient(var(--card2),var(--card2)),var(--bg2)}

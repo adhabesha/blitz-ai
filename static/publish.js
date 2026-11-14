@@ -19,7 +19,7 @@ function verdict(p){
   }
   if(p==="youtube"&&t==="short"){if(d>180)return{block:"Shorts must be 3 min or shorter"};if(w>h)return{block:"Shorts must be vertical or square"};return{note:"Posted as a YouTube Short (#Shorts added)"}}
   if(p==="instagram"){if(d<3)return{block:"Reels need at least 3 seconds"};if(t==="short"&&w>h)return{block:"Reels must be vertical (9:16)"};if(w>h)return{note:"Posted as a Reel with bars (landscape)"};if(Math.abs(r-9/16)>0.07)return{note:"Not exactly 9:16: may be cropped"};return{note:"Posted as an Instagram Reel"}}
-  if(p==="tiktok"){if(d<3)return{block:"needs at least 3 seconds"};if(d>600)return{block:"must be 10 minutes or shorter"};if(w>h)return{block:"must be vertical (9:16)"};return{note:"Posted to TikTok (private until TikTok approves Blitz AI)"}}
+  if(p==="tiktok"){if(d<3)return{block:"needs at least 3 seconds"};if(d>600)return{block:"must be 10 minutes or shorter"};if(w>h)return{block:"must be vertical (9:16)"};return{note:"Posted to TikTok (private until TikTok approves ficx)"}}
   if(p==="facebook"&&t==="short"){const ok=w<=h&&d>=3&&d<=90;return{note:ok?"Posted as a Facebook Reel":"Posted as a normal Facebook video (Reels need vertical 9:16, 3-90 s)"}}
   return{};
 }
@@ -27,7 +27,7 @@ function verdict(p){
 export function mountPublish(root,a){
   auth=a;root.innerHTML="";
   const w=h("div","wide");root.appendChild(w);
-  w.appendChild(h("p","bz-mut","One upload, many platforms. Pick what you are posting, choose the platforms, and Blitz AI sends it to each connected account."));
+  w.appendChild(h("p","bz-mut","One upload, many platforms. Pick what you are posting, choose the platforms, and ficx sends it to each connected account."));
   ui.seg=h("div","seg3");
   for(const[k,t]of Object.entries(TYPES)){const b=h("button",null,t.label);b.dataset.t=k;b.onclick=()=>{type=k;file=null;meta=null;ui.file.value="";ui.prev.innerHTML="";drawType()};ui.seg.appendChild(b)}
   ui.hint=h("p","bz-mut");
@@ -58,7 +58,7 @@ export function mountPublish(root,a){
   ui.when=h("input");ui.when.type="datetime-local";ui.when.onchange=drawPlats;
   ui.priv=h("select");for(const v of["private","unlisted","public"]){const o=h("option",null,v==="private"?"private (safest)":v);o.value=v;ui.priv.appendChild(o)}
   const lab=(t,el)=>{const l=h("label",null,t);l.appendChild(el);return l};
-  const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): Blitz AI uploads at this time",ui.when));
+  const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): ficx uploads at this time",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
   const shareWA=async()=>{const t=((ui.title.value?ui.title.value+"\n\n":"")+ui.cap.value).trim();if(!t&&!file){ui.msg.textContent="Choose a file or write a caption first.";return false}
     try{if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:t});return true}}catch(e){if(e&&e.name==="AbortError")return false}
@@ -253,7 +253,7 @@ function buildTT(c){
 }
 function paintTT(){
   if(!tt||!ttInfo)return;const c=ttInfo;
-  ui.ttNote.textContent=c.audited?"":"Until TikTok approves Blitz AI, every post is sent as private (Only me), whichever option you choose.";
+  ui.ttNote.textContent=c.audited?"":"Until TikTok approves ficx, every post is sent as private (Only me), whichever option you choose.";
   ui.ttInter.innerHTML="";ui.ttInter.appendChild(h("span","bz-mut","Allow users to:"));
   add(ui.ttInter,
     cb("Comment"+(c.comment_disabled?" (off in your TikTok settings)":""),()=>tt.comment,v=>tt.comment=v,c.comment_disabled),
@@ -269,7 +269,7 @@ function paintTT(){
     if(tt.yourBrand&&!tt.branded)m="Your video will be labeled “Promotional content”.";
     if(tt.branded)m="Your video will be labeled “Paid partnership”.";
     ui.ttBrand.appendChild(h("p","bz-mut pub-note",m));
-    if(tt.branded&&(tt.privacy==="SELF_ONLY"||!c.audited))ui.ttBrand.appendChild(h("p","pub-note tt-warn","Branded content can't be private. Choose a public option once Blitz AI is approved by TikTok."));
+    if(tt.branded&&(tt.privacy==="SELF_ONLY"||!c.audited))ui.ttBrand.appendChild(h("p","pub-note tt-warn","Branded content can't be private. Choose a public option once ficx is approved by TikTok."));
   }
   ui.ttConsent.innerHTML="";
   const l=h("label","tt-cb"),i=h("input");i.type="checkbox";i.checked=tt.consent;i.onchange=()=>{tt.consent=i.checked};l.appendChild(i);
@@ -282,7 +282,7 @@ function ttCheck(){
   if(!tt)return"TikTok options are still loading. Wait a moment and try again.";
   if(!tt.privacy)return"TikTok: choose who can view this video.";
   if(tt.commercial&&!tt.yourBrand&&!tt.branded)return"TikTok: pick Your brand and/or Branded content, or turn commercial disclosure off.";
-  if(tt.branded&&(tt.privacy==="SELF_ONLY"||!(ttInfo&&ttInfo.audited)))return"TikTok: Branded content can't be private (and posts stay private until TikTok approves Blitz AI). Turn off Branded content.";
+  if(tt.branded&&(tt.privacy==="SELF_ONLY"||!(ttInfo&&ttInfo.audited)))return"TikTok: Branded content can't be private (and posts stay private until TikTok approves ficx). Turn off Branded content.";
   if(!tt.consent)return"TikTok: tick the box to confirm TikTok's Music Usage Confirmation.";
   return"";
 }
@@ -305,7 +305,7 @@ async function submit(){
     const tok=await auth.currentUser.getIdToken();
     const id=await new Promise((res,rej)=>{
       const x=new XMLHttpRequest();x.open("POST","/api/publish");x.setRequestHeader("Authorization","Bearer "+tok);
-      x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);ui.barI.style.width=p+"%";ui.msg.textContent="Uploading to Blitz AI… "+p+"%"}};
+      x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);ui.barI.style.width=p+"%";ui.msg.textContent="Uploading to ficx… "+p+"%"}};
       x.onload=()=>{if(x.status<300){try{res(JSON.parse(x.responseText).id)}catch(e){rej(new Error("Unexpected reply"))}}else rej(new Error(x.responseText||("Upload failed ("+x.status+")")))};
       x.onerror=()=>rej(new Error("The connection dropped while uploading. Try again, or use a smaller file."));x.send(fd)});
     ui.msg.textContent="Publishing to each platform… keep this page open.";

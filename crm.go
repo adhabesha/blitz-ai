@@ -13,7 +13,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// Blitz CRM: workspace, company structure (departments, roles, invites), leads, deals, contacts, companies,
+// ficx CRM: workspace, company structure (departments, roles, invites), leads, deals, contacts, companies,
 // tasks and activities. Everything lives under crm_workspaces/{wid}. Access is decided on the server from the
 // member's role (what they can do in each module) and scope (which records they can see).
 

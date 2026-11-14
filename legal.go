@@ -15,13 +15,13 @@ func legalPage(w http.ResponseWriter, r *http.Request, title, body string) {
 	if contact != "" {
 		ct = `<a href="mailto:` + html.EscapeString(contact) + `">` + html.EscapeString(contact) + `</a>`
 	}
-	app := firstNonEmptyStr(env("APP_NAME"), "Blitz AI")
+	app := firstNonEmptyStr(env("APP_NAME"), "ficx")
 	base := baseURL(r)
 	body = strings.NewReplacer("{{app}}", html.EscapeString(app), "{{contact}}", ct, "{{base}}", html.EscapeString(base)).Replace(body)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>%s – %s</title>
-<style>body{font:16px/1.65 Inter,system-ui,sans-serif;max-width:780px;margin:40px auto;padding:0 18px;color:#14224a}h1{font-size:30px}h2{margin-top:30px;font-size:19px}a{color:#2563eb}small{color:#5b6b8f}</style></head><body>
+<style>body{font:16px/1.65 Inter,system-ui,sans-serif;max-width:780px;margin:40px auto;padding:0 18px;color:#0e1834}h1{font-size:30px}h2{margin-top:30px;font-size:19px}a{color:#b84a18}small{color:#4f5f80}</style></head><body>
 <h1>%s</h1><small>Last updated: 1 November 2026</small>%s</body></html>`, html.EscapeString(app), title, title, body)
 }
 

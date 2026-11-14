@@ -52,13 +52,13 @@ function startOnboarding(me,user){
   ob={step:0,goals:[],role:""};$("card-auth").hidden=true;$("card-ob").hidden=false;
   const name=(user.displayName||"").split(" ")[0]||"there";
   const steps=[
-    ()=>`<div class="ob-emoji">\u26A1</div><h1>Hi ${esc(name)}, welcome to Blitz AI</h1><p>Your growth dashboard for websites, YouTube and social media.</p>
+    ()=>`<div class="ob-emoji">\u26A1</div><h1>Hi ${esc(name)}, welcome to ficx</h1><p>Your growth dashboard for websites, YouTube and social media.</p>
       <div class="ob-item"><div>\u{1F4CA}</div><div><b>Measure</b><span>Real KPIs, charts and forecasts from your data.</span></div></div>
       <div class="ob-item"><div>\u{1F6E0}\uFE0F</div><div><b>Fix</b><span>Every problem comes with ready-to-copy text, code or steps.</span></div></div>
       <div class="ob-item"><div>\u{1F4C5}</div><div><b>Plan</b><span>A 30-day plan and content calendar you can tick off.</span></div></div>`,
     ()=>`<h1>What do you want to grow?</h1><p>Pick all that apply. We'll open the right tool first.</p><div class="chips" id="goals"></div>
       <p style="margin-top:14px">I am a...</p><div class="chips" id="roles"></div>`,
-    ()=>`<div class="ob-emoji">\u{1F517}</div><h1>Connect your accounts</h1><p>In the dashboard you can connect Google (Search Console, Analytics, YouTube) and Instagram, Facebook or TikTok so Blitz AI reads your real numbers.</p>
+    ()=>`<div class="ob-emoji">\u{1F517}</div><h1>Connect your accounts</h1><p>In the dashboard you can connect Google (Search Console, Analytics, YouTube) and Instagram, Facebook or TikTok so ficx reads your real numbers.</p>
       <div class="ob-item"><div>\u{1F512}</div><div><b>You stay in control</b><span>You approve access on the platform's own screen and can disconnect any time.</span></div></div>
       <div class="ob-item"><div>\u2705</div><div><b>Or just paste a link</b><span>A website address or YouTube channel link works with no connection at all.</span></div></div>`
   ];

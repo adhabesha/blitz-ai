@@ -1,4 +1,4 @@
-<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – Blitz AI</title>
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/static/favicon.svg" type="image/svg+xml"><link rel="icon" href="/static/favicon-32.png" sizes="32x32" type="image/png"><link rel="shortcut icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/static/apple-touch-icon.png"><link rel="manifest" href="/static/manifest.json"><meta name="theme-color" content="#0e1834"><title>Dashboard – ficx</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -8,7 +8,7 @@
 </head><body class="bz">
 <div class="bz-shell">
 <aside class="bz-side">
-<div class="bz-logo"><i></i>Blitz AI</div>
+<div class="bz-logo"><img class="fx-lg fx-on-dark" src="/static/ficx-logo-on-dark.svg" alt="ficx"><img class="fx-lg fx-on-light" src="/static/ficx-logo-on-light.svg" alt="ficx"></div>
 <button class="bz-nav on" data-kind="website" data-icon="globe">Website</button>
 <button class="bz-nav" data-kind="youtube" data-icon="play">YouTube (auto)</button>
 <button class="bz-nav" data-kind="socialc" data-icon="share">Connected social</button>
@@ -38,7 +38,7 @@
 
 <div class="form" id="f-google" hidden>
 <div class="wide bz-note" id="g-setup" hidden><b>One-time owner setup needed.</b> Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and BASE_URL in Render &gt; Environment (see SETUP.md).</div>
-<div class="wide" id="g-connect"><button class="bz-btn" id="g-btn">Connect &amp; Analyze</button><p class="bz-mut">One click: approve access on Google's screen, then Blitz AI finds your channel, Search Console sites and Analytics properties and builds the report by itself.</p></div>
+<div class="wide" id="g-connect"><button class="bz-btn" id="g-btn">Connect &amp; Analyze</button><p class="bz-mut">One click: approve access on Google's screen, then ficx finds your channel, Search Console sites and Analytics properties and builds the report by itself.</p></div>
 <div class="wide" id="g-connected" hidden>
 <div id="g-src"></div>
 <button class="bz-btn" id="g-run">Analyze now</button> <button class="bz-btn ghost" id="g-off">Disconnect Google</button>
@@ -52,7 +52,7 @@
 </div>
 
 <div class="form" id="f-socialc" hidden>
-<div class="wide"><p class="bz-mut" style="margin:0 0 12px">Connect an account once, then Blitz AI reads your real posts, followers and engagement from the platform's official API and builds the full report with ready-to-use fixes.</p></div>
+<div class="wide"><p class="bz-mut" style="margin:0 0 12px">Connect an account once, then ficx reads your real posts, followers and engagement from the platform's official API and builds the full report with ready-to-use fixes.</p></div>
 <div class="wide bz-grid" id="sc-cards" style="margin:0"></div>
 <ol class="bz-steps wide" id="sc-steps" hidden></ol>
 </div>
@@ -92,7 +92,7 @@
 <label class="wide">What do you need?<select id="seo-mode"><option value="keywords">Keyword research</option><option value="competitors">Competitor analysis</option><option value="ads">Google + Meta ads planner</option></select></label>
 <label id="l-seed" class="wide">Topic, product or service<input id="seo-seed" maxlength="200" placeholder="e.g. boutique hotel in Addis Ababa"></label>
 <label id="l-own" hidden>Your website<input id="seo-own" placeholder="yourcompany.com"></label>
-<label id="l-comp" class="wide" hidden><span id="l-comp-t">Competitor websites (optional, up to 3, one per line)</span><textarea id="seo-comp" rows="3" placeholder="Leave empty: Blitz AI finds your competitors by category, area and location&#10;or type your own, one per line"></textarea></label>
+<label id="l-comp" class="wide" hidden><span id="l-comp-t">Competitor websites (optional, up to 3, one per line)</span><textarea id="seo-comp" rows="3" placeholder="Leave empty: ficx finds your competitors by category, area and location&#10;or type your own, one per line"></textarea></label>
 <label id="l-loc" hidden>City / area (optional)<input id="seo-loc" maxlength="80" placeholder="e.g. Addis Ababa, Bole"></label>
 <label id="l-goal" hidden>Campaign goal<select id="seo-goal"><option value="leads">Leads</option><option value="sales">Sales</option><option value="awareness">Awareness</option></select></label>
 <label id="l-budget" hidden>Monthly budget (USD)<input id="seo-budget" type="number" min="0" placeholder="500"></label>

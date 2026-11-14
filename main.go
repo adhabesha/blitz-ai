@@ -80,6 +80,16 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		b, err := assets.ReadFile("static/favicon.ico")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(b)
+	})
 	mux.HandleFunc("/", s.page("landing.html"))
 	mux.HandleFunc("/dashboard", s.page("dashboard.html"))
 	mux.HandleFunc("/app", s.page("auth.html"))

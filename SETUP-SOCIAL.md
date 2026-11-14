@@ -10,7 +10,7 @@ Redirect URLs to register (use your own Render address):
 Developer consoles change often. If a screen looks different, send a screenshot.
 
 ## Facebook Page + Instagram (Meta, one app, Facebook Login for Business)
-New Meta apps cannot use the old "Instagram login", so Blitz AI signs in through Facebook and reads Instagram through the Facebook-linked account.
+New Meta apps cannot use the old "Instagram login", so ficx signs in through Facebook and reads Instagram through the Facebook-linked account.
 1. In your Meta app: Instagram > API setup with Unified login > Create another configuration. Include the assets Pages and Instagram accounts, and permissions pages_show_list, pages_read_engagement, pages_manage_posts, read_insights, instagram_basic, instagram_content_publish, instagram_manage_insights.
 2. Select the configuration and save both redirect URLs: .../auth/instagram/callback and .../auth/facebook/callback.
 3. Copy the Configuration ID, and the App ID and App secret from App settings > Basic.
@@ -44,7 +44,7 @@ The dashboard now shows the platform's own reason after "Connection failed". Com
 - Facebook now reuses the Instagram configuration ID if no separate Facebook one is set.
 
 ## Scheduling Instagram and TikTok (app-side)
-Instagram and TikTok have no scheduling in their APIs, so Blitz AI holds the post and uploads it at your chosen time (YouTube and Facebook still use their own native scheduling). The schedule is saved in Firestore (`scheduled_posts`); you can close the page.
+Instagram and TikTok have no scheduling in their APIs, so ficx holds the post and uploads it at your chosen time (YouTube and Facebook still use their own native scheduling). The schedule is saved in Firestore (`scheduled_posts`); you can close the page.
 - The video file waits on the server. Free hosting clears it on restart/redeploy; set `MEDIA_DIR` to a persistent disk (Render: add a Disk, e.g. mount `/var/data`) to avoid losing scheduled posts.
 - The server must be awake at the time. On a free plan that sleeps, ping `https://YOUR-APP/healthz` every 5 minutes (for example with UptimeRobot) or use a paid plan. Posts up to 12 hours late are still sent; older ones are marked missed.
 - TikTok while unaudited: your TikTok account must be Private at the moment the post uploads.
@@ -53,7 +53,7 @@ Instagram and TikTok have no scheduling in their APIs, so Blitz AI holds the pos
 Open any fix in a report: where it is possible, the fix has an Apply button instead of only Copy.
 - **YouTube video:** title, description, tags (Connected Google).
 - **YouTube channel:** channel description from the Bio fix.
-- **Website:** robots.txt, sitemap.xml, llms.txt, title and meta description, canonical, viewport, language, share-preview tags, structured data (Organization and FAQ), and removing noindex. The first time, a setup form asks for your website address, GitHub repository, branch, homepage file and a GitHub token (fine-grained, Contents: Read and write, one repo). Blitz AI commits the change; your host deploys it. Revert the commit on GitHub to undo. Apply only works on the website you connected.
+- **Website:** robots.txt, sitemap.xml, llms.txt, title and meta description, canonical, viewport, language, share-preview tags, structured data (Organization and FAQ), and removing noindex. The first time, a setup form asks for your website address, GitHub repository, branch, homepage file and a GitHub token (fine-grained, Contents: Read and write, one repo). ficx commits the change; your host deploys it. Revert the commit on GitHub to undo. Apply only works on the website you connected.
 - **Facebook:** Fix this post / Apply to this post edits the caption of the live Page post (needs `pages_manage_posts`; Facebook only allows text changes on some post types). Views come from post insights and need `read_insights`.
 - **Instagram, TikTok:** their APIs cannot edit a published caption, so the fix gives the finished caption with Copy and a link to open the post. The content calendar has **Create post** per day for new posts (fills topic and schedule).
 - **Not applicable (explained next to each fix):** HTTPS and speed (host settings), image alt text, app store listings and replies, pinning comments.

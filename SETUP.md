@@ -1,4 +1,4 @@
-# Blitz AI v3 – one-time setup (all free)
+# ficx v3 – one-time setup (all free)
 
 Use the same Google Cloud project as your Firebase project (blitz-ai-59261).
 
@@ -16,7 +16,7 @@ Use the same Google Cloud project as your Firebase project (blitz-ai-59261).
 2. Render > blitz-ai > Environment > Add: `YOUTUBE_API_KEY` = the key.
 
 ## C. Connect Google (Search Console + GA4 + your YouTube)
-1. APIs & Services > OAuth consent screen (Google Auth Platform). Get started: app name Blitz AI, your email, audience **External**.
+1. APIs & Services > OAuth consent screen (Google Auth Platform). Get started: app name ficx, your email, audience **External**.
 2. Audience > Test users > add the Google account that owns your channel / Search Console / GA4.
 3. Data access > Add or remove scopes > paste these four and save:
    - https://www.googleapis.com/auth/webmasters.readonly

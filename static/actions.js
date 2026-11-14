@@ -47,7 +47,7 @@ const NOAPPLY={
   https:"HTTPS is switched on at your host or Cloudflare, not in your site files.",
   alt:"every image needs its own description written for what it shows.",
   perf:"speed depends on your images, scripts and hosting.",
-  review:"App Store and Google Play replies are written inside their own consoles, which Blitz AI can't access.",
+  review:"App Store and Google Play replies are written inside their own consoles, which ficx can't access.",
   release:"release notes are entered in App Store Connect or Google Play Console.",
   engage:"YouTube, TikTok and Instagram have no way for an app to pin a comment. Post it yourself."
 };
@@ -120,7 +120,7 @@ const queriesFix=ai((c,o,cur,r)=>{
   c.appendChild(copyBox("Meta description to use",o.description||""));
   options(c,"Opening lines for the page / blog post",o.hooks);
   c.appendChild(h("p","bz-mut","Make (or update) one page per query group, put the main query in the title and first paragraph, then link to it from your homepage."));
-  noApply(c,"each search query needs its own page, and Blitz AI can't tell which page of your site should carry it.");
+  noApply(c,"each search query needs its own page, and ficx can't tell which page of your site should carry it.");
 },(r)=>({platform:"website",topic:"Search queries to rank for: "+((r.meta||{}).lowCtr||(r.meta||{}).queries||r.target),goal:"Win more clicks from Google"}));
 
 const faqFix=ai((c,o,cur,r)=>{
@@ -224,7 +224,7 @@ const howto=ai((c,o)=>{
 const pad=n=>String(n).padStart(2,"0");
 const ymd=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
 function ics(rows,name){
-  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Blitz AI//EN"];
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//ficx//EN"];
   rows.forEach((x,i)=>{const e=new Date(x.date);e.setDate(e.getDate()+1);
     L.push("BEGIN:VEVENT","UID:blitz-"+ymd(x.date)+"-"+i+"@blitz.ai","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART;VALUE=DATE:"+ymd(x.date),"DTEND;VALUE=DATE:"+ymd(e),"SUMMARY:"+("Post: "+x.text).replace(/[\n,;]/g," "),"END:VEVENT")});
   L.push("END:VCALENDAR");
@@ -284,7 +284,7 @@ const calendar=async(c,r)=>{
     const cp=h("button","bz-btn ghost","Copy whole calendar");cp.onclick=()=>copy(rows.map(x=>x.date.toDateString()+" - "+x.text).join("\n"),cp);
     const dl=h("button","bz-btn","Download .ics (add to your phone calendar)");dl.style.marginLeft="8px";dl.onclick=()=>ics(rows,"blitz-content-calendar");
     add(bar,cp,dl);out.appendChild(bar);
-    out.appendChild(h("p","bz-mut","Click Create post on a day to open Publish with that idea and date filled in. Choose your file and platforms, and Blitz AI posts it at that time. Tick days as you publish."));
+    out.appendChild(h("p","bz-mut","Click Create post on a day to open Publish with that idea and date filled in. Choose your file and platforms, and ficx posts it at that time. Tick days as you publish."));
   };
   sel.onchange=build;
   const l=loading(c,"Generating content ideas for your calendar…");

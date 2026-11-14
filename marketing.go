@@ -694,7 +694,7 @@ func (s *server) evalAds(ctx context.Context, in evalIn) (*Report, error) {
 	}
 	const AC = "Ad completeness"
 	add := func(c Check) { r.Checks = append(r.Checks, c) }
-	add(chk(AC, "Headlines (15 recommended)", rate(float64(nHead), 12, 6), fmt.Sprint(nHead), "Responsive search ads need up to 15 headlines; ask Blitz AI to regenerate for more.", 4))
+	add(chk(AC, "Headlines (15 recommended)", rate(float64(nHead), 12, 6), fmt.Sprint(nHead), "Responsive search ads need up to 15 headlines; ask ficx to regenerate for more.", 4))
 	add(chk(AC, "Descriptions (4 recommended)", rate(float64(nDesc), 4, 2), fmt.Sprint(nDesc), "Provide 4 descriptions per ad group.", 3))
 	add(chk(AC, "Keywords (10+ across 2+ ad groups)", rate(float64(nKw), 10, 5), fmt.Sprint(nKw), "Add more specific keywords per theme.", 4))
 	add(chk(AC, "Negative keywords (5+)", rate(float64(len(neg.Rows)), 5, 2), fmt.Sprint(len(neg.Rows)), "Negatives stop wasted spend on irrelevant searches.", 3))

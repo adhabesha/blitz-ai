@@ -665,7 +665,7 @@ func fetchFacebook(ctx context.Context, tok string) (*socialSnap, error) {
 			for _, p := range acc.Data {
 				names = append(names, p.Name)
 			}
-			return nil, userErr("The Page \"" + env("FACEBOOK_PAGE") + "\" was not found among the Pages Meta shared: " + strings.Join(names, ", ") + " (Meta granted: " + strings.Join(seen, ", ") + "). A Page owned through a business needs the business_management permission in the Meta configuration; add it, remove Blitz AI in your Facebook Business integrations and connect again.")
+			return nil, userErr("The Page \"" + env("FACEBOOK_PAGE") + "\" was not found among the Pages Meta shared: " + strings.Join(names, ", ") + " (Meta granted: " + strings.Join(seen, ", ") + "). A Page owned through a business needs the business_management permission in the Meta configuration; add it, remove ficx in your Facebook Business integrations and connect again.")
 		}
 		pick = found
 	}

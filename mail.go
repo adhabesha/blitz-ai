@@ -149,9 +149,9 @@ func hostOf(from string) string {
 }
 
 func inviteMail(workspace, inviter, role, link string) (string, string, string) {
-	subj := inviter + " invited you to " + workspace + " on Blitz CRM"
-	txt := fmt.Sprintf("%s invited you to join %s on Blitz CRM as %s.\n\nOpen this link and sign in or create an account with THIS email address:\n%s\n\nYou join the workspace automatically.", inviter, workspace, role, link)
-	h := fmt.Sprintf(`<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px"><h2 style="margin:0 0 12px">You're invited</h2><p><b>%s</b> invited you to join <b>%s</b> on Blitz CRM as <b>%s</b>.</p><p><a href="%s" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Accept invitation</a></p><p style="color:#555;font-size:13px">Sign in or create your account with <b>this email address</b> and you will join automatically.<br>If the button doesn't work, copy this link: %s</p></div>`,
+	subj := inviter + " invited you to " + workspace + " on ficx CRM"
+	txt := fmt.Sprintf("%s invited you to join %s on ficx CRM as %s.\n\nOpen this link and sign in or create an account with THIS email address:\n%s\n\nYou join the workspace automatically.", inviter, workspace, role, link)
+	h := fmt.Sprintf(`<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px"><p style="margin:0 0 14px;font-size:24px;font-weight:800;letter-spacing:-.5px;color:#da602c">ficx</p><h2 style="margin:0 0 12px;color:#0e1834">You're invited</h2><p><b>%s</b> invited you to join <b>%s</b> on ficx CRM as <b>%s</b>.</p><p><a href="%s" style="display:inline-block;background:#da602c;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Accept invitation</a></p><p style="color:#555;font-size:13px">Sign in or create your account with <b>this email address</b> and you will join automatically.<br>If the button doesn't work, copy this link: %s</p></div>`,
 		html.EscapeString(inviter), html.EscapeString(workspace), html.EscapeString(role), html.EscapeString(link), html.EscapeString(link))
 	return subj, h, txt
 }

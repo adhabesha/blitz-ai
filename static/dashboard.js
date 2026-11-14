@@ -161,9 +161,9 @@ function renderOpt(res){
   if(pl==="youtube")box.appendChild(uploadCard(t,d,g));
   else{const n=h("div","bz-card");n.style.marginTop="16px";
     if(["instagram","tiktok","facebook"].includes(pl)){
-      n.appendChild(h("p","bz-mut","Fills the Publish form with this title, caption and hashtags. Choose your file and the accounts, and Blitz AI posts it (or schedules it)."));
+      n.appendChild(h("p","bz-mut","Fills the Publish form with this title, caption and hashtags. Choose your file and the accounts, and ficx posts it (or schedules it)."));
       n.appendChild(publishBtn("Use in Publish",()=>({title:t.ta.value,caption:(d.ta.value+((hs.ta.value||"").trim()?"\n\n"+hs.ta.value.trim():"")).trim(),topic:$("o-topic").value})));
-    }else noApply(n,"Blitz AI can't post to this platform or edit this item yet. Copy the text above.");
+    }else noApply(n,"ficx can't post to this platform or edit this item yet. Copy the text above.");
     box.appendChild(n)}
   box.scrollIntoView({behavior:"smooth"});
 }

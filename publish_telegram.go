@@ -185,7 +185,7 @@ func (s *server) pubTelegram(ctx context.Context, uid string, sp pubSpec) (strin
 			OK bool `json:"ok"`
 		}
 		txt := "plain text to the chat works, so only media is refused"
-		if e5 := getJSON(ctx, base+"/sendMessage?"+url.Values{"chat_id": {t.UserID}, "text": {"Blitz AI connection test"}}.Encode(), &r5); e5 != nil {
+		if e5 := getJSON(ctx, base+"/sendMessage?"+url.Values{"chat_id": {t.UserID}, "text": {"ficx connection test"}}.Encode(), &r5); e5 != nil {
 			txt = "even a plain text message is refused: " + scrub(e5, t.Access).Error()
 		}
 		return "", "", errors.New("Upload: " + scrub(upErr, t.Access).Error() + " | By link: " + scrub(lerr, t.Access).Error() + " | Test: " + txt + " | chat_id used: " + t.UserID)
