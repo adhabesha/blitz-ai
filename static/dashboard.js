@@ -122,7 +122,7 @@ function busy(on){
   timer=setInterval(()=>{i=Math.min(i+1,s.length-1);$("busy").textContent=s[i]},4000);
 }
 function show(r,scroll){
-  const t=tabOf(r.kind);session[t]=r;
+  let t=tabOf(r.kind);if(t==="google")t="socialc";session[t]=r;
   if(t!==kind){setKind(t)}else{current=r;renderReport($("result"),r,hist)}
   if(scroll)$("result").scrollIntoView({behavior:"smooth"});
 }
