@@ -109,7 +109,7 @@ func (s *server) crmSequences(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		if c.cid == "" || sv(x, "cid") == c.cid {
+		if c.inCo(x) {
 			out = append(out, x)
 		}
 	}
@@ -850,7 +850,7 @@ func (s *server) crmInbox(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		if c.cid == "" || sv(x, "cid") == c.cid {
+		if c.inCo(x) {
 			out = append(out, x)
 		}
 	}

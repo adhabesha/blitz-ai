@@ -56,7 +56,7 @@ func (s *server) crmFlows(w http.ResponseWriter, r *http.Request) {
 	}
 	fl := []map[string]any{}
 	for _, x := range s.flowsOf(c.ctx, c.wid) {
-		if c.cid == "" || sv(x, "cid") == c.cid {
+		if c.inCo(x) {
 			fl = append(fl, x)
 		}
 	}

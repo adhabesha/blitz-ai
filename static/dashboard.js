@@ -7,7 +7,7 @@ import{mountRunAds,analyzeButton,campaignsControls}from"./runads.js";
 import{mountAdCreative}from"./adcreative.js";
 import{renderMarketing}from"./mreport.js";
 import{publishBtn,noApply}from"./apply.js";
-import{initWorkspace}from"./workspace.js";
+import{initWorkspace,clearPicked}from"./workspace.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={seo:["Collecting data…","Comparing and clustering…","Writing recommendations…"],website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
@@ -310,7 +310,7 @@ onAuthStateChanged(auth,async u=>{
   if(sc==="ok"&&sp){setKind("socialc");history.replaceState(null,"","/dashboard");const pv=PROV.find(x=>x[0]===sp);analyzeSocial(sp,pv?pv[1]:sp)}
   else if(sc){setKind("socialc");history.replaceState(null,"","/dashboard");{const why=qp.get("why");$("msg").textContent="Connection failed"+(why?": "+why:".")+" (setup help: SETUP-SOCIAL.md)"}}
 });
-$("out").onclick=()=>signOut(auth);
+$("out").onclick=()=>{clearPicked();signOut(auth)};
 
 // ---- SEO & Ads form + marketing report ----
 function seoMode(){const m=$("seo-mode").value;

@@ -3,12 +3,12 @@ import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasej
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
 import{outbound}from"./crm_out.js";
 import{phoneApp}from"./crm_mobile.js";
-import{initWorkspace,workspaceBar}from"./workspace.js";
+import{initWorkspace,workspaceBar,clearPicked}from"./workspace.js";
 let MOBI=null;
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const $=i=>document.getElementById(i);
-const logout=async()=>{try{await signOut(auth)}catch(e){}location.href="/app"};
+const logout=async()=>{clearPicked();try{await signOut(auth)}catch(e){}location.href="/app"};
 const S={me:null,team:null,data:{},view:"dashboard",sub:{leads:"kanban",deals:"kanban"},charts:[],q:{},chat:null};
 const V=()=>$("view");
 document.querySelectorAll(".bz-theme button").forEach(b=>b.onclick=()=>{document.documentElement.dataset.theme=b.dataset.t;try{localStorage.setItem("bz-theme",b.dataset.t)}catch(e){}});

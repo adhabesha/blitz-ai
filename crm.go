@@ -117,6 +117,7 @@ type crmReq struct {
 	ws       map[string]any
 	deptSet  map[string]bool // lazily built: uids visible through my department
 	cid      string          // active company ("" = every company)
+	cmain    bool            // the active company is the main one: it also owns records created before companies existed
 }
 
 func (s *server) crmAuth(r *http.Request) (*crmReq, error) {
@@ -133,10 +134,11 @@ func (s *server) crmAuth(r *http.Request) (*crmReq, error) {
 	c.email = strings.ToLower(strings.TrimSpace(c.email))
 	c.verified, _ = t.Claims["email_verified"].(bool)
 	if h := strings.TrimSpace(r.Header.Get("X-Company")); h != "" {
-		if _, ok := s.companyInfo(r.Context(), t.UID, h); !ok {
+		info, ok := s.companyInfo(r.Context(), t.UID, h)
+		if !ok {
 			return nil, errors.New("unknown company")
 		}
-		c.cid = h
+		c.cid, c.cmain = h, info.UseMain
 	}
 	if fb, ok := t.Claims["firebase"].(map[string]any); ok {
 		if p, _ := fb["sign_in_provider"].(string); p == "google.com" {
@@ -351,7 +353,7 @@ func (c *crmReq) list(e string) []map[string]any {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		if c.sees(e, x) && (c.cid == "" || sv(x, "cid") == c.cid) {
+		if c.sees(e, x) && c.inCo(x) {
 			out = append(out, x)
 		}
 	}
@@ -949,4 +951,14 @@ func (c *crmReq) tag(m map[string]any) map[string]any {
 		m["cid"] = c.cid
 	}
 	return m
+}
+
+// inCo reports whether a record belongs in the active company's view. Records made before companies existed
+// have no company tag; they belong to the main company, and show everywhere when no company is selected.
+func (c *crmReq) inCo(x map[string]any) bool {
+	if c.cid == "" {
+		return true
+	}
+	t := sv(x, "cid")
+	return t == c.cid || (t == "" && c.cmain)
 }

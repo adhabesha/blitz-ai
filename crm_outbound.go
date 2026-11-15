@@ -757,7 +757,7 @@ func (s *server) crmProspects(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		if c.cid == "" || sv(x, "cid") == c.cid {
+		if c.inCo(x) {
 			out = append(out, x)
 		}
 	}

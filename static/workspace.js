@@ -41,8 +41,8 @@ export function companyDialog(ws,co,goMode){
   fld("name","Company name","e.g. Noor Dental",co&&co.name);fld("website","Website","example.com",co&&co.website);
   const dl=h("datalist");dl.id="ws-ind";for(const x of["Real estate","Clinic / healthcare","Education / training","E-commerce / retail","Restaurant / hospitality","Automotive","B2B software / IT","Agency","Recruitment","Fitness / wellness","Finance / insurance","Logistics / trading","Construction / interiors","Legal / consulting","Travel / events"])dl.appendChild(new Option(x));
   fld("industry","Industry","Choose or type",co&&co.industry);f.industry.setAttribute("list","ws-ind");body.appendChild(dl);
-  let um;if(!co){const lb=h("label","ws-chk");um=h("input");um.type="checkbox";um.checked=!ws.companies.length;lb.append(um," Use the social accounts and ad accounts I already connected (no reconnecting)");body.appendChild(lb);
-    body.appendChild(h("p","bz-mut","Leave it off if this company has its own Facebook, Instagram, TikTok, YouTube or Google accounts. You connect those once, inside the company."))}
+  let um;if(!co){const lb=h("label","ws-chk");um=h("input");um.type="checkbox";um.checked=!ws.companies.length;lb.append(um," This is my existing business: use the accounts I already connected and the leads, deals and contacts I already have");body.appendChild(lb);
+    body.appendChild(h("p","bz-mut","Leave it off for a different company with its own Facebook, Instagram, TikTok, YouTube or Google accounts and its own customers. You connect those once, inside the company."))}
   const err=h("p","bz-err");err.hidden=true;const go=h("button","bz-btn",co?"Save":"Create company workspace");
   go.onclick=async()=>{go.disabled=true;err.hidden=true;try{const r=await api("POST","/api/workspace/company",{id:co&&co.id,name:f.name.value,website:f.website.value,industry:f.industry.value,useMain:um?um.checked:false});
     LS("ficx.co",r.id);if(goMode){await api("POST","/api/workspace/mode",{mode:goMode});LS("ficx.mode",goMode)}
@@ -68,6 +68,18 @@ function segment(ws){
     add(b,h("b",null,t),h("small",null,who));b.onclick=()=>switchMode(ws,k);g.appendChild(b)}
   return g}
 
+// Sign-in pop-up: once per sign-in, ask how they want to work today (their last choice is highlighted).
+function pickedNow(){try{return sessionStorage.getItem("ficx.picked")==="1"}catch(e){return true}}
+function markPicked(){try{sessionStorage.setItem("ficx.picked","1")}catch(e){}}
+export function clearPicked(){try{sessionStorage.removeItem("ficx.picked")}catch(e){}}
+function welcomePicker(ws,name){
+  const body=h("div"),grid=h("div","ws-modes");
+  for(const[k,t,d,who]of SEG){const c=h("button","ws-mode"+(ws.mode===k?" on":""));add(c,h("em",null,"I am a"),h("b",null,who.replace(/^Social & marketing specialists$/,"Social media or marketing specialist").replace(/^Managers & team leads$/,"Manager or team lead").replace(/^Owners, CEOs & agencies$/,"Owner, CEO or agency")),h("span",null,t+": "+d.toLowerCase()+"."),ws.mode===k?h("small",null,"Your last choice"):null);
+    c.onclick=async()=>{markPicked();ov.remove();await switchMode(ws,k)};grid.appendChild(c)}
+  add(body,h("p","bz-mut","Same app, different view: choose the one that matches your job and you see only what you need. Switch any time from the bar at the top. Accounts and settings are shared, so nothing needs connecting again."),grid);
+  const ov=overlay("Welcome"+(name?", "+name:"")+". How do you want to work today?",body,true);
+  ov.addEventListener("click",e=>{if(e.target===ov)markPicked()});const x=ov.querySelector(".ws-hd .bz-mini");if(x)x.addEventListener("click",markPicked)}
+
 // The top-most strip on every page: pick how you work, then the company.
 export function mountTopBar(ws){
   if(document.getElementById("ws-top"))return;
@@ -83,6 +95,8 @@ export async function initWorkspace(page,{embed}={}){
   const ws=await loadWorkspace();
   if(ws.mode==="ficx"&&page==="crm"){location.replace("/dashboard");return null}
   if(ws.mode==="company"&&page==="dashboard"){location.replace("/crm");return null}
+  if(!pickedNow()&&ws.mode!=="company"&&coId()){LS("ficx.co",null);LS("ficx.coinfo",null);ws.active=null}
   if(!matchMedia("(max-width:760px)").matches)mountTopBar(ws);
   if(ws.mode==="company"&&!ws.companies.length)companyDialog(ws,null,"company");
+  else if(!pickedNow())welcomePicker(ws,((window.FBUSER&&window.FBUSER.displayName)||"").split(" ")[0]);
   return ws}
