@@ -656,7 +656,7 @@ func heuristicLabel(from, subj, text string) string {
 
 func (s *server) classifyReply(ctx context.Context, o obSettings, from, subj, text string) (label, summary, suggest string) {
 	label = heuristicLabel(from, subj, text)
-	if label == "bounce" || label == "out_of_office" || env("GEMINI_API_KEY") == "" {
+	if label == "bounce" || label == "out_of_office" || !aiReady() {
 		return label, trunc(strings.ReplaceAll(text, "\n", " "), 140), ""
 	}
 	prompt := fmt.Sprintf(`You triage replies to B2B cold emails. The sender sells: %s

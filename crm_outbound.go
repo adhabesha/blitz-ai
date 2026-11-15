@@ -168,7 +168,7 @@ func (s *server) crmObSettings(w http.ResponseWriter, r *http.Request) {
 		"offer": o.Offer, "fromName": o.FromName, "company": o.Company, "address": o.Address, "replyTo": o.ReplyTo, "tz": o.Tz,
 		"inboundUrl": baseURL(r) + "/api/crm/inbound/" + c.wid + "/" + secret,
 		"mailReady":  mailConfigured(), "smtp": smtpReady(), "baseUrl": env("BASE_URL") != "",
-		"apollo": env("APOLLO_API_KEY") != "", "hunter": env("HUNTER_API_KEY") != "", "ai": env("GEMINI_API_KEY") != "",
+		"apollo": env("APOLLO_API_KEY") != "", "hunter": env("HUNTER_API_KEY") != "", "ai": aiReady(),
 	})
 }
 
@@ -388,8 +388,8 @@ func (s *server) hunterDomain(ctx context.Context, domain string, titles []strin
 
 // groundedJSON asks Gemini with live Google Search, trying several models, then without search.
 func (s *server) groundedJSON(ctx context.Context, prompt string) (string, bool, error) {
-	if env("GEMINI_API_KEY") == "" {
-		return "", false, errors.New("AI is not set up (GEMINI_API_KEY)")
+	if !aiReady() {
+		return "", false, errors.New("AI is not set up (add a Gemini key, or Groq, Cerebras, OpenRouter, Mistral, Claude, Grok or OpenAI)")
 	}
 	var models []string
 	for _, m := range []string{env("GEMINI_SEARCH_MODEL"), geminiModel(), "gemini-2.5-flash", "gemini-2.5-flash-lite"} {
@@ -400,6 +400,9 @@ func (s *server) groundedJSON(ctx context.Context, prompt string) (string, bool,
 		if !dup {
 			models = append(models, m)
 		}
+	}
+	if env("GEMINI_API_KEY") == "" { // live Google Search grounding is Gemini-only; other providers answer without it
+		models = nil
 	}
 	cctx, cancel := context.WithTimeout(ctx, 40*time.Second)
 	defer cancel()
@@ -1046,8 +1049,8 @@ func (s *server) crmOutreachDraft(w http.ResponseWriter, r *http.Request) {
 	if !readBody(w, r, &in, 20<<10) {
 		return
 	}
-	if env("GEMINI_API_KEY") == "" {
-		http.Error(w, "AI is not set up (GEMINI_API_KEY).", 400)
+	if !aiReady() {
+		http.Error(w, "AI is not set up (add an AI key in Admin).", 400)
 		return
 	}
 	if in.LeadID != "" {

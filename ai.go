@@ -34,7 +34,32 @@ func (s *server) geminiImages(ctx context.Context, prompt string, labels []strin
 	return s.geminiParts(ctx, parts)
 }
 
+// geminiParts is the entry point for every AI call. Text-only prompts go through the provider chain (see
+// ai_router.go: Gemini free first, then other free tiers, then optional paid keys). Prompts with images
+// need Gemini's vision input and are sent to Gemini only.
 func (s *server) geminiParts(ctx context.Context, parts []any) (string, error) {
+	var sb strings.Builder
+	textOnly := true
+	for _, p := range parts {
+		m, ok := p.(map[string]string)
+		if !ok || m["text"] == "" {
+			textOnly = false
+			break
+		}
+		sb.WriteString(m["text"])
+		sb.WriteString("\n")
+	}
+	if textOnly {
+		return s.aiText(ctx, strings.TrimSpace(sb.String()))
+	}
+	if env("GEMINI_API_KEY") == "" {
+		return "", errors.New("Looking at images needs a Gemini key (GEMINI_API_KEY)")
+	}
+	return s.geminiCall(ctx, parts)
+}
+
+// geminiCall is one direct request to Gemini.
+func (s *server) geminiCall(ctx context.Context, parts []any) (string, error) {
 	body, _ := json.Marshal(map[string]any{
 		"contents":         []any{map[string]any{"parts": parts}},
 		"generationConfig": map[string]any{"responseMimeType": "application/json"},
@@ -52,6 +77,9 @@ func (s *server) geminiParts(ctx context.Context, parts []any) (string, error) {
 		return "", errRate
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == 401 || resp.StatusCode == 403 {
+			return "", fmt.Errorf("%w (status %d)", errAuth, resp.StatusCode)
+		}
 		return "", fmt.Errorf("gemini status %d", resp.StatusCode)
 	}
 	var out struct {

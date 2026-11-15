@@ -245,8 +245,8 @@ func pageText(doc string, n int) string {
 // findCompetitors reads the person's own site to learn the category and the place it serves, then asks Gemini
 // (with live Google Search) for real businesses that offer the same thing in the same area.
 func (s *server) findCompetitors(ctx context.Context, in evalIn) (category, location string, out []compCand, live bool, err error) {
-	if env("GEMINI_API_KEY") == "" {
-		return "", "", nil, false, errors.New("AI is not set up (GEMINI_API_KEY)")
+	if !aiReady() {
+		return "", "", nil, false, errors.New("AI is not set up (add an AI key in Admin)")
 	}
 	target, domain, nerr := normalizeURL(in.URL)
 	if nerr != nil {
@@ -287,6 +287,9 @@ Return JSON only, no other text: {"category":"short category","location":"city, 
 		if !dup {
 			models = append(models, m)
 		}
+	}
+	if env("GEMINI_API_KEY") == "" { // live Google Search grounding is Gemini-only
+		models = nil
 	}
 	var txt string
 	var gerr error

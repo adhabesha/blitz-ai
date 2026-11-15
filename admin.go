@@ -191,14 +191,8 @@ func (s *server) adminTest(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	ok, msg := false, ""
 	switch in.Target {
-	case "gemini":
-		if env("GEMINI_API_KEY") == "" {
-			msg = "No Gemini key set."
-		} else if _, err := s.gemini(ctx, `Reply with the JSON {"ok":true}`); err != nil {
-			msg = "Gemini call failed: " + trunc(err.Error(), 120) + " (check the key and model name)"
-		} else {
-			ok, msg = true, "Gemini works with model "+geminiModel()+"."
-		}
+	case "gemini", "groq", "cerebras", "openrouter", "mistral", "claude", "grok", "openai":
+		ok, msg = s.aiTest(ctx, in.Target)
 	case "youtube":
 		var d struct {
 			Items []struct{ ID string } `json:"items"`
