@@ -23,6 +23,9 @@ function kpiCard(k){
   const d=h("div","rp-kpi");d.dataset.s=k.status||"";
   const ic=h("div","rp-ico");ic.appendChild(icon(kpiIcon(k.label),22));
   const b=h("div","rp-kb");const vb=h("b",String(k.value).length>13?"rp-long":null,k.value);add(b,h("small",null,k.label),vb);
+  const lab={pass:"On target",warn:"Close to target",fail:"Below target"}[k.status];
+  if(lab)b.appendChild(h("span","rp-st "+k.status,lab));
+  if(k.note)k=Object.assign({},k,{note:k.note.replace(/^Good\s*[\u2265]\s*/,"Target: ").replace(/^Aim for\s*/,"Target: ")});
   const m=/([+-]\d+%)/.exec(k.note||"");
   if(m){const up=m[1][0]==="+";const row=h("div","rp-kd");add(row,h("span","bz-chip "+(up?"up":"down"),(up?"\u25B2 ":"\u25BC ")+m[1].slice(1)),h("span","bz-mut",(k.note||"").replace(m[1],"").trim()));b.appendChild(row)}
   else if(k.note)b.appendChild(h("span","bz-mut rp-note",k.note));

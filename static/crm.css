@@ -125,3 +125,4 @@ body.rc .bx-sec-h{justify-content:center;padding:10px 0 4px}body.rc .bx-sec-h:be
 .bx-search{flex:1 1 260px;max-width:560px;min-width:0}
 @media(max-width:900px){.bx-rfoot .rl{display:none}.bx-rfoot{justify-content:center;padding:11px 6px}.bx-search{order:9;flex:1 1 100%;max-width:none}.bx-top .sp{display:none}.bx-top{gap:8px;padding:8px 12px}.bx-brand{margin-right:auto}}
 @media(max-width:560px){.bx-top .bz-mini{padding:7px 10px;font-size:12px}.bx-plus{padding:8px 14px}}
+.bx-fun div{display:grid;grid-template-columns:minmax(64px,96px) minmax(0,1fr) auto;align-items:center;gap:10px}.bx-fun span{width:auto}.bx-fun b{white-space:nowrap;font-size:12.5px}

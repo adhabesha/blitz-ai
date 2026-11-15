@@ -279,7 +279,11 @@ func clip(s string, n int) string {
 }
 
 func kpiFrom(c Check, label, note string) KPI {
-	return KPI{Label: label, Value: c.Value, Note: note, Status: c.Status}
+	v := c.Value
+	if i := strings.Index(v, " ("); i > 0 { // the detail in brackets belongs in the note, not the big number
+		v = v[:i]
+	}
+	return KPI{Label: label, Value: v, Note: note, Status: c.Status}
 }
 
 // finish computes weighted category and overall scores from the checks.
