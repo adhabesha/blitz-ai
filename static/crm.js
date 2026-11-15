@@ -412,6 +412,6 @@ async function starterBar(){try{
 async function start(){try{
   let ws=null;try{ws=await initWorkspace("crm");if(!ws&&location.pathname!=="/crm")return;if(!ws)return}catch(e){console.error(e)}
   S.ws=ws;if(ws&&ws.mode==="company"){SECTIONS=companySections();MENU=SECTIONS.flatMap(x=>x.items)}
-  if(ws){const hb=document.createElement("div");$("who").before(hb);workspaceBar(hb,ws);if(ws.mode==="company"){const a=document.querySelector('.bx-top a[href="/dashboard"]');if(a)a.hidden=true}}
+  if(ws&&ws.mode==="company"){const a=document.querySelector('.bx-top a[href="/dashboard"]');if(a)a.hidden=true}
   const me=await api("GET","/api/crm/me");S.me=me;if(me.state!=="ok"){gate(me.state,me);return}S.team=await api("GET","/api/crm/team");boot();starterBar()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
 onAuthStateChanged(auth,u=>{if(!u){location.href="/app";return}start()});

@@ -7,7 +7,7 @@ import{mountRunAds,analyzeButton,campaignsControls}from"./runads.js";
 import{mountAdCreative}from"./adcreative.js";
 import{renderMarketing}from"./mreport.js";
 import{publishBtn,noApply}from"./apply.js";
-import{initWorkspace,workspaceBar}from"./workspace.js";
+import{initWorkspace}from"./workspace.js";
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
 const STEPS={seo:["Collecting data…","Comparing and clustering…","Writing recommendations…"],website:["Fetching your page…","Checking SEO tags…","Testing robots, sitemap and AI crawlers…","Running Google speed test (can take 30s)…","Asking AI what it recommends…","Writing your report…"],youtube:["Finding the channel…","Reading your latest videos…","Calculating KPIs…","Building projections and plan…"],google:["Reading your Google data…","Forecasting trends…","Writing your report…"],social:["Calculating engagement…","Comparing with benchmarks…","Building your projection…"],app:["Looking up your app…","Checking store listing…","Scoring reputation…"]};
@@ -283,8 +283,7 @@ onAuthStateChanged(auth,async u=>{
   if(!u){location.href="/app";return}
   const embedded=/[?&]embed=1/.test(location.search);let WS=null;
   try{WS=await initWorkspace("dashboard",{embed:embedded});if(!WS)return}catch(e){console.error(e)}
-  if(WS&&!embedded){const act=document.querySelector(".bz-actions");if(act){const b=h("div");act.prepend(b);workspaceBar(b,WS)}
-    if(WS.mode==="ficx"){const l=document.querySelector('a[href="/crm"]');if(l)l.hidden=true}}
+  if(WS&&!embedded&&WS.mode==="ficx"){const l=document.querySelector('a[href="/crm"]');if(l)l.hidden=true}
   if(WS&&WS.active){const a=WS.active,fill=(id,v)=>{const e=$(id);if(e&&!e.value&&v)e.value=v};fill("w-url",a.website);fill("seo-own",a.website);fill("mr-company",a.name)}
   $("name").textContent=(u.displayName||"").split(" ")[0];
   refreshPub=mountPublish($("f-publish"),auth);
