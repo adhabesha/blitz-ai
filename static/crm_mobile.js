@@ -241,7 +241,7 @@ export function phoneApp(X){
   // ---------------------------------------------------------------- MENU
   const PRIMARY=new Set(["leads","deals","contacts","companies","tasks","chats"]);
   function menu(){
-    const scr=screen("Menu");const b=scr.body;
+    const scr=screen("Menu");const b=scr.body;if(X.wsBar)b.appendChild(X.wsBar());
     const pc=h("div","ma-prof");add(pc,av(ownerName(S.me.me.uid)),(()=>{const d=h("div");add(d,h("b",null,ownerName(S.me.me.uid)),h("small",null,S.me.workspace.name+" · "+label(S.me.me.role)));return d})());b.appendChild(pc);
     for(const sec of SECTIONS){const its=sec.items.filter(i=>can(i[2],"v")&&!PRIMARY.has(i[0]));if(!its.length)continue;
       b.appendChild(h("h4","ma-grp",sec.t));const g=h("div","ma-menu");

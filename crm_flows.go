@@ -54,9 +54,11 @@ func (s *server) crmFlows(w http.ResponseWriter, r *http.Request) {
 		c.deny(w, "view automations")
 		return
 	}
-	fl := s.flowsOf(c.ctx, c.wid)
-	if fl == nil {
-		fl = []map[string]any{}
+	fl := []map[string]any{}
+	for _, x := range s.flowsOf(c.ctx, c.wid) {
+		if c.cid == "" || sv(x, "cid") == c.cid {
+			fl = append(fl, x)
+		}
 	}
 	jsonOut(w, map[string]any{"flows": fl})
 }
@@ -145,6 +147,7 @@ func (s *server) crmFlowSave(w http.ResponseWriter, r *http.Request) {
 		}
 		data["createdAt"] = time.Now()
 		data["stats"] = map[string]any{"triggered": 0, "leads": 0, "completed": 0}
+		c.tag(data)
 		ref := col.NewDoc()
 		ref.Set(c.ctx, data)
 		jsonOut(w, map[string]any{"ok": true, "id": ref.ID})

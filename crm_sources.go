@@ -207,6 +207,9 @@ func (s *server) crmHook(w http.ResponseWriter, r *http.Request) {
 	if sv(f, "name") == "" {
 		f["name"] = firstNonEmptyStr(sv(f, "email"), sv(f, "phone"))
 	}
+	if cid := r.URL.Query().Get("c"); reCID.MatchString(cid) {
+		f["cid"] = cid
+	}
 	s.crmInbound(r.Context(), parts[0], f, sv(f, "notes"))
 	jsonOut(w, map[string]bool{"ok": true})
 }
@@ -258,6 +261,9 @@ func (s *server) crmIntegrations(w http.ResponseWriter, r *http.Request) {
 	}
 	secret := sv(c.ws, "hookSecret")
 	hook := base + "/api/crm/hook/" + c.wid + "/" + secret
+	if c.cid != "" {
+		hook += "?c=" + c.cid
+	}
 	form := base + "/crm/form/" + c.wid + "/" + secret
 	pages := []map[string]any{}
 	it := s.db.Collection("crm_pages").Where("wid", "==", c.wid).Documents(c.ctx)
@@ -272,8 +278,8 @@ func (s *server) crmIntegrations(w http.ResponseWriter, r *http.Request) {
 	it.Stop()
 	jsonOut(w, map[string]any{
 		"webhookUrl": hook, "formUrl": form,
-		"embed":    `<iframe src="` + form + `" style="width:100%;max-width:520px;height:560px;border:0" title="Contact form"></iframe>`,
-		"curl":     `curl -X POST "` + hook + `" -H "Content-Type: application/json" -d '{"name":"Jane Doe","email":"jane@example.com","phone":"+251911000000","message":"I want a quote"}'`,
+		"embed":   `<iframe src="` + form + `" style="width:100%;max-width:520px;height:560px;border:0" title="Contact form"></iframe>`,
+		"curl":    `curl -X POST "` + hook + `" -H "Content-Type: application/json" -d '{"name":"Jane Doe","email":"jane@example.com","phone":"+251911000000","message":"I want a quote"}'`,
 		"hookLog": s.hookLogOf(c.ctx, c.wid), "metaPages": pages, "metaOwner": sv(c.ws, "metaOwner"),
 		"metaWebhook": map[string]any{"url": base + "/api/crm/meta/webhook", "verifyToken": metaVerifyToken(), "appSecretSet": env("FACEBOOK_APP_SECRET") != ""},
 	})

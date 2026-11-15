@@ -726,7 +726,7 @@ func (s *server) crmProspectSearch(w http.ResponseWriter, r *http.Request) {
 			p.EmailStatus = "no email found"
 		}
 		ref := col.Doc(p.id())
-		if _, e := ref.Create(c.ctx, p.doc(c.uid)); e != nil {
+		if _, e := ref.Create(c.ctx, c.tag(p.doc(c.uid))); e != nil {
 			dup++
 		} else {
 			added++
@@ -757,7 +757,9 @@ func (s *server) crmProspects(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		out = append(out, x)
+		if c.cid == "" || sv(x, "cid") == c.cid {
+			out = append(out, x)
+		}
 	}
 	jsonOut(w, map[string]any{"items": out})
 }
@@ -835,7 +837,7 @@ func (s *server) crmProspectLookup(w http.ResponseWriter, r *http.Request) {
 	saved := false
 	if in.Save && len(cands) > 0 {
 		p := prospect{Name: clip(in.Name, 120), Title: in.Title, Company: firstNonEmptyStr(in.Company, dom), Domain: dom, Email: cands[0].Email, EmailStatus: cands[0].Status, Source: "lookup"}
-		if _, err := s.crmWS(c.wid).Collection("prospects").Doc(p.id()).Create(c.ctx, p.doc(c.uid)); err == nil {
+		if _, err := s.crmWS(c.wid).Collection("prospects").Doc(p.id()).Create(c.ctx, c.tag(p.doc(c.uid))); err == nil {
 			saved = true
 		}
 	}
@@ -888,6 +890,7 @@ func (s *server) crmProspectPromote(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		f["notes"] = strings.Join(notes, "\n")
+		c.tag(f)
 		lid, isDup, err := s.crmAddLead(c.ctx, c.wid, f, c.uid, "Prospected by outbound search")
 		if err != nil {
 			continue

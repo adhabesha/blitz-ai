@@ -109,7 +109,9 @@ func (s *server) crmSequences(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		out = append(out, x)
+		if c.cid == "" || sv(x, "cid") == c.cid {
+			out = append(out, x)
+		}
 	}
 	jsonOut(w, map[string]any{"items": out})
 }
@@ -183,6 +185,7 @@ func (s *server) crmSequenceSave(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		ref := col.NewDoc()
 		f["createdAt"], f["createdBy"], f["stats"] = time.Now(), c.uid, map[string]any{}
+		c.tag(f)
 		if _, err := ref.Set(c.ctx, f); err != nil {
 			http.Error(w, "Could not save.", 500)
 			return
@@ -745,9 +748,15 @@ func (s *server) inboxIngest(ctx context.Context, wid, from, subj, text, src str
 	}
 	label, summary, suggest := s.classifyReply(ctx, obOf(ws), addr, subj, text)
 	lid, lname := s.applyReply(ctx, wid, addr, label, summary, true)
+	lcid := ""
+	if lid != "" {
+		if ld, e := s.crmWS(wid).Collection("leads").Doc(lid).Get(ctx); e == nil {
+			lcid = sv(ld.Data(), "cid")
+		}
+	}
 	ref := s.crmWS(wid).Collection("inbox").NewDoc()
 	_, err := ref.Set(ctx, map[string]any{"from": addr, "fromName": firstNonEmptyStr(name, lname), "subject": clip(subj, 200), "text": text, "label": label, "summary": summary, "suggest": suggest,
-		"leadId": lid, "leadName": lname, "handled": false, "source": src, "receivedAt": time.Now()})
+		"leadId": lid, "leadName": lname, "handled": false, "source": src, "receivedAt": time.Now(), "cid": lcid})
 	return ref.ID, label, err
 }
 
@@ -841,7 +850,9 @@ func (s *server) crmInbox(w http.ResponseWriter, r *http.Request) {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		out = append(out, x)
+		if c.cid == "" || sv(x, "cid") == c.cid {
+			out = append(out, x)
+		}
 	}
 	jsonOut(w, map[string]any{"items": out})
 }

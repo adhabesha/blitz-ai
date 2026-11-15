@@ -116,6 +116,7 @@ type crmReq struct {
 	dept     string
 	ws       map[string]any
 	deptSet  map[string]bool // lazily built: uids visible through my department
+	cid      string          // active company ("" = every company)
 }
 
 func (s *server) crmAuth(r *http.Request) (*crmReq, error) {
@@ -131,6 +132,12 @@ func (s *server) crmAuth(r *http.Request) (*crmReq, error) {
 	c.email, _ = t.Claims["email"].(string)
 	c.email = strings.ToLower(strings.TrimSpace(c.email))
 	c.verified, _ = t.Claims["email_verified"].(bool)
+	if h := strings.TrimSpace(r.Header.Get("X-Company")); h != "" {
+		if _, ok := s.companyInfo(r.Context(), t.UID, h); !ok {
+			return nil, errors.New("unknown company")
+		}
+		c.cid = h
+	}
 	if fb, ok := t.Claims["firebase"].(map[string]any); ok {
 		if p, _ := fb["sign_in_provider"].(string); p == "google.com" {
 			c.verified = true
@@ -344,7 +351,7 @@ func (c *crmReq) list(e string) []map[string]any {
 		}
 		x := d.Data()
 		x["id"] = d.Ref.ID
-		if c.sees(e, x) {
+		if c.sees(e, x) && (c.cid == "" || sv(x, "cid") == c.cid) {
 			out = append(out, x)
 		}
 	}
@@ -517,6 +524,7 @@ func (s *server) crmSave(w http.ResponseWriter, r *http.Request) {
 		}
 		now := time.Now()
 		data["createdAt"], data["updatedAt"], data["createdBy"] = now, now, c.uid
+		c.tag(data)
 		ref := c.s.crmWS(c.wid).Collection(e).NewDoc()
 		if _, err := ref.Set(c.ctx, data); err != nil {
 			http.Error(w, "db error", 500)
@@ -766,13 +774,13 @@ func (s *server) crmConvert(w http.ResponseWriter, r *http.Request) {
 	var companyID, contactID string
 	if in.MakeCompany && strings.TrimSpace(sv(l, "company")) != "" && c.can("companies", 'c') {
 		ref := c.s.crmWS(c.wid).Collection("companies").NewDoc()
-		ref.Set(c.ctx, map[string]any{"name": sv(l, "company"), "ownerUid": owner, "createdAt": now, "updatedAt": now, "createdBy": c.uid, "tags": []string{}, "city": sv(l, "city"), "country": sv(l, "country")})
+		ref.Set(c.ctx, map[string]any{"name": sv(l, "company"), "ownerUid": owner, "createdAt": now, "updatedAt": now, "createdBy": c.uid, "tags": []string{}, "city": sv(l, "city"), "country": sv(l, "country"), "cid": sv(l, "cid")})
 		companyID = ref.ID
 		res["companyId"] = companyID
 	}
 	if in.MakeContact && c.can("contacts", 'c') {
 		ref := c.s.crmWS(c.wid).Collection("contacts").NewDoc()
-		ref.Set(c.ctx, map[string]any{"name": sv(l, "name"), "email": sv(l, "email"), "phone": sv(l, "phone"), "title": sv(l, "title"), "companyId": companyID, "companyName": sv(l, "company"), "source": sv(l, "source"), "ownerUid": owner, "createdAt": now, "updatedAt": now, "createdBy": c.uid, "tags": []string{}, "city": sv(l, "city"), "country": sv(l, "country")})
+		ref.Set(c.ctx, map[string]any{"name": sv(l, "name"), "email": sv(l, "email"), "phone": sv(l, "phone"), "title": sv(l, "title"), "companyId": companyID, "companyName": sv(l, "company"), "source": sv(l, "source"), "ownerUid": owner, "createdAt": now, "updatedAt": now, "createdBy": c.uid, "tags": []string{}, "city": sv(l, "city"), "country": sv(l, "country"), "cid": sv(l, "cid")})
 		contactID = ref.ID
 		res["contactId"] = contactID
 	}
@@ -800,7 +808,7 @@ func (s *server) crmConvert(w http.ResponseWriter, r *http.Request) {
 	}
 	dref := c.s.crmWS(c.wid).Collection("deals").NewDoc()
 	dref.Set(c.ctx, map[string]any{"notes": clip(strings.Join(brief, "\n"), 2000), "title": title, "stage": "qualified", "value": value, "contactId": contactID, "contactName": sv(l, "name"), "companyId": companyID, "companyName": sv(l, "company"), "leadId": in.ID,
-		"ownerUid": owner, "source": sv(l, "source"), "expectedClose": in.ExpectedDate, "createdAt": now, "updatedAt": now, "createdBy": c.uid})
+		"ownerUid": owner, "source": sv(l, "source"), "expectedClose": in.ExpectedDate, "createdAt": now, "updatedAt": now, "createdBy": c.uid, "cid": sv(l, "cid")})
 	res["dealId"] = dref.ID
 	lref.Update(c.ctx, []firestore.Update{{Path: "status", Value: "converted"}, {Path: "updatedAt", Value: now}, {Path: "dealId", Value: dref.ID}})
 	c.s.crmLog(c.ctx, c.wid, "leads", in.ID, sv(l, "name"), "converted", "Converted into deal \""+title+"\"", c.uid, owner)
@@ -918,6 +926,7 @@ func (s *server) crmImport(w http.ResponseWriter, r *http.Request) {
 			f["name"] = firstNonEmptyStr(sv(f, "email"), sv(f, "phone"))
 		}
 		f["source"], f["ownerUid"] = src, owner
+		c.tag(f)
 		delete(f, "status")
 		_, isDup, err := s.crmAddLead(c.ctx, c.wid, f, c.uid, "Imported from a file")
 		switch {
@@ -933,3 +942,11 @@ func (s *server) crmImport(w http.ResponseWriter, r *http.Request) {
 }
 
 func firestoreMerge() firestore.SetOption { return firestore.MergeAll }
+
+// tag marks a record with the active company so it only shows inside that company's workspace.
+func (c *crmReq) tag(m map[string]any) map[string]any {
+	if c.cid != "" {
+		m["cid"] = c.cid
+	}
+	return m
+}

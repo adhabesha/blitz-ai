@@ -3,6 +3,7 @@ import{getAuth,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasej
 import{h,add,api,setAuth,copy,icon}from"./ui.js";
 import{outbound}from"./crm_out.js";
 import{phoneApp}from"./crm_mobile.js";
+import{initWorkspace,workspaceBar}from"./workspace.js";
 let MOBI=null;
 
 const auth=getAuth(initializeApp(window.FB));setAuth(auth);
@@ -184,6 +185,20 @@ function grid(e,cols,rowFn,opts={}){
 // ---------------------------------------------------------------- views
 const lv=(e,l)=>[["kanban","Kanban"],["list","List"]].map(([k,t])=>[k,t,S.sub[e]===k,()=>{S.sub[e]=k;show(e)}]);
 const VIEWS={
+  async overview(){const co=(S.ws&&S.ws.active)||{name:S.me.workspace.name,website:"",industry:""};
+    setHead(co.name,[co.industry,co.website].filter(Boolean).join(" \u00b7 ")||"Company workspace");const v=V();v.innerHTML="";
+    let reps=[],soc={};try{[reps,soc]=await Promise.all([api("GET","/api/reports"),api("GET","/api/social/status")])}catch(e){}
+    const conn=Object.values((soc||{}).providers||{}).filter(p=>p.connected).length;await Promise.all([load("leads"),load("deals")]);
+    const L=S.data.leads||[],D=S.data.deals||[],nr=(reps||[]).length;
+    const next=!nr?"Start here: run the first analysis":!conn?"Next: connect this company's social accounts":!L.length?"Next: turn on automations or outbound to capture the first leads":"Keep going: review the revenue dashboard";
+    const first=h("section","bz-card ws-next");add(first,h("b",null,next),h("span","bz-mut","Everything you do here is saved for "+co.name+" only."));v.appendChild(first);
+    const steps=[["1","Analyze","Website, social, YouTube and app reports.",nr+" reports \u00b7 "+conn+" accounts connected","an:website"],
+      ["2","Optimize & publish","Titles, descriptions, tags, schedule, and post to every account at once.","","an:optimizer"],
+      ["3","Ads & reporting","Campaigns, ad creative, SEO and the marketing report.","","an:runads"],
+      ["4","Messaging","Chats with human takeover, comment-to-DM and keyword automations.","","automations"],
+      ["5","Outbound","Find prospects, run follow-up sequences, handle replies in the smart inbox.","","prospects"],
+      ["6","CRM & revenue","Leads, deals, tasks and the revenue dashboard.",L.length+" leads \u00b7 "+D.length+" deals","dashboard"]];
+    const g=h("div","ws-steps");for(const[n,t,d,st,k]of steps){const c=h("button","ws-step");add(c,h("i",null,n),h("b",null,t),h("span",null,d),st?h("em",null,st):null);c.onclick=()=>nav(k);g.appendChild(c)}v.appendChild(g)},
   async leads(){await load("leads");setHead("Leads","Everyone who showed interest",[newBtn("leads")],lv("leads"));
     if(S.sub.leads==="kanban")return kanban("leads");
     grid("leads",["Lead","Company","Contact","Source","Status","Amount","Responsible","Created"],l=>[l.name,l.company,[l.email,l.phone].filter(Boolean).join(" · "),label(l.source),pill(l.status),l.value?money(l.value):"",(()=>{const sp=h("span");sp.append(avatar(l.ownerUid)," ",ownerName(l.ownerUid));return sp})(),date(l.createdAt)],{filter:{label:"All statuses",key:"status",opts:S.me.leadStatus}})},
@@ -335,14 +350,24 @@ const OUT=outbound({h,add,api,copy,S,can,mk,formEl,modal,close,msg,setHead,V,lab
 Object.assign(VIEWS,OUT.views);
 {const base=VIEWS.sources;VIEWS.sources=async function(){await base.call(VIEWS);try{V().appendChild(await OUT.waCard())}catch(x){}}}
 // ---------------------------------------------------------------- shell
-const SECTIONS=[
+let SECTIONS=[
  {t:"CRM",items:[["dashboard","Revenue","reports","trend"],["leads","Leads","leads","userplus"],["deals","Deals","deals","layers"],["contacts","Contacts","contacts","users"],["companies","Companies","companies","grid"],["tasks","Activities","tasks","check"]]},
  {t:"Engage",items:[["chats","Chats","leads","send"],["automations","Automations","integrations","zap"],["sources","Lead sources","integrations","link"]]},
  {t:"Outbound",items:[["prospects","Prospector","leads","search"],["sequences","Sequences","leads","send"],["inbox","Smart inbox","leads","userplus"],["obsettings","Outbound settings","leads","zap"]]},
  {t:"Analytics",fold:true,open:true,items:[["an:website","Website","reports","globe",{k:"website",sub:"Speed, SEO and fixes for any website"}],["an:youtube","YouTube","reports","play",{k:"youtube",sub:"Channel stats and growth plan"}],["an:socialc","Connected accounts (live)","reports","share",{k:"socialc",sub:"Facebook, Instagram, TikTok, X, LinkedIn, Pinterest, YouTube and Google: connect once, analyze everything"}],["an:social","Other social (manual)","reports","users",{k:"social",sub:"Manual social profile analysis"}],["an:app","App","reports","phone",{k:"app",sub:"Store listing and app growth"}],["an:runads","Run ads","reports","zap",{k:"runads",sub:"Launch and manage paid campaigns"}],["an:adcreative","Ad creative","reports","film",{k:"adcreative",sub:"Scripts, briefs and finished ads"}],["an:seo","SEO & Ads","reports","search",{k:"seo",sub:"Keywords, competitors and market position"}],["an:mreport","Marketing report","reports","bars",{k:"mreport",sub:"All your results in one marketing report",b:"AI"}],["an:publish","Publish to all","reports","send",{k:"publish",sub:"Post to every connected account"}],["an:optimizer","Optimizer & Publish","reports","star",{k:"optimizer",sub:"Optimise and publish videos"}]]},
  {t:"Admin",items:[["team","Team & access","team","share"]]}
 ];
-const MENU=SECTIONS.flatMap(x=>x.items);
+let MENU=SECTIONS.flatMap(x=>x.items);
+// Company workspace: the same screens, grouped in the order a company's growth runs.
+function companySections(){const M=SECTIONS.flatMap(x=>x.items),p=(...ks)=>ks.map(k=>M.find(m=>m[0]===k)).filter(Boolean);
+  return[{t:"Company",items:[["overview","Overview","leads","grid"]]},
+  {t:"1 \u00b7 Analyze",items:p("an:website","an:socialc","an:youtube","an:social","an:app")},
+  {t:"2 \u00b7 Optimize & publish",items:p("an:optimizer","an:publish","an:adcreative","an:seo")},
+  {t:"3 \u00b7 Ads & reporting",items:p("an:runads","an:mreport")},
+  {t:"4 \u00b7 Messaging",items:p("chats","automations","sources")},
+  {t:"5 \u00b7 Outbound",items:p("prospects","sequences","inbox","obsettings")},
+  {t:"6 \u00b7 CRM",items:p("dashboard","leads","deals","contacts","companies","tasks")},
+  {t:"Admin",items:p("team")}]}
 let frameReady=false;
 function nav(k){if(MOBI&&MOBI.nav(k))return;S.view=k;document.querySelectorAll("#nav .bz-nav").forEach(b=>b.classList.toggle("on",b.dataset.k===k));const g=document.querySelector('#nav .bz-nav.on');if(g&&g.parentElement.classList.contains("shut")){g.parentElement.classList.remove("shut");g.parentElement.previousElementSibling.classList.remove("shut")}close();show(k)}
 async function show(k){S.charts.forEach(c=>c.destroy());S.charts=[];const an=k.startsWith("an:");$("anwrap").hidden=!an;$("view").hidden=an;
@@ -369,7 +394,7 @@ function boot(){
   $("plus").onclick=ev=>{ev.stopPropagation();pm.hidden=!pm.hidden};document.addEventListener("click",()=>pm.hidden=true);globalSearch();
   if(!first&&!MENU.some(m=>can(m[2],"v"))){V().innerHTML="<p class='bz-mut'>Your role has no modules yet. Ask an administrator.</p>";return}
   const want=new URLSearchParams(location.search).get("an"),wk=MENU.find(m=>m[0]==="an:"+(want==="google"?"socialc":want));const ph=matchMedia("(max-width:760px)");ph.onchange=()=>location.reload();
-  if(ph.matches){try{MOBI=phoneApp({h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,logout,coldEmail:r=>OUT.coldEmail(r)});if(wk)MOBI.nav(wk[0]);return}catch(e){console.error(e);MOBI=null;document.body.classList.remove("mapp-on")}}
+  if(ph.matches){try{MOBI=phoneApp({h,add,api,icon,S,can,ENT,load,label,money,ago,date,A,mk,stc,ownerName,formEl,nav,show,close,convertLead,modalTask,quick,SECTIONS,nameOf,members,logout,coldEmail:r=>OUT.coldEmail(r),wsBar:()=>{const d=h("div");if(S.ws)workspaceBar(d,S.ws);return d}});if(wk)MOBI.nav(wk[0]);return}catch(e){console.error(e);MOBI=null;document.body.classList.remove("mapp-on")}}
   nav(wk?wk[0]:(first||"an:website"))}
 function gate(st,me){
   setHead("CRM","");$("nav").innerHTML="";const v=V();v.innerHTML="";const c=h("section","bz-card");v.appendChild(c);
@@ -384,5 +409,9 @@ async function starterBar(){try{
   const bar=h("div","fx-starter"),txt=h("span",null,"You are on the free starter plan. Cold outreach, posting to all channels, launching ads and inviting a team unlock after a short walkthrough."),go=h("a","fx-starter-go","Book a demo"),x=h("button","fx-starter-x","\u00d7");
   go.href="/#demo";go.target="_blank";x.title="Hide";x.onclick=()=>{try{sessionStorage.setItem("fx-starter-x","1")}catch(e){}bar.remove()};
   add(bar,txt,go,x);const top=document.querySelector(".bx-top");if(top)top.after(bar)}catch(e){}}
-async function start(){try{const me=await api("GET","/api/crm/me");S.me=me;if(me.state!=="ok"){gate(me.state,me);return}S.team=await api("GET","/api/crm/team");boot();starterBar()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
+async function start(){try{
+  let ws=null;try{ws=await initWorkspace("crm");if(!ws&&location.pathname!=="/crm")return;if(!ws)return}catch(e){console.error(e)}
+  S.ws=ws;if(ws&&ws.mode==="company"){SECTIONS=companySections();MENU=SECTIONS.flatMap(x=>x.items)}
+  if(ws){const hb=document.createElement("div");$("who").before(hb);workspaceBar(hb,ws);if(ws.mode==="company"){const a=document.querySelector('.bx-top a[href="/dashboard"]');if(a)a.hidden=true}}
+  const me=await api("GET","/api/crm/me");S.me=me;if(me.state!=="ok"){gate(me.state,me);return}S.team=await api("GET","/api/crm/team");boot();starterBar()}catch(x){V().innerHTML="";V().appendChild(h("p","bz-err",x.message))}}
 onAuthStateChanged(auth,u=>{if(!u){location.href="/app";return}start()});

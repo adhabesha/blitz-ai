@@ -32,7 +32,7 @@ func (s *server) adminOK(r *http.Request) (string, bool) {
 }
 
 func (s *server) me(w http.ResponseWriter, r *http.Request) {
-	uid, err := s.uid(r)
+	uid, err := s.realUID(r)
 	if err != nil {
 		http.Error(w, "unauthorized", 401)
 		return
@@ -62,7 +62,7 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) saveProfile(w http.ResponseWriter, r *http.Request) {
-	uid, err := s.uid(r)
+	uid, err := s.realUID(r)
 	if err != nil || r.Method != http.MethodPost {
 		http.Error(w, "unauthorized", 401)
 		return

@@ -99,6 +99,10 @@ func main() {
 	mux.HandleFunc("/api/admin/users", s.adminUsers)
 	mux.HandleFunc("/api/admin/users/set", s.adminUserSet)
 	mux.HandleFunc("/api/me", s.me)
+	mux.HandleFunc("/api/workspace", s.workspaceGet)
+	mux.HandleFunc("/api/workspace/mode", s.workspaceMode)
+	mux.HandleFunc("/api/workspace/company", s.workspaceCompanySave)
+	mux.HandleFunc("/api/workspace/company/delete", s.workspaceCompanyDelete)
 	mux.HandleFunc("/api/profile", s.saveProfile)
 	mux.HandleFunc("/api/admin/config", s.adminConfig)
 	mux.HandleFunc("/api/admin/test", s.adminTest)
@@ -228,7 +232,7 @@ func (s *server) page(name string) http.HandlerFunc {
 	}
 }
 
-func (s *server) uid(r *http.Request) (string, error) {
+func (s *server) realUID(r *http.Request) (string, error) {
 	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	t, err := s.auth.VerifyIDToken(r.Context(), tok)
 	if err != nil {
