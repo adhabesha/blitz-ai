@@ -21,6 +21,9 @@ type Check struct {
 	Fix      string `json:"fix" firestore:"fix"`
 	Impact   int    `json:"impact" firestore:"impact"` // 1-5
 	Page     string `json:"page" firestore:"page"`
+	// Graded checks carry a continuous 0..1 score instead of the 3-step pass/warn/fail value.
+	Pts    float64 `json:"pts,omitempty" firestore:"pts,omitempty"`
+	Graded bool    `json:"graded,omitempty" firestore:"graded,omitempty"`
 }
 
 type KPI struct {
@@ -113,6 +116,8 @@ type Report struct {
 	Meta       map[string]string `json:"meta" firestore:"meta"`
 	AIUsed     bool           `json:"aiUsed" firestore:"aiUsed"`
 	CreatedAt  time.Time      `json:"createdAt" firestore:"createdAt"`
+	// Confidence (0-100) says how much data the score rests on; low values pull the score toward the middle.
+	Confidence int `json:"confidence,omitempty" firestore:"confidence,omitempty"`
 }
 
 type evalIn struct {
@@ -134,6 +139,9 @@ type evalIn struct {
 	Bio           string  `json:"bio"`
 	Captions      string  `json:"captions"`
 	Goal          string  `json:"goal"`
+	// per-post samples from a connected account (engagement = likes+comments+shares; views only for posts that report them)
+	PostEng   []float64 `json:"-"`
+	PostViews []float64 `json:"-"`
 	// google (connected) and youtube
 	Site     string `json:"site"`
 	Property string `json:"property"`
@@ -175,6 +183,73 @@ func rate(v, good, ok float64) string {
 		return "warn"
 	}
 	return "fail"
+}
+
+// grade turns a measurement into a status plus a smooth 0..1 score:
+// at "good" or above = 1, at "ok" = 0.5, at 0 = 0, linear in between.
+func grade(v, good, ok float64) (string, float64) {
+	if math.IsNaN(v) || v < 0 {
+		v = 0
+	}
+	switch {
+	case v >= good:
+		return "pass", 1
+	case v >= ok:
+		if good <= ok {
+			return "warn", 0.5
+		}
+		return "warn", 0.5 + 0.5*(v-ok)/(good-ok)
+	default:
+		if ok <= 0 {
+			return "fail", 0
+		}
+		return "fail", 0.5 * v / ok
+	}
+}
+
+// chkG is chk with smooth scoring.
+func chkG(cat, name string, v, good, ok float64, value, fix string, impact int) Check {
+	st, p := grade(v, good, ok)
+	c := chk(cat, name, st, value, fix, impact)
+	c.Pts, c.Graded = p, true
+	return c
+}
+
+// ratioText shows ratios above 100% as a multiple so 1419% never appears as a "rate".
+func ratioText(pct float64, of string) string {
+	if pct >= 100 {
+		return fmt.Sprintf("%.1f× your %s", pct/100, of)
+	}
+	return fmt.Sprintf("%.0f%% of your %s", pct, of)
+}
+
+func clampF(v, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, v)) }
+
+// confLabel names a confidence value.
+func confLabel(c float64) string {
+	switch {
+	case c >= 0.75:
+		return "High"
+	case c >= 0.45:
+		return "Medium"
+	}
+	return "Low"
+}
+
+// finishWith scores the report and then pulls every score toward the neutral middle (50)
+// in proportion to how little data there is. conf is 0..1.
+func (r *Report) finishWith(conf float64) {
+	r.finish()
+	conf = clampF(conf, 0, 1)
+	r.Confidence = int(conf*100 + 0.5)
+	if conf >= 0.999 {
+		return
+	}
+	shrink := func(v int) int { return int(conf*float64(v) + (1-conf)*50 + 0.5) }
+	r.Score = shrink(r.Score)
+	for k, v := range r.Categories {
+		r.Categories[k] = shrink(v)
+	}
 }
 
 // lower is better
@@ -219,6 +294,9 @@ func (r *Report) finish() {
 			v = 1
 		case "warn":
 			v = 0.5
+		}
+		if c.Graded {
+			v = c.Pts
 		}
 		wt := float64(c.Impact)
 		if wt < 1 {

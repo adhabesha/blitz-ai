@@ -367,20 +367,27 @@ func (s *server) evalCampaigns(ctx context.Context, uid string, in evalIn) (*Rep
 	add(chk(C, "Conversion tracking", ifs(tot.Results > 0, "pass", "fail"), ifs(tot.Results > 0, commas(tot.Results)+" "+tot.Label+" tracked", "No purchase or lead events"),
 		"Install the Meta Pixel and Conversions API so purchases and leads are counted. Without them ROAS and CPA cannot be measured.", 5))
 	if hasValue {
-		add(chk(C, "ROAS", rate(tot.roas(), 3, 1.5), fmt.Sprintf("%.2fx", tot.roas()), "Cut or rework the lowest-ROAS ads, then move budget to the winning ads and offers.", 5))
+		add(chkG(C, "ROAS", tot.roas(), 3, 1.5, fmt.Sprintf("%.2fx", tot.roas()), "Cut or rework the lowest-ROAS ads, then move budget to the winning ads and offers.", 5))
 	}
-	if tot.Results > 0 {
-		add(chk(C, "Conversion rate", rate(tot.cvr(), 2, 0.8), fmt.Sprintf("%.2f%%", tot.cvr()), "Improve the landing page speed and offer match, and send traffic only to the page the ad promises.", 4))
+	if tot.Results > 0 && tot.Clicks >= 100 {
+		add(chkG(C, "Conversion rate", tot.cvr(), 2, 0.8, fmt.Sprintf("%.2f%%", tot.cvr()), "Improve the landing page speed and offer match, and send traffic only to the page the ad promises.", 4))
 	}
-	add(chk(C, "Click-through rate", rate(tot.ctr(), 1, 0.5), fmt.Sprintf("%.2f%%", tot.ctr()), "Test new hooks in the first 3 seconds and a clearer offer in the headline.", 4))
+	if tot.Impr >= 1000 { // CTR on fewer than 1,000 impressions is noise
+		add(chkG(C, "Click-through rate", tot.ctr(), 1, 0.5, fmt.Sprintf("%.2f%%", tot.ctr()), "Test new hooks in the first 3 seconds and a clearer offer in the headline.", 4))
+	}
 	maxFreq := 0.0
 	for _, c := range camps {
-		if c.Freq > maxFreq {
+		if c.Freq > maxFreq && c.Impr >= 500 {
 			maxFreq = c.Freq
 		}
 	}
 	add(chk(C, "Ad frequency (max)", low(maxFreq, 3, 5), fmt.Sprintf("%.1f", maxFreq), "People see the same ad too often. Refresh the creative or widen the audience.", 3))
-	r.finish()
+	adConf := clampF(tot.Impr/5000, 0.3, 1)
+	r.KPIs = append(r.KPIs, KPI{Label: "Data confidence", Value: confLabel(adConf), Note: ifs(adConf >= 0.75, "Enough impressions for a dependable score", "Few impressions so far: rates swing a lot, score held nearer the middle")})
+	if adConf < 0.75 {
+		r.Notes = append(r.Notes, "Confidence is "+strings.ToLower(confLabel(adConf))+": under 5,000 impressions, so click-through and conversion rates are not yet reliable (CTR is only scored above 1,000 impressions, conversion rate above 100 clicks). The score is held closer to the middle (50).")
+	}
+	r.finishWith(adConf)
 
 	// plan
 	for i, w := range winners {

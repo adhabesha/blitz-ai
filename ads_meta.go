@@ -485,14 +485,22 @@ func (s *server) evalAdsPerf(ctx context.Context, uid string, in evalIn) (*Repor
 	}
 	r.Meta["account"] = acct
 	add := func(c Check) { r.Checks = append(r.Checks, c) }
-	add(chk(C, "Click-through rate", rate(ctr, 1, 0.5), fmt.Sprintf("%.2f%%", ctr), "Test new images and headlines; narrow the audience; make the offer clearer.", 5))
+	if impr >= 1000 { // CTR on fewer than 1,000 impressions is noise
+		add(chkG(C, "Click-through rate", ctr, 1, 0.5, fmt.Sprintf("%.2f%%", ctr), "Test new images and headlines; narrow the audience; make the offer clearer.", 5))
+	}
 	maxFreq := 0.0
 	for _, a := range ads {
-		maxFreq = math.Max(maxFreq, atof(a.Freq))
+		if atof(a.Impr) >= 500 {
+			maxFreq = math.Max(maxFreq, atof(a.Freq))
+		}
 	}
 	add(chk(C, "Ad frequency (max)", low(maxFreq, 3, 5), fmt.Sprintf("%.1f", maxFreq), "People see the same ad too often. Refresh the creative or widen the audience.", 4))
 	add(chk(C, "Delivery", ifs(impr > 0, "pass", "fail"), commas(impr)+" impressions", "No delivery: check payment method, ad status and the ad review result in Ads Manager.", 5))
-	r.finish()
+	adConf := clampF(impr/5000, 0.3, 1)
+	if adConf < 0.75 {
+		r.Notes = append(r.Notes, "Confidence is "+strings.ToLower(confLabel(adConf))+": under 5,000 impressions, so click-through rate is not yet reliable (only scored above 1,000 impressions). The score is held closer to the middle (50).")
+	}
+	r.finishWith(adConf)
 	mc := maxDaily()
 	if len(ads) > 0 {
 		avgSpend := spend / float64(len(ads))

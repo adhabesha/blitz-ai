@@ -869,21 +869,37 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 			recent = append(recent, q)
 		}
 	}
+	// Scored sample: posts older than 48h (younger ones are still collecting likes and views).
+	// If that leaves fewer than 3 posts, use everything we have.
+	sample := make([]socialPost, 0, len(recent))
+	for _, q := range recent {
+		if now.Sub(q.When).Hours() >= 48 {
+			sample = append(sample, q)
+		}
+	}
+	if len(sample) < 3 {
+		sample = recent
+	}
 	var likes, comments, shares, views, viewPosts float64
+	var postEng, postViews []float64
 	var caps []string
-	for i, q := range recent {
+	for _, q := range sample {
 		likes += q.Likes
 		comments += q.Comments
 		shares += q.Shares
+		postEng = append(postEng, q.Likes+q.Comments+q.Shares)
 		if q.HasViews {
 			views += q.Views
 			viewPosts++
+			postViews = append(postViews, q.Views)
 		}
+	}
+	for i, q := range recent {
 		if i < 15 && strings.TrimSpace(q.Text) != "" {
 			caps = append(caps, strings.TrimSpace(q.Text))
 		}
 	}
-	n := float64(len(recent))
+	n := float64(len(sample))
 	if n == 0 {
 		n = 1
 	}
@@ -893,7 +909,7 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 	}
 	prev := s.followerBaseline(ctx, uid, p.ID, snap.Followers)
 	ein := evalIn{Kind: "social", UseAI: in.UseAI, Platform: p.ID, Handle: snap.Handle, Followers: snap.Followers, PrevFollowers: prev, Following: snap.Following, Posts30: posts30,
-		Likes: likes / n, Comments: comments / n, Shares: shares / n, Views: avgViews, Bio: snap.Bio, Captions: strings.Join(caps, "\n\n")}
+		Likes: likes / n, Comments: comments / n, Shares: shares / n, Views: avgViews, Bio: snap.Bio, Captions: strings.Join(caps, "\n\n"), PostEng: postEng, PostViews: postViews}
 	r, err := s.evalSocial(ctx, ein)
 	if err != nil {
 		return nil, err

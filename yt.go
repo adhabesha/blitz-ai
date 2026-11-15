@@ -254,7 +254,20 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		maxViews = math.Max(maxViews, x)
 	}
 	avgViews /= n
-	avgEng := sumEng / n
+	var engs []float64
+	for _, v := range vids {
+		if v.Views > 0 && now.Sub(v.Pub).Hours() >= 48 {
+			engs = append(engs, v.Eng)
+		}
+	}
+	if len(engs) < 3 { // too few settled videos: use all of them
+		engs = engs[:0]
+		for _, v := range vids {
+			engs = append(engs, v.Eng)
+		}
+	}
+	avgEng := median(engs) // typical video, so one viral hit cannot inflate the score
+	_ = sumEng
 	perWeek := n30 / 4.3
 	daysSince := now.Sub(vids[0].Pub).Hours() / 24
 	reach := 0.0
@@ -271,11 +284,11 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	r := &Report{Target: c.Snippet.Title}
 	add := func(x Check) { r.Checks = append(r.Checks, x) }
 	const A, E, K, O = "Audience & reach", "Engagement", "Consistency", "Optimization"
-	reachC := chk(A, "Typical views vs subscribers", rate(reach, 15, 5), fmt.Sprintf("%.0f%% (median video)", reach), "Your videos reach too few of your subscribers. Improve thumbnails and titles, and post on your audience's active days.", 5)
-	if subs > 0 && !c.Statistics.Hidden {
+	reachC := chkG(A, "Typical views vs subscribers", reach, 15, 5, ratioText(reach, "subscribers")+" (median video)", "Your videos reach too few of your subscribers. Improve thumbnails and titles, and post on your audience's active days.", 5)
+	if subs >= 100 && !c.Statistics.Hidden {
 		add(reachC)
 	}
-	engC := chk(E, "Engagement rate (likes + comments / views)", rate(avgEng, 4, 2), fmt.Sprintf("%.2f%%", avgEng), "Ask one clear question per video, pin a comment, and reply to comments in the first hour.", 5)
+	engC := chkG(E, "Engagement rate (likes + comments / views)", avgEng, 4, 2, fmt.Sprintf("%.2f%% (typical video)", avgEng), "Ask one clear question per video, pin a comment, and reply to comments in the first hour.", 5)
 	add(engC)
 	var totalLikes, totalViews float64
 	for _, v := range vids {
@@ -286,11 +299,13 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	if totalViews > 0 {
 		likeRate = totalLikes / totalViews * 100
 	}
-	add(chk(E, "Like rate", rate(likeRate, 3, 1.5), fmt.Sprintf("%.2f%%", likeRate), "Remind viewers to like at the moment you deliver value, not at the start.", 3))
-	cadC := chk(K, "Upload frequency (last 30 days)", rate(perWeek, 1, 0.5), fmt.Sprintf("%.1f videos/week", perWeek), "Aim for at least one video per week; batch-record to stay consistent.", 5)
+	add(chkG(E, "Like rate", likeRate, 3, 1.5, fmt.Sprintf("%.2f%%", likeRate), "Remind viewers to like at the moment you deliver value, not at the start.", 3))
+	cadC := chkG(K, "Upload frequency (last 30 days)", perWeek, 1, 0.5, fmt.Sprintf("%.1f videos/week", perWeek), "Aim for at least one video per week; batch-record to stay consistent.", 5)
 	add(cadC)
 	add(chk(K, "Days since last upload", low(daysSince, 7, 21), fmt.Sprintf("%.0f days", daysSince), "Long gaps lower recommendations. Publish something soon, even a short.", 4))
-	add(chk(A, "Hit potential (best video / median)", rate(hit, 3, 1.8), fmt.Sprintf("%.1fx", hit), "Study your best video's topic, title and thumbnail, then make variations of it.", 3))
+	if n >= 8 { // a best/median ratio of 3-4 videos is noise
+		add(chkG(A, "Hit potential (best video / median)", hit, 3, 1.8, fmt.Sprintf("%.1fx", hit), "Study your best video's topic, title and thumbnail, then make variations of it.", 3))
+	}
 	add(chk(O, "Title length", ifs(avgTitle >= 35 && avgTitle <= 70, "pass", "warn"), fmt.Sprintf("%.0f characters on average", avgTitle), "Keep titles at 40-70 characters with the main keyword first.", 3))
 	add(chk(O, "Descriptions \u2265 200 characters", rate(withDesc/n*100, 70, 40), fmt.Sprintf("%.0f%% of videos", withDesc/n*100), "Write 200+ character descriptions with keywords, links and a call to action.", 3))
 	add(chk(O, "Videos with 5+ tags", rate(withTags/n*100, 70, 40), fmt.Sprintf("%.0f%% of videos", withTags/n*100), "Add 8-15 relevant tags in tiers: broad, niche, long-tail and question tags.", 3))
@@ -316,7 +331,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		kpiFrom(cadC, "Uploads per week", "Aim for 1+"),
 		{Label: "Short-form share", Value: fmt.Sprintf("%.0f%%", shorts/n*100), Note: "videos \u2264 3 min"},
 	}
-	if subs > 0 && !c.Statistics.Hidden {
+	if subs >= 100 && !c.Statistics.Hidden {
 		r.KPIs = append(r.KPIs, kpiFrom(reachC, "Reach vs subscribers", "Good \u2265 15%"))
 	}
 
@@ -565,7 +580,17 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	if bestDay >= 0 {
 		r.Meta["bestDay"] = [...]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}[bestDay]
 	}
-	r.finish()
+	conf := clampF(n/12, 0.25, 1)
+	if subs < 100 {
+		conf *= 0.6
+	} else if subs < 1000 {
+		conf *= 0.85
+	}
+	r.KPIs = append(r.KPIs, KPI{Label: "Data confidence", Value: fmt.Sprintf("%s \u00b7 %d videos", confLabel(conf), len(vids)), Note: ifs(conf >= 0.75, "Enough data for a dependable score", "Score is pulled toward the middle until there is more data")})
+	if conf < 0.75 {
+		r.Notes = append(r.Notes, fmt.Sprintf("Confidence is %s: the score rests on %d videos and %s subscribers, so it is held closer to the middle (50) instead of an exaggerated high or low. It sharpens as you publish more.", strings.ToLower(confLabel(conf)), len(vids), commas(subs)))
+	}
+	r.finishWith(conf)
 	if in.UseAI {
 		r.AI = s.insights(ctx, r, "YouTube channel "+c.Snippet.Title+". Topics seen in titles: "+titlesSample(vids))
 		if r.AI == nil {

@@ -595,6 +595,16 @@ func (s *server) fetchYTA(ctx context.Context, tok string) (*ytaData, error) {
 
 func trendStatus(d float64) string { return rate(d, 0, -10) }
 
+// trendChk grades a period-over-period change smoothly (flat or up = full marks, -10% = half, -50% or worse = zero)
+// and refuses to judge when the earlier period is too small to mean anything.
+func trendChk(cat, name string, cur, prev, minPrev float64, fix string, impact int) (Check, bool) {
+	if prev < minPrev {
+		return Check{}, false
+	}
+	d := delta(cur, prev)
+	return chkG(cat, name, d+50, 50, 40, fmt.Sprintf("%+.0f%% (%s vs %s)", d, human(cur), human(prev)), fix, impact), true
+}
+
 func kpiDelta(label string, cur, prev float64, val string) KPI {
 	note := "no previous data"
 	st := ""
@@ -692,9 +702,16 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 		r.KPIs = append(r.KPIs, k, kpiDelta("Search impressions", gsc.CurImpr, gsc.PrevImpr, human(gsc.CurImpr)),
 			KPI{Label: "Average CTR", Value: fmt.Sprintf("%.1f%%", ctr), Note: "Good \u2265 3%", Status: rate(ctr, 3, 1.5)},
 			KPI{Label: "Average position", Value: fmt.Sprintf("%.1f", gsc.CurPos), Note: "Lower is better", Status: low(gsc.CurPos, 10, 20)})
-		add(chk(SE, "Search clicks trend", ifs(gsc.PrevClicks > 0, trendStatus(delta(gsc.CurClicks, gsc.PrevClicks)), "warn"), fmt.Sprintf("%+.0f%%", delta(gsc.CurClicks, gsc.PrevClicks)), "Clicks are falling. Check for lost rankings, indexing problems or seasonal dips.", 5))
-		add(chk(SE, "Click-through rate", rate(ctr, 3, 1.5), fmt.Sprintf("%.1f%%", ctr), "Rewrite page titles and meta descriptions to promise a clear benefit.", 4))
-		add(chk(SE, "Average position", low(gsc.CurPos, 10, 20), fmt.Sprintf("%.1f", gsc.CurPos), "Strengthen content and internal links for queries ranking beyond page 1.", 4))
+		if c, ok := trendChk(SE, "Search clicks trend", gsc.CurClicks, gsc.PrevClicks, 30, "Clicks are falling. Check for lost rankings, indexing problems or seasonal dips.", 5); ok {
+			add(c)
+		}
+		if gsc.CurImpr >= 100 { // CTR and position on a handful of impressions are noise
+			add(chkG(SE, "Click-through rate", ctr, 3, 1.5, fmt.Sprintf("%.1f%%", ctr), "Rewrite page titles and meta descriptions to promise a clear benefit.", 4))
+			pc := chk(SE, "Average position", low(gsc.CurPos, 10, 20), fmt.Sprintf("%.1f", gsc.CurPos), "Strengthen content and internal links for queries ranking beyond page 1.", 4)
+			pc.Graded = true
+			_, pc.Pts = grade(30-gsc.CurPos, 20, 10) // position 10 or better = full, 20 = half, 30+ = zero
+			add(pc)
+		}
 		if ch, total, r2, ok := lineForecast("Search clicks per day + 30-day forecast", gsc.Dates, gsc.Clicks, 30); ok {
 			r.Charts = append(r.Charts, ch)
 			r.KPIs = append(r.KPIs, KPI{Label: "Forecast clicks (next 30d)", Value: human(total), Note: "trend projection, confidence " + confidence(r2)})
@@ -769,11 +786,15 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 				r.KPIs[i].Spark = ga.Sessions
 			}
 		}
-		add(chk(TR, "Sessions trend", ifs(ga.PrevSess > 0, trendStatus(delta(ga.CurSess, ga.PrevSess)), "warn"), fmt.Sprintf("%+.0f%%", delta(ga.CurSess, ga.PrevSess)), "Traffic is falling. Check campaigns, rankings and tracking.", 5))
-		add(chk(TR, "Engagement rate", rate(ga.CurEng*100, 60, 40), fmt.Sprintf("%.0f%%", ga.CurEng*100), "Improve page speed, make the first screen answer the visitor's question, and add clear next steps.", 4))
-		if ga.HasKey && ga.CurSess > 0 {
+		if c, ok := trendChk(TR, "Sessions trend", ga.CurSess, ga.PrevSess, 30, "Traffic is falling. Check campaigns, rankings and tracking.", 5); ok {
+			add(c)
+		}
+		if ga.CurSess >= 100 { // rates over fewer than 100 sessions are noise
+			add(chkG(TR, "Engagement rate", ga.CurEng*100, 60, 40, fmt.Sprintf("%.0f%%", ga.CurEng*100), "Improve page speed, make the first screen answer the visitor's question, and add clear next steps.", 4))
+		}
+		if ga.HasKey && ga.CurSess >= 100 {
 			cr := ga.KeyEvents / ga.CurSess * 100
-			add(chk(TR, "Conversion rate (key events per session)", rate(cr, 2, 0.5), fmt.Sprintf("%.1f%%", cr), "Simplify your main call to action and remove steps between landing and conversion.", 5))
+			add(chkG(TR, "Conversion rate (key events per session)", cr, 2, 0.5, fmt.Sprintf("%.1f%%", cr), "Simplify your main call to action and remove steps between landing and conversion.", 5))
 		}
 		if ch, total, r2, ok := lineForecast("Sessions per day + 30-day forecast", ga.Dates, ga.Sessions, 30); ok {
 			r.Charts = append(r.Charts, ch)
@@ -825,8 +846,12 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 			yk(KPI{Label: "Avg % viewed", Value: fmt.Sprintf("%.1f%%", yt.AvgPct), Note: "Good \u2265 40%", Status: rate(yt.AvgPct, 40, 25)}),
 			yk(KPI{Label: "New subscribers", Value: commas(yt.CurGained), Note: "last 28 days", Status: ifs(yt.CurGained > 0, "pass", "warn")}),
 			yk(KPI{Label: "Lost subscribers", Value: commas(yt.CurLost), Note: fmt.Sprintf("net %+.0f", net), Status: ifs(net >= 0, "pass", "fail")}))
-		add(chk(YT, "Views trend", ifs(yt.PrevViews > 0, trendStatus(delta(yt.CurViews, yt.PrevViews)), "warn"), fmt.Sprintf("%+.0f%%", delta(yt.CurViews, yt.PrevViews)), "Views are falling. Refresh thumbnails/titles and publish consistently.", 5))
-		add(chk(YT, "Audience retention (avg % watched)", rate(yt.AvgPct, 40, 25), fmt.Sprintf("%.0f%%", yt.AvgPct), "Hook viewers in the first 15 seconds and cut slow sections.", 4))
+		if c, ok := trendChk(YT, "Views trend", yt.CurViews, yt.PrevViews, 100, "Views are falling. Refresh thumbnails/titles and publish consistently.", 5); ok {
+			add(c)
+		}
+		if yt.CurViews >= 100 {
+			add(chkG(YT, "Audience retention (avg % watched)", yt.AvgPct, 40, 25, fmt.Sprintf("%.0f%%", yt.AvgPct), "Hook viewers in the first 15 seconds and cut slow sections.", 4))
+		}
 		add(chk(YT, "Net subscriber change", ifs(net > 0, "pass", ifs(net == 0, "warn", "fail")), fmt.Sprintf("%+.0f", net), "Ask for the subscribe at the moment of value and promise what's coming next.", 3))
 		if len(yt.Prev) > 0 && len(yt.Views) > 0 {
 			pv := make([]float64, len(yt.Views))
@@ -892,7 +917,26 @@ func (s *server) evalGoogle(ctx context.Context, uid string, in evalIn) (*Report
 		plan(PlanItem{Title: "Keep publishing and re-run this report weekly", Why: "No urgent problems found; consistent tracking reveals what to double down on.", Impact: 2, Effort: 1})
 	}
 	r.Notes = append(r.Notes, "Google data lags 1-3 days. Forecasts are straight-line trend projections of the last 28 days: useful for direction, not guarantees.")
-	r.finish()
+	// confidence = how much traffic each connected source actually has (more data, steadier score)
+	var parts []float64
+	if gsc != nil {
+		parts = append(parts, clampF(gsc.CurImpr/1000, 0, 1))
+	}
+	if ga != nil {
+		parts = append(parts, clampF(ga.CurSess/300, 0, 1))
+	}
+	if yt != nil {
+		parts = append(parts, clampF(yt.CurViews/500, 0, 1))
+	}
+	conf := 1.0
+	if len(parts) > 0 {
+		conf = clampF(avgF(parts), 0.3, 1)
+		r.KPIs = append(r.KPIs, KPI{Label: "Data confidence", Value: confLabel(conf), Note: ifs(conf >= 0.75, "Enough traffic for a dependable score", "Little traffic so far: the score is held nearer the middle")})
+		if conf < 0.75 {
+			r.Notes = append(r.Notes, "Confidence is "+strings.ToLower(confLabel(conf))+": there is not much traffic yet, so percentages swing a lot. Trends, click-through and engagement are only scored once there is enough data, and the score is held closer to the middle (50).")
+		}
+	}
+	r.finishWith(conf)
 	if in.UseAI {
 		r.AI = s.insights(ctx, r, "Integrated Google Search Console, Google Analytics and YouTube Analytics report for "+r.Target)
 		if r.AI == nil {
