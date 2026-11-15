@@ -199,11 +199,35 @@ function drawHistory(){
   const list=hist.filter(r=>showAll||tabOf(r.kind)===kind);
   $("hist-toggle").textContent=showAll?"Show this tab only":"Show all tabs";
   if(!list.length){box.appendChild(h("p","bz-mut",showAll?"No evaluations yet.":"No evaluations in this tab yet."));return}
-  for(const r of list){
-    const row=h("div","bz-hist");
-    add(row,h("span","bz-score "+(r.score>=75?"pass":r.score>=50?"warn":"fail"),String(r.score)),h("b",null,r.target),h("span","bz-mut",r.kind.replace("_"," ")+" \u00b7 "+new Date(r.createdAt).toLocaleDateString()));
-    row.onclick=()=>show(r,true);box.appendChild(row);
+  // one card per account/site and kind: latest score, trend, and the earlier runs tucked inside
+  const groups=new Map();
+  for(const r of list){const k=r.kind+"|"+r.target;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r)}
+  const tone=s=>s>=75?"pass":s>=50?"warn":"fail";
+  const when=r=>new Date(r.createdAt).toLocaleDateString(undefined,{day:"numeric",month:"short"});
+  const grid=h("div","hg-grid");
+  for(const runs of groups.values()){
+    runs.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    const r=runs[0],prev=runs[1],card=h("div","hg-card");
+    const top=h("div","hg-top");
+    const ttl=h("div","hg-ttl");add(ttl,h("b",null,r.target),h("span","bz-mut",r.kind.replace("_"," ")+" \u00b7 "+when(r)));
+    add(top,h("span","bz-score "+tone(r.score),String(r.score)),ttl);
+    card.appendChild(top);
+    if(prev){
+      const d=r.score-prev.score,row=h("div","hg-trend");
+      const pts=runs.slice(0,10).reverse().map(x=>x.score),W=120,H=28,mx=Math.max(...pts,1),mn=Math.min(...pts,0),rg=Math.max(mx-mn,1);
+      const path=pts.map((v,i)=>(pts.length<2?0:i/(pts.length-1)*W).toFixed(1)+","+(H-2-(v-mn)/rg*(H-4)).toFixed(1)).join(" ");
+      const sp=document.createElementNS("http://www.w3.org/2000/svg","svg");sp.setAttribute("viewBox","0 0 "+W+" "+H);sp.setAttribute("class","hg-spark");
+      const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");pl.setAttribute("points",path);pl.setAttribute("fill","none");pl.setAttribute("stroke","currentColor");pl.setAttribute("stroke-width","2");pl.setAttribute("stroke-linecap","round");pl.setAttribute("stroke-linejoin","round");sp.appendChild(pl);
+      add(row,sp,h("span","bz-chip "+(d>0?"up":d<0?"down":""),d===0?"no change":(d>0?"\u25B2 +":"\u25BC ")+d+" since "+when(prev)));
+      card.appendChild(row);
+      const dt=h("details","hg-more"),sm=h("summary",null,runs.length+" runs \u00b7 show all"),chips=h("div","hg-chips");
+      for(const x of runs){const c=h("button","hg-chip "+tone(x.score));c.type="button";c.textContent=x.score+" \u00b7 "+when(x);c.onclick=e=>{e.stopPropagation();show(x,true)};chips.appendChild(c)}
+      add(dt,sm,chips);card.appendChild(dt);
+    }else card.appendChild(h("div","hg-trend bz-mut","First run"));
+    const open=h("button","bz-mini hg-open","Open latest");open.type="button";open.onclick=e=>{e.stopPropagation();show(r,true)};card.appendChild(open);
+    card.onclick=()=>show(r,true);grid.appendChild(card);
   }
+  box.appendChild(grid);
 }
 $("hist-toggle").onclick=()=>{showAll=!showAll;drawHistory()};
 

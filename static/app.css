@@ -233,3 +233,55 @@ html[data-theme=light] .bz-logo,html[data-theme=light] .bx-brand,html[data-theme
 html[data-theme=slate] .bz-logo,html[data-theme=slate] .bx-brand,html[data-theme=slate] .auth-logo{background:rgba(14,24,52,.94);border-color:rgba(255,255,255,.28);box-shadow:0 0 18px rgba(170,200,255,.55),inset 0 1px 0 rgba(255,255,255,.18)}
 html[data-theme=slate] .fx-on-dark{display:inline-block}html[data-theme=slate] .fx-on-light{display:none}
 .lv-why{font-size:13.5px;color:var(--mut)}.lv-why p{margin:0 0 8px}.lv-why a{color:var(--accent);font-weight:600;margin-right:10px;display:inline-block}
+
+/* ===== layout polish: one grid system, no empty slots, text always fits its card ===== */
+html{background:var(--bg2)}
+.bz-side{height:100vh;height:100dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.bz-side>*{flex:none}
+.bz-nav{font-size:14px;line-height:1.25}
+.bz-nav svg{flex:none}
+.bz-main{width:100%}
+.bz-card,.rp-card,.rp-kpi,.lv-card,.bz-fix,.hg-card,.bz-note{overflow-wrap:anywhere}
+.bz-card h3,.rp-card>h3{overflow-wrap:anywhere}
+.bz-top h1{font-size:clamp(22px,2.6vw,30px);line-height:1.15;overflow-wrap:anywhere}
+.bz-top p{font-size:clamp(13.5px,1.2vw,15px)}
+/* rows of cards fill the width: the last row grows instead of leaving a gap */
+#sc-cards{display:flex;flex-wrap:wrap;gap:14px;margin:0}
+#sc-cards>.bz-card{flex:1 1 270px;max-width:100%;grid-column:auto;display:flex;flex-direction:column;gap:6px;padding:16px}
+#sc-cards>.bz-card h3{margin:0;font-size:15px}
+#sc-cards>.bz-card p{margin:0;font-size:13px;line-height:1.45}
+#sc-cards>.bz-card .bz-note{margin-top:auto}
+#sc-cards>.bz-card[style*="grid-column"]{flex-basis:100%}
+.lv-grid{display:flex;flex-wrap:wrap;gap:14px}
+.lv-grid>.lv-card{flex:1 1 calc(50% - 14px);min-width:min(100%,340px)}
+.lv-grid>.lv-card.big{flex-basis:100%}
+.lv-top b{font-size:15px;overflow-wrap:anywhere}
+.lv-kpis{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}.lv-card.big .lv-kpis{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.lv-kpis b{font-size:clamp(14px,1.1vw + 6px,17px);overflow-wrap:anywhere}
+/* KPI cards: value scales to the card, sparkline sits underneath instead of on top of the number */
+.rp-kpis{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.rp-kpi{flex-wrap:wrap;align-items:center;padding:14px 16px;gap:12px}
+.rp-ico{width:42px;height:42px;border-radius:13px}
+.rp-kb{flex:1 1 110px}
+.rp-kb b{font-size:clamp(18px,1vw + 11px,24px);overflow-wrap:anywhere}.rp-kb b.rp-long{font-size:clamp(14px,.7vw + 9px,17px);line-height:1.25}
+.rp-kb small{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+.rp-spark{position:static;flex:1 0 100%;width:100%;height:30px;margin-top:2px}
+.rp-hero h2{font-size:clamp(18px,1.6vw + 8px,22px)}
+/* previous evaluations: grouped per account, laid out as a grid */
+.hg-grid{display:flex;flex-wrap:wrap;gap:14px}
+.hg-card{flex:1 1 300px;max-width:100%;display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;cursor:pointer;transition:border-color .15s,transform .15s}
+.hg-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.hg-top{display:flex;gap:12px;align-items:center;min-width:0}
+.hg-ttl{display:flex;flex-direction:column;gap:2px;min-width:0}.hg-ttl b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hg-ttl span{font-size:12px;text-transform:capitalize}
+.hg-trend{display:flex;gap:10px;align-items:center;font-size:12.5px;min-height:28px;color:var(--mut)}
+.hg-spark{width:110px;height:28px;flex:none;color:var(--accent)}
+.hg-more summary{cursor:pointer;font-size:12.5px;color:var(--mut)}.hg-more[open] summary{margin-bottom:8px}
+.hg-chips{display:flex;flex-wrap:wrap;gap:6px}
+.hg-chip{border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:99px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.hg-chip.pass{border-color:rgba(52,211,153,.5)}.hg-chip.warn{border-color:rgba(251,191,36,.5)}.hg-chip.fail{border-color:rgba(248,113,113,.5)}
+.hg-chip:hover{background:var(--card2)}
+.hg-open{margin-top:auto;align-self:flex-start}
+.bz-score{flex:none}
+#hist .bz-hist{display:none}
+@media(max-width:900px){.bz-side{height:auto;overflow-y:visible;overflow-x:auto}.bz-side>*{flex:none}.bz-nav-link{margin-top:0!important}}
+@media(max-width:640px){.bz-main{padding:18px 14px 44px}.bz-card{padding:16px;border-radius:18px}.hg-card{flex-basis:100%}.lv-grid>.lv-card{flex-basis:100%}.rp-kpis{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.bz-top{margin-bottom:14px}.bz-top h1{font-size:22px}}

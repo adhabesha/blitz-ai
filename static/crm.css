@@ -116,3 +116,12 @@ body.rc .bx-sec-h{justify-content:center;padding:10px 0 4px}body.rc .bx-sec-h:be
 .fx-starter span{flex:1;min-width:220px}
 .fx-starter-go{background:linear-gradient(135deg,#e0652f,#cf5522);color:#fff;border-radius:8px;padding:6px 12px;font-weight:600;text-decoration:none;white-space:nowrap}
 .fx-starter-x{background:none;border:0;color:var(--mut);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+
+/* ===== layout polish ===== */
+.crm-role:empty{display:none}
+.bx-rail{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+.bx-rfoot{margin-top:auto;flex:none}.bx-rfoot .rl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bx-top{flex-wrap:wrap;row-gap:8px}
+.bx-search{flex:1 1 260px;max-width:560px;min-width:0}
+@media(max-width:900px){.bx-rfoot .rl{display:none}.bx-rfoot{justify-content:center;padding:11px 6px}.bx-search{order:9;flex:1 1 100%;max-width:none}.bx-top .sp{display:none}.bx-top{gap:8px;padding:8px 12px}.bx-brand{margin-right:auto}}
+@media(max-width:560px){.bx-top .bz-mini{padding:7px 10px;font-size:12px}.bx-plus{padding:8px 14px}}
