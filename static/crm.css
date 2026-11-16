@@ -137,3 +137,5 @@ body.ws-on .bx-rail{top:calc(58px + var(--wsb,0px));height:calc(100vh - 58px - v
 body.ws-on .bx-body{min-height:calc(100vh - 58px - var(--wsb,0px))}
 body.ws-on .bx-ph{top:var(--wsb,0)}
 .ws-step em,.ws-next em{font-family:inherit!important;font-style:normal}
+
+select{color-scheme:dark}select option,select optgroup{background:#101c3b;color:#f2f8f8}[data-theme=light] select,[data-theme=slate] select{color-scheme:light}[data-theme=light] select option,[data-theme=slate] select option,[data-theme=light] select optgroup,[data-theme=slate] select optgroup{background:#fff;color:#0e1834}

@@ -316,3 +316,9 @@ body.ws-on .rp-side{top:calc(var(--wsb) + 14px)}
 .ws-mode{text-align:left;font:inherit;color:inherit;background:rgba(127,127,127,.1);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
 .ws-mode:hover,.ws-mode.on{border-color:#da602c;box-shadow:0 0 0 2px rgba(218,96,44,.28)}
 .ws-mode b{font-size:18px;color:inherit}.ws-mode span{font-size:14px;line-height:1.45;opacity:.85}.ws-mode em{font-size:12.5px;font-style:normal;font-family:inherit;color:#da602c;font-weight:600}.ws-mode small{font-size:11px;opacity:.7}
+/* dropdown lists: readable in every theme (the browser draws them with its own colours) */
+select{color-scheme:dark}
+select option,select optgroup{background:#101c3b;color:#f2f8f8}
+[data-theme=light] select,[data-theme=slate] select{color-scheme:light}
+[data-theme=light] select option,[data-theme=slate] select option,[data-theme=light] select optgroup,[data-theme=slate] select optgroup{background:#fff;color:#0e1834}
+select option:checked,select option:hover{background:#da602c;color:#fff}
