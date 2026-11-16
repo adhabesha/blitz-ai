@@ -341,11 +341,14 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	for i := len(vids) - 1; i >= 0; i-- {
 		vc.Labels = append(vc.Labels, vids[i].Pub.Format("01-02"))
 		vc.Tips = append(vc.Tips, trunc(vids[i].Title, 70))
+		vc.Links = append(vc.Links, "https://studio.youtube.com/video/"+vids[i].ID+"/analytics/tab-overview/period-default")
+		ec.Links = append(ec.Links, "https://studio.youtube.com/video/"+vids[i].ID+"/analytics/tab-overview/period-default")
 		vc.Datasets[0].Data = append(vc.Datasets[0].Data, vids[i].Views)
 		ec.Labels = append(ec.Labels, vids[i].Pub.Format("01-02"))
 		ec.Tips = append(ec.Tips, trunc(vids[i].Title, 70))
 		ec.Datasets[0].Data = append(ec.Datasets[0].Data, math.Round(vids[i].Eng*100)/100)
 	}
+	vc.Open, ec.Open = "YouTube Studio", "YouTube Studio"
 	days := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 	wc := Chart{Title: "Average views by upload weekday (UTC, small sample)", Type: "bar", Labels: days, Datasets: []Dataset{{Name: "Avg views"}}}
 	bestDay, bestAvg := -1, 0.0

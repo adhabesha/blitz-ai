@@ -923,14 +923,20 @@ func (s *server) evalConnectedSocial(ctx context.Context, uid string, in evalIn)
 		for i := len(recent) - 1; i >= 0; i-- {
 			ch.Labels = append(ch.Labels, recent[i].When.Format("01-02"))
 			ch.Datasets[0].Data = append(ch.Datasets[0].Data, eng(recent[i]))
+			ch.Tips = append(ch.Tips, trunc(strings.Join(strings.Fields(recent[i].Text), " "), 70))
+			ch.Links = append(ch.Links, recent[i].URL)
 		}
+		ch.Open = p.Name
 		r.Charts = append(r.Charts, ch)
 		if views > 0 {
 			vc := Chart{Title: "Views / reach per recent post", Type: "line", Datasets: []Dataset{{Name: "Views"}}}
 			for i := len(recent) - 1; i >= 0; i-- {
 				vc.Labels = append(vc.Labels, recent[i].When.Format("01-02"))
 				vc.Datasets[0].Data = append(vc.Datasets[0].Data, recent[i].Views)
+				vc.Tips = append(vc.Tips, trunc(strings.Join(strings.Fields(recent[i].Text), " "), 70))
+				vc.Links = append(vc.Links, recent[i].URL)
 			}
+			vc.Open = p.Name
 			r.Charts = append(r.Charts, vc)
 		}
 		days := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}

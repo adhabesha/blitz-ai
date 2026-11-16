@@ -33,21 +33,64 @@ function kpiCard(k){
 }
 const kpiRow=list=>{const g=h("div","rp-kpis");for(const k of list)g.appendChild(kpiCard(k));return g};
 
+// Analytics charts: exact values on hover, zoom and pan on the time axis, click a point to open the real video or post.
+const OPEN_BY_TITLE=[[/^Search impressions|^Search clicks/i,"Search Console","https://search.google.com/search-console"],[/^Views: this period|^Views by day of week|^Subscribers gained|^Views share|^Average views: short|^Uploads per week|^Average views by upload|^Projected cumulative/i,"YouTube Studio","https://studio.youtube.com"],[/^Sessions by channel/i,"Google Analytics","https://analytics.google.com"]];
 function chartCard(parent,c,cls){
-  const card=h("div","rp-card "+(cls||""));card.appendChild(h("h3",null,c.title));
+  const card=h("div","rp-card rp-ch "+(cls||""));const hd=h("h3");hd.appendChild(h("span",null,c.title));card.appendChild(hd);
   const wrap=h("div","rp-chart"+(c.type==="doughnut"?" rp-donut":"")),cv=document.createElement("canvas");wrap.appendChild(cv);card.appendChild(wrap);parent.appendChild(card);
   const P=pal(),mut=css("--mut")||"#64748b",grid="rgba(148,163,184,.18)",dn=c.type==="doughnut"||c.type==="pie";
+  const links=c.links||[],hasLinks=links.some(x=>x),n=(c.labels||[]).length,tips=c.tips||[];
+  let openAll=null;for(const[re,lab,url]of OPEN_BY_TITLE)if(re.test(c.title)){openAll={lab,url}}
   const ds=c.datasets.map((d,i)=>{
     const col=P[i%P.length],prev=/previous|trend|recommended|forecast/i.test(d.name);
     if(dn)return{label:d.name,data:d.data,backgroundColor:P,borderWidth:0,spacing:3,borderRadius:6};
-    if(c.type==="line")return{label:d.name,data:d.data,borderColor:prev?(i===0?col:P[1]):col,backgroundColor:prev?"transparent":(ctx=>{const a=ctx.chart.chartArea;if(!a)return col+"22";const g=ctx.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");return g}),fill:!prev,tension:.35,pointRadius:d.data.length>16?0:3,pointHoverRadius:5,borderWidth:2.5,borderDash:prev&&i>0?[6,6]:[]};
-    return{label:d.name,data:d.data,backgroundColor:col,borderRadius:8,maxBarThickness:34};
+    if(c.type==="line")return{label:d.name,data:d.data,borderColor:prev?(i===0?col:P[1]):col,backgroundColor:prev?"transparent":col+"1f",fill:!prev,tension:.2,pointRadius:(d.data.length>40&&!hasLinks)?0:4,pointHoverRadius:7,pointHitRadius:14,borderWidth:2,borderDash:prev&&i>0?[6,6]:[]};
+    return{label:d.name,data:d.data,backgroundColor:col,borderRadius:3,maxBarThickness:34};
   });
-  const tips=c.tips||[];
-  charts.push(new Chart(cv,{type:c.type,data:{labels:c.labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,cutout:dn?"68%":undefined,interaction:{mode:"index",intersect:false},
+  // vertical hover line, like a trading chart
+  const cross={id:"cross",afterDatasetsDraw(ch){const a=ch.tooltip&&ch.tooltip.getActiveElements&&ch.tooltip.getActiveElements();if(!a||!a.length||dn)return;const x=a[0].element.x,ar=ch.chartArea,g=ch.ctx;g.save();g.strokeStyle="rgba(148,163,184,.55)";g.lineWidth=1;g.setLineDash([4,4]);g.beginPath();g.moveTo(x,ar.top);g.lineTo(x,ar.bottom);g.stroke();g.restore()}};
+  let lo=0,hi=n-1,dragged=false;
+  const open=i=>{const u=links[i];if(u)window.open(u,"_blank","noopener")};
+  const ch=new Chart(cv,{type:c.type,data:{labels:c.labels,datasets:ds},plugins:[cross],options:{responsive:true,maintainAspectRatio:false,cutout:dn?"68%":undefined,interaction:{mode:dn?"nearest":"index",intersect:false},animation:{duration:250},
+    onHover:(e,els)=>{cv.style.cursor=(hasLinks&&els.length&&links[els[0].index])?"pointer":(!dn&&zoomed()?"grab":"default")},
+    onClick:(e,els)=>{if(dragged||!hasLinks||!els.length)return;open(els[0].index)},
     plugins:{legend:{display:dn||ds.length>1,position:dn?"bottom":"top",align:"end",labels:{color:mut,usePointStyle:true,boxWidth:8,padding:14}},
-      tooltip:{backgroundColor:"#0f172a",titleColor:"#fff",bodyColor:"#e2e8f0",padding:10,cornerRadius:10,callbacks:{title:items=>tips[items[0].dataIndex]||items[0].label}}},
-    scales:dn?{}:{x:{grid:{display:false},ticks:{color:mut,maxTicksLimit:10,maxRotation:0},border:{display:false}},y:{beginAtZero:true,grid:{color:grid},ticks:{color:mut,callback:v=>compact(v)},border:{display:false}}}}}));
+      tooltip:{backgroundColor:"#0f172a",titleColor:"#fff",bodyColor:"#e2e8f0",footerColor:"#fbbf24",padding:10,cornerRadius:6,displayColors:true,
+        callbacks:{title:items=>(items[0].label?items[0].label+(tips[items[0].dataIndex]?" · "+tips[items[0].dataIndex]:""):""),label:it=>" "+it.dataset.label+": "+nf(it.parsed.y!==undefined&&it.parsed.y!==null?it.parsed.y:it.parsed),footer:items=>hasLinks&&links[items[0].dataIndex]?"Click to open in "+(c.open||"the source"):""}}},
+    scales:dn?{}:{x:{grid:{display:false},ticks:{color:mut,maxTicksLimit:12,maxRotation:0,autoSkip:true},border:{color:grid}},y:{beginAtZero:true,grid:{color:grid},ticks:{color:mut,callback:v=>compact(v)},border:{display:false}}}}});
+  charts.push(ch);
+  if(dn)return;
+  // ---- zoom and pan (works on any chart with enough points) ----
+  const minSpan=Math.min(4,n-1);
+  const zoomed=()=>lo>0||hi<n-1;
+  const bar=h("div","rp-zb"),info=h("span","bz-mut rp-zi"),sl=document.createElement("input");sl.type="range";sl.className="rp-zs";sl.min=0;sl.max=0;sl.step=1;sl.hidden=true;
+  const mk=(t,tt,f)=>{const b=h("button","bz-mini",t);b.title=tt;b.type="button";b.onclick=f;return b};
+  function apply(){
+    lo=Math.max(0,Math.round(lo));hi=Math.min(n-1,Math.round(hi));if(hi-lo<minSpan){hi=Math.min(n-1,lo+minSpan);lo=Math.max(0,hi-minSpan)}
+    const x=ch.options.scales.x,y=ch.options.scales.y;x.min=lo;x.max=hi;
+    let mn=Infinity,mx=-Infinity;for(const d of ch.data.datasets)for(let i=lo;i<=hi;i++){const v=d.data[i];if(typeof v==="number"){if(v<mn)mn=v;if(v>mx)mx=v}}
+    if(isFinite(mx)){const pad=(mx-mn)*.12||Math.abs(mx)*.1||1;y.max=mx+pad;y.min=c.type==="line"&&zoomed()?Math.max(0,mn-pad):0}
+    ch.update("none");
+    info.textContent=zoomed()?("Showing "+(c.labels[lo]||lo+1)+" → "+(c.labels[hi]||hi+1)+" · "+(hi-lo+1)+" of "+n):"";
+    sl.hidden=!zoomed();sl.max=Math.max(0,n-1-(hi-lo));sl.value=lo;rb.disabled=!zoomed();cv.style.cursor=zoomed()?"grab":"default";
+  }
+  function zoomBy(f,cx){const span=hi-lo,ns=Math.max(minSpan,Math.min(n-1,span*f));const k=span?(cx-lo)/span:.5;lo=cx-ns*k;hi=lo+ns;if(lo<0){hi-=lo;lo=0}if(hi>n-1){lo-=hi-(n-1);hi=n-1}apply()}
+  const rb=mk("Reset","Show everything",()=>{lo=0;hi=n-1;apply()});rb.disabled=true;
+  if(n>=6){
+    add(bar,info,sl,mk("−","Zoom out",()=>zoomBy(1.6,(lo+hi)/2)),mk("+","Zoom in",()=>zoomBy(1/1.6,(lo+hi)/2)),rb);
+    if(openAll||hasLinks){const o=h("a","bz-mini rp-open",hasLinks&&c.open?"Open in "+c.open:openAll?"Open in "+openAll.lab:"");if(openAll){o.href=openAll.url;o.target="_blank";o.rel="noopener"}else o.hidden=true;if(!openAll&&!hasLinks)o.hidden=true;if(openAll)bar.appendChild(o)}
+    card.insertBefore(bar,wrap);
+    sl.oninput=()=>{const sp=hi-lo;lo=+sl.value;hi=lo+sp;apply()};
+    const idxAt=e=>{const r=cv.getBoundingClientRect(),xs=ch.scales.x;return xs.getValueForPixel(e.clientX-r.left)};
+    cv.addEventListener("wheel",e=>{if(!(e.ctrlKey||e.metaKey||e.shiftKey))return;e.preventDefault();const f=e.deltaY>0?1.25:1/1.25;zoomBy(f,idxAt(e)??(lo+hi)/2)},{passive:false});
+    let px=null,l0=0,h0=0;
+    cv.addEventListener("pointerdown",e=>{if(!zoomed()||e.button!==0)return;px=e.clientX;l0=lo;h0=hi;dragged=false;cv.setPointerCapture(e.pointerId);cv.style.cursor="grabbing"});
+    cv.addEventListener("pointermove",e=>{if(px===null)return;const dx=e.clientX-px;if(Math.abs(dx)>5)dragged=true;if(!dragged)return;const per=(ch.chartArea.right-ch.chartArea.left)/Math.max(1,(h0-l0));let d=-dx/per;d=Math.max(-l0,Math.min(n-1-h0,d));lo=l0+d;hi=h0+d;apply()});
+    const end=()=>{px=null;setTimeout(()=>{dragged=false},0);cv.style.cursor=zoomed()?"grab":"default"};
+    cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+    cv.addEventListener("dblclick",()=>{if(zoomed()){lo=0;hi=n-1;apply()}});
+    const hint=h("p","bz-mut rp-zh","Ctrl + scroll or +/− to zoom · drag to move · double-click to reset"+(hasLinks?" · click a point to open it":""));card.appendChild(hint);
+  }else if(hasLinks)card.appendChild(h("p","bz-mut rp-zh","Click a point to open it"));
 }
 function tableCard(t,cls){
   const card=h("div","rp-card "+(cls||""));

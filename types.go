@@ -52,6 +52,8 @@ type Chart struct {
 	Datasets []Dataset `json:"datasets" firestore:"datasets"`
 	Tips     []string  `json:"tips" firestore:"tips"`
 	Page     string    `json:"page" firestore:"page"`
+	Links    []string  `json:"links,omitempty" firestore:"links,omitempty"` // per point: opens the video or post (same order as Labels)
+	Open     string    `json:"open,omitempty" firestore:"open,omitempty"`   // where Links lead, e.g. "YouTube Studio"
 }
 
 type Row struct {

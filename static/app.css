@@ -322,3 +322,9 @@ select option,select optgroup{background:#101c3b;color:#f2f8f8}
 [data-theme=light] select,[data-theme=slate] select{color-scheme:light}
 [data-theme=light] select option,[data-theme=slate] select option,[data-theme=light] select optgroup,[data-theme=slate] select optgroup{background:#fff;color:#0e1834}
 select option:checked,select option:hover{background:#da602c;color:#fff}
+/* analytics chart tools */
+.rp-chart{height:250px}.rp-chart.rp-donut{height:230px}
+.rp-zb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-4px 0 6px;font-size:12px}
+.rp-zi{margin-right:auto;font-size:12px}.rp-zs{flex:1 1 120px;max-width:260px;accent-color:#da602c}
+.rp-open{text-decoration:none}.rp-zh{margin:6px 0 0;font-size:11.5px}
+.rp-ch canvas{touch-action:pan-y}
