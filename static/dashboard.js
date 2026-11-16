@@ -168,6 +168,11 @@ function renderOpt(res){
     box.appendChild(n)}
   box.scrollIntoView({behavior:"smooth"});
 }
+// YouTube rejects the whole upload (400) for text it doesn't accept, so trim to its rules first.
+const ytClean=s=>String(s||"").replace(/[<>]/g,"");
+const ytTitle=s=>ytClean(s).replace(/\s+/g," ").trim().slice(0,100)||"Untitled video";
+const ytDesc=s=>{let x=ytClean(s).trim();while(new TextEncoder().encode(x).length>4900)x=x.slice(0,-50);return x};
+function ytTags(list){const out=[],seen=new Set();let n=0;for(let t of list||[]){t=ytClean(t).replace(/\s+/g," ").trim().replace(/^#/,"").slice(0,30);if(!t||seen.has(t.toLowerCase()))continue;const cost=t.length+(t.includes(" ")?2:0)+1;if(n+cost>450)break;seen.add(t.toLowerCase());out.push(t);n+=cost}return out}
 function uploadCard(t,d,g){
   const c=h("div","bz-card");c.style.marginTop="16px";c.appendChild(h("h3",null,"Publish a new video to YouTube"));
   c.appendChild(h("p","bz-mut","Requires Connected Google. Choose a file, a visibility and (optional) a date and time: YouTube itself publishes it at that time. Keep this page open until the upload reaches 100%. New API projects may be limited to private uploads until Google audits them; you can switch to public in YouTube Studio."));
@@ -182,8 +187,8 @@ function uploadCard(t,d,g){
     try{
       const tk=(await api("GET","/api/google/token")).accessToken,fl=file.files[0],status={privacyStatus:pv.value,selfDeclaredMadeForKids:false};
       if(when.value){status.privacyStatus="private";status.publishAt=new Date(when.value).toISOString()}
-      const init=await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",{method:"POST",headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json; charset=UTF-8","X-Upload-Content-Type":fl.type||"video/*","X-Upload-Content-Length":String(fl.size)},body:JSON.stringify({snippet:{title:t.ta.value,description:d.ta.value,tags:splitTags(g.ta.value),categoryId:"22"},status})});
-      if(!init.ok)throw new Error("Upload could not start ("+init.status+")");
+      const init=await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",{method:"POST",headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json; charset=UTF-8","X-Upload-Content-Type":fl.type||"video/*","X-Upload-Content-Length":String(fl.size)},body:JSON.stringify({snippet:{title:ytTitle(t.ta.value),description:ytDesc(d.ta.value),tags:ytTags(splitTags(g.ta.value)),categoryId:"22"},status})});
+      if(!init.ok){let why="";try{const j=await init.json(),e=(j.error&&j.error.errors&&j.error.errors[0])||{};why=(e.reason?e.reason+": ":"")+(e.message||(j.error&&j.error.message)||"")}catch(e){}throw new Error("Upload could not start ("+init.status+")"+(why?" \u2013 "+why:""))}
       const loc=init.headers.get("Location");if(!loc)throw new Error("Upload location missing");
       await new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open("PUT",loc);
         x.upload.onprogress=e=>{if(e.lengthComputable)st.textContent="Uploading… "+Math.round(e.loaded/e.total*100)+"%"};
