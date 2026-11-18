@@ -1,5 +1,14 @@
 (()=>{
 const $=s=>document.querySelector(s);
+// When this page is hosted separately from the app (always-on static host), window.FICX_API is the app's address.
+const API=(window.FICX_API||"").replace(/\/+$/,"");
+// Wake the app server in the background as soon as the page opens, so it is ready when the visitor signs in.
+if(API){
+ let n=0;const ping=()=>{try{fetch(API+"/healthz",{mode:"no-cors",cache:"no-store"}).catch(()=>{})}catch(e){}};
+ ping();
+ const t=setInterval(()=>{n++;if(document.hidden)return;ping();if(n>=40)clearInterval(t)},15000); // keeps it awake for about 10 minutes while the page is open
+ document.querySelectorAll('a[href*="/app"]').forEach(a=>{a.addEventListener("pointerenter",ping,{once:true});a.addEventListener("touchstart",ping,{once:true,passive:true})});
+}
 let grade=null;
 document.documentElement.classList.add("js");
 // slide in from the sides
@@ -20,7 +29,7 @@ $("#gform").addEventListener("submit",async ev=>{
  if(!url){msg(m,"Enter your website address, for example yourcompany.com",1);return}
  b.disabled=true;b.textContent="Checking...";msg(m,"Reading your site. This takes about 20 seconds.");res.hidden=true;
  try{
-  const r=await fetch("/api/public/grade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+  const r=await fetch(API+"/api/public/grade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
   if(!r.ok)throw new Error((await r.text()).trim()||"Something went wrong");
   const g=await r.json();grade=g;msg(m,"");renderGrade(g,res);
  }catch(e){msg(m,e.message,1)}
@@ -37,7 +46,7 @@ function renderGrade(g,res){
  res.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 // ---- demo request
-let cfg={};fetch("/api/public/config").then(r=>r.json()).then(x=>cfg=x||{}).catch(()=>{});
+let cfg={};fetch(API+"/api/public/config").then(r=>r.json()).then(x=>cfg=x||{}).catch(()=>{});
 $("#dform").addEventListener("submit",async ev=>{
  ev.preventDefault();const f=ev.target,m=$("#dmsg"),b=$("#dbtn");
  if(f.name.value.trim().length<2){msg(m,"Please enter your name.",1);f.name.focus();return}
@@ -45,7 +54,7 @@ $("#dform").addEventListener("submit",async ev=>{
  b.disabled=true;b.textContent="Sending...";msg(m,"");
  const body={name:f.name.value,email:f.email.value,company:f.company.value,website:(grade&&grade.domain)||f.company.value,phone:f.phone.value,focus:f.focus.value,hp:f.hp.value,score:grade?grade.score:0};
  try{
-  const r=await fetch("/api/public/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const r=await fetch(API+"/api/public/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok)throw new Error((await r.text()).trim()||"Something went wrong");
   const x=await r.json();f.hidden=true;$("#dok").hidden=false;
   const a=$("#dok-a");a.innerHTML="";

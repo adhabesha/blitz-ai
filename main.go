@@ -108,9 +108,9 @@ func main() {
 	mux.HandleFunc("/api/admin/test", s.adminTest)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/evaluate", s.evaluate)
-	mux.HandleFunc("/api/public/grade", s.publicGrade)
-	mux.HandleFunc("/api/public/demo", s.publicDemo)
-	mux.HandleFunc("/api/public/config", s.publicConfig)
+	mux.HandleFunc("/api/public/grade", pubCORS(s.publicGrade))
+	mux.HandleFunc("/api/public/demo", pubCORS(s.publicDemo))
+	mux.HandleFunc("/api/public/config", pubCORS(s.publicConfig))
 	mux.HandleFunc("/api/reports", s.reports)
 	mux.HandleFunc("/auth/google/callback", s.googleCallback)
 	mux.HandleFunc("/api/google/start", s.googleStart)
@@ -372,4 +372,24 @@ func (s *server) evaluate(w http.ResponseWriter, r *http.Request) {
 	rep.ID = ref.ID
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(rep)
+}
+
+// pubCORS lets the separately hosted landing page call the public (no sign-in) endpoints.
+// LANDING_ORIGIN (optional) limits it to your landing site's address, e.g. https://ficx.pages.dev
+func pubCORS(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		o := strings.TrimRight(strings.TrimSpace(env("LANDING_ORIGIN")), "/")
+		if o == "" {
+			o = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", o)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Vary", "Origin")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		h(w, r)
+	}
 }
