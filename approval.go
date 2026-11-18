@@ -90,7 +90,8 @@ func (s *server) access(ctx context.Context, t *auth.Token) (ok, full bool) {
 	} else {
 		ref.Set(ctx, map[string]any{"approved": false, "pending": true, "starter": starterOn(), "email": email, "createdAt": time.Now()})
 		ok = starterOn()
-		go s.notifyAdminSignup(email)
+		nm, _ := t.Claims["name"].(string)
+		go s.signupDemo(email, nm)
 	}
 	ttl := 10 * time.Second
 	if ok {
@@ -241,4 +242,21 @@ func (s *server) adminUserSet(w http.ResponseWriter, r *http.Request) {
 	}
 	s.apprForget(in.UID)
 	jsonOut(w, map[string]bool{"ok": true})
+}
+
+// signupDemo runs once for every brand-new account: it records a demo request, tells the admin, and e-mails the new
+// person that their demo request is on the schedule and that a message to agree a convenient time is coming
+// (with your booking link when DEMO_BOOKING_URL is set).
+func (s *server) signupDemo(email, name string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = strings.TrimSpace(strings.SplitN(email, "@", 2)[0])
+	}
+	if name == "" {
+		name = "there"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	s.db.Collection("demo_requests").NewDoc().Set(ctx, map[string]any{"name": name, "email": email, "focus": "Account sign-up: demo requested", "createdAt": time.Now(), "status": "new", "source": "signup"})
+	s.demoMails(name, email, "", "", "", "getting started with ficx", 0, strings.TrimSpace(env("DEMO_BOOKING_URL")))
 }

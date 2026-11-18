@@ -5,3 +5,4 @@ $("out").onclick=async()=>{await signOut(auth);location.href="/app"};
 async function check(u){try{const t=await u.getIdToken(true);const r=await fetch("/api/approval",{headers:{Authorization:"Bearer "+t}});const d=await r.json();$("who").textContent=d.email?" ("+d.email+")":"";
  if(d.approved){location.href="/dashboard";return}$("st").textContent="Still waiting. Last checked "+new Date().toLocaleTimeString()}catch(e){$("st").textContent="Could not check right now."}}
 onAuthStateChanged(auth,u=>{if(!u){location.href="/app";return}check(u);setInterval(()=>check(u),15000)});
+fetch("/api/public/config").then(r=>r.json()).then(c=>{if(c&&c.booking){$("bka").href=c.booking;$("bk").hidden=false}}).catch(()=>{});
