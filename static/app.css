@@ -75,7 +75,7 @@ em{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
 .bz-fix{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-top:12px}
 .bz-fix-h{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
 .bz-fix-h>div{flex:1;min-width:200px}.bz-fix-h b{font-size:15px}.bz-fix-h p{margin:5px 0 0;color:var(--mut);font-size:13px;line-height:1.5}
-.bz-pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.5px;margin-right:8px}
+.bz-pill{white-space:nowrap;flex:none;display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.5px;margin-right:8px}
 .bz-pill.fail{background:rgba(248,113,113,.16);color:var(--bad)}.bz-pill.warn{background:rgba(251,191,36,.16);color:var(--warn)}.bz-pill.pass{background:rgba(52,211,153,.16);color:var(--ok)}.bz-pill.plan{background:rgba(111,155,234,.2);color:#9db9f0}
 .bz-ws{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
 .bz-copy{background:var(--field);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:10px 0}
@@ -328,3 +328,6 @@ select option:checked,select option:hover{background:#da602c;color:#fff}
 .rp-zi{margin-right:auto;font-size:12px}.rp-zs{flex:1 1 120px;max-width:260px;accent-color:#da602c}
 .rp-open{text-decoration:none}.rp-zh{margin:6px 0 0;font-size:11.5px}
 .rp-ch canvas{touch-action:pan-y}
+.per-box{margin:10px 0}
+.per-card{border:1px solid var(--line,rgba(127,127,127,.35));border-radius:12px;padding:12px;margin:10px 0;background:rgba(127,127,127,.06)}
+.per-card textarea,.per-card input{width:100%;box-sizing:border-box}

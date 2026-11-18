@@ -30,7 +30,47 @@ type pubSpec struct {
 	Notes                                    map[string]string
 	FBReel                                   bool
 	TT                                       ttOpts
-	Keep                                     bool // keep the file after publishing (scheduler removes it)
+	Keep                                     bool                // keep the file after publishing (scheduler removes it)
+	Per                                      map[string]platText // text written separately for each platform
+	Tags                                     []string            // YouTube tags (only set by forPlat)
+}
+
+// platText is the title, caption and tags written for one platform. Nothing is shared between platforms.
+type platText struct {
+	Title, Caption string
+	Tags           []string
+}
+
+// forPlat returns the spec with the text written for that platform. A platform with its own text never
+// uses another platform's text; the general text is used only when no platform-specific text was given.
+func (sp pubSpec) forPlat(p string) pubSpec {
+	t, ok := sp.Per[p]
+	if !ok || (strings.TrimSpace(t.Title) == "" && strings.TrimSpace(t.Caption) == "") {
+		return sp
+	}
+	sp.Title, sp.Caption, sp.Tags = strings.TrimSpace(t.Title), strings.TrimSpace(t.Caption), t.Tags
+	return sp
+}
+
+// ytTags cleans tags for the YouTube API: no < or >, 30 characters at most each, 450 characters in total.
+func ytTags(in []string) []string {
+	var out []string
+	n := 0
+	seen := map[string]bool{}
+	for _, t := range in {
+		t = strings.TrimSpace(strings.TrimLeft(strings.NewReplacer("<", "", ">", "", "\"", "").Replace(t), "#"))
+		if r := []rune(t); len(r) > 30 {
+			t = string(r[:30])
+		}
+		k := strings.ToLower(t)
+		if t == "" || seen[k] || n+len(t)+3 > 450 {
+			continue
+		}
+		seen[k] = true
+		out = append(out, t)
+		n += len(t) + 3
+	}
+	return out
 }
 
 // ttOpts holds the TikTok choices the user makes in the Publish form.
@@ -190,6 +230,20 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 	if sp.Privacy != "public" && sp.Privacy != "unlisted" {
 		sp.Privacy = "private"
 	}
+	for _, pl := range []string{"youtube", "instagram", "tiktok", "facebook", "telegram"} {
+		pt := platText{Title: strings.TrimSpace(fields["title_"+pl]), Caption: strings.TrimSpace(fields["caption_"+pl])}
+		for _, t := range strings.Split(fields["tags_"+pl], ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				pt.Tags = append(pt.Tags, t)
+			}
+		}
+		if pt.Title != "" || pt.Caption != "" {
+			if sp.Per == nil {
+				sp.Per = map[string]platText{}
+			}
+			sp.Per[pl] = pt
+		}
+	}
 	if v := fields["schedule"]; v != "" {
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil || t.Before(time.Now().Add(10*time.Minute)) || t.After(time.Now().Add(75*24*time.Hour)) {
@@ -281,10 +335,21 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request) {
 	jobs.Unlock()
 	if len(schedPlats) > 0 {
 		sp.Keep = true
-		if _, err := s.saveScheduled(r.Context(), uid, sp, schedPlats); err != nil {
+		perr := s.persistMedia(r.Context(), sp.Path)
+		if perr != nil {
+			log.Println("persist media:", perr)
+			s.dropMedia(r.Context(), sp.Path)
+		}
+		var serr error
+		if perr == nil {
+			_, serr = s.saveScheduled(r.Context(), uid, sp, schedPlats)
+		} else {
+			serr = perr
+		}
+		if err := serr; err != nil {
 			log.Println("save scheduled:", err)
 			for _, p := range schedPlats {
-				job.set(p, "failed", "Could not save the schedule. Try again.", "")
+				job.set(p, "failed", "Could not save the schedule ("+trunc(err.Error(), 120)+"). Try again.", "")
 			}
 		}
 	}
@@ -362,15 +427,15 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 			var err error
 			switch p {
 			case "youtube":
-				link, note, err = s.pubYouTube(ctx, uid, sp)
+				link, note, err = s.pubYouTube(ctx, uid, sp.forPlat("youtube"))
 			case "facebook":
-				link, note, err = s.pubFacebook(ctx, uid, sp)
+				link, note, err = s.pubFacebook(ctx, uid, sp.forPlat("facebook"))
 			case "instagram":
-				link, note, err = s.pubInstagram(ctx, uid, sp)
+				link, note, err = s.pubInstagram(ctx, uid, sp.forPlat("instagram"))
 			case "tiktok":
-				link, note, err = s.pubTikTok(ctx, uid, sp)
+				link, note, err = s.pubTikTok(ctx, uid, sp.forPlat("tiktok"))
 			case "telegram":
-				link, note, err = s.pubTelegram(ctx, uid, sp)
+				link, note, err = s.pubTelegram(ctx, uid, sp.forPlat("telegram"))
 			}
 			if err != nil {
 				log.Println("publish", p, err)
@@ -378,7 +443,7 @@ func (s *server) runPublish(job *pubJob, uid string, sp pubSpec) {
 				return
 			}
 			if n := sp.Notes[p]; n != "" {
-				note += " " + n
+				note += ". " + n
 			}
 			job.set(p, "done", note, link)
 		}()
@@ -425,7 +490,11 @@ func (s *server) pubYouTube(ctx context.Context, uid string, sp pubSpec) (string
 		status["publishAt"] = sp.Schedule.UTC().Format(time.RFC3339)
 		note = "Scheduled for " + sp.Schedule.Local().Format("2006-01-02 15:04") + ". YouTube publishes it."
 	}
-	meta, _ := json.Marshal(map[string]any{"snippet": map[string]any{"title": cut(title, 100), "description": cut(desc, 5000), "categoryId": "22"}, "status": status})
+	snip := map[string]any{"title": cut(title, 100), "description": cut(desc, 5000), "categoryId": "22"}
+	if tg := ytTags(sp.Tags); len(tg) > 0 {
+		snip["tags"] = tg
+	}
+	meta, _ := json.Marshal(map[string]any{"snippet": snip, "status": status})
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", bytes.NewReader(meta))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
@@ -574,13 +643,78 @@ func (s *server) pubFacebook(ctx context.Context, uid string, sp pubSpec) (strin
 	for k, v := range sched {
 		f[k] = v
 	}
-	var out struct {
-		ID string `json:"id"`
-	}
-	if err := postMultipart(ctx, "https://graph-video.facebook.com/v21.0/"+pid+"/videos", f, "source", sp.Path, &out); err != nil {
+	id, err := fbVideoResumable(ctx, pid, f, sp.Path, sp.Size)
+	if err != nil {
 		return "", "", err
 	}
-	return "https://www.facebook.com/watch/?v=" + out.ID, note, nil
+	return "https://www.facebook.com/watch/?v=" + id, note, nil
+}
+
+// fbVideoResumable uploads a video to a Page in chunks (Facebook's recommended way). A single big request is refused
+// with "413 request entity too large", and the chunks also survive a slow connection.
+func fbVideoResumable(ctx context.Context, pid string, fields map[string]string, path string, size int64) (string, error) {
+	base := "https://graph-video.facebook.com/v21.0/" + pid + "/videos"
+	tok := fields["access_token"]
+	var st struct {
+		SessionID string `json:"upload_session_id"`
+		VideoID   string `json:"video_id"`
+		Start     string `json:"start_offset"`
+		End       string `json:"end_offset"`
+	}
+	if err := postForm(ctx, base, url.Values{"upload_phase": {"start"}, "file_size": {strconv.FormatInt(size, 10)}, "access_token": {tok}}, &st); err != nil {
+		return "", err
+	}
+	if st.SessionID == "" {
+		return "", fmt.Errorf("Facebook did not open an upload session")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	start, _ := strconv.ParseInt(st.Start, 10, 64)
+	end, _ := strconv.ParseInt(st.End, 10, 64)
+	for guard := 0; start < size && guard < 2000; guard++ {
+		if end <= start {
+			return "", fmt.Errorf("Facebook stopped accepting the upload at %d of %d bytes", start, size)
+		}
+		buf := make([]byte, end-start)
+		n, rerr := f.ReadAt(buf, start)
+		if rerr != nil && rerr != io.EOF {
+			return "", rerr
+		}
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		mw.WriteField("upload_phase", "transfer")
+		mw.WriteField("upload_session_id", st.SessionID)
+		mw.WriteField("start_offset", strconv.FormatInt(start, 10))
+		mw.WriteField("access_token", tok)
+		part, _ := mw.CreateFormFile("video_file_chunk", "chunk")
+		part.Write(buf[:n])
+		mw.Close()
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base, &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		var tr struct {
+			Start string `json:"start_offset"`
+			End   string `json:"end_offset"`
+		}
+		if err := doJSON(req, &tr); err != nil {
+			return "", err
+		}
+		start, _ = strconv.ParseInt(tr.Start, 10, 64)
+		end, _ = strconv.ParseInt(tr.End, 10, 64)
+	}
+	form := url.Values{"upload_phase": {"finish"}, "upload_session_id": {st.SessionID}, "access_token": {tok}}
+	for k, v := range fields {
+		if k != "access_token" {
+			form.Set(k, v)
+		}
+	}
+	var fin map[string]any
+	if err := postForm(ctx, base, form, &fin); err != nil {
+		return "", err
+	}
+	return st.VideoID, nil
 }
 
 func (s *server) fbReel(ctx context.Context, pid, ptok, caption string, sp pubSpec) (string, error) {

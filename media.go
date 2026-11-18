@@ -251,7 +251,7 @@ func platformVerdict(p string, sp pubSpec, info *vidInfo, iw, ih int) verdict {
 			return verdict{Block: "Instagram Reels must be vertical (9:16). Post it as a Normal video, or export a vertical version."}
 		}
 		if landscape {
-			return verdict{Note: "Instagram posts all videos as Reels; a landscape video will show with bars."}
+			return verdict{Note: "All Instagram videos are shown as Reels; a landscape video will appear with bars."}
 		}
 		if ratio < 0.5 || ratio > 0.63 {
 			return verdict{Note: "Not exactly 9:16; Instagram may crop or add bars."}

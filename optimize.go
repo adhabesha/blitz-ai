@@ -31,9 +31,12 @@ func takeBudget(uid string, max int) bool {
 }
 
 var platformRules = map[string]string{
-	"youtube":   "Built for virality. Titles under 70 characters, main keyword first, one curiosity or benefit hook, optionally a number. The first 150 characters of the description contain the main keyword and a hook; description 800-1500 characters with a call to action and placeholders for links and timestamps. Tags in tiers: 3 broad (high-volume), 5 niche (the exact topic), 6 long-tail (3-5 word searches people really type), 4 question tags (how/why/what), 3 trending-style tags for the topic; total under 450 characters, no misleading tags. 3 relevant hashtags. Reuse words and tags that already perform on this channel when they fit. Thumbnail ideas with 2-4 word overlay text.",
+	"yt_short":  "YouTube SHORTS only (vertical video under 60 seconds). Do not write for any other platform. Title: under 60 characters, the main keyword and a curiosity or benefit hook in the first words, easy to read on a phone, no clickbait lies. titles: 5 options. Description: 150-400 characters; line 1 is the keyword-rich hook, line 2 one value sentence, then a call to action to subscribe or watch the next Short, then 3 hashtags including #Shorts. Tags: 12-18 search tags (broad, exact-topic and long-tail phrases people type into YouTube Shorts search), under 450 characters in total. Hooks: 3 spoken or on-screen openers for the first 2 seconds. Ideas: 3 cover frame ideas. Notes: 3 things to test next.",
+	"ig_reel":   "INSTAGRAM REELS only. Do not write for any other platform. titles: 5 short on-screen cover texts of 2-6 words (Instagram has no title field, this is the text shown on the cover). Description (the caption): line 1 is a hook under 110 characters that makes people stop and read more, then 2-3 short lines of value written in a human voice with line breaks, the main keywords written in plain words (Instagram search reads captions), one call to action asking people to save, share or comment a specific word. Under 600 characters before the hashtags. Hashtags: 5-10 only, a mix of niche, mid-size and a couple of broad ones, no banned or spammy tags. Hooks: 3 opening lines for the first 3 seconds. Ideas: 3 cover ideas. Notes: 3 things to test next.",
+	"telegram":  "TELEGRAM channel post only. Do not write for any other platform. titles: 3 options, a plain bold headline under 70 characters. Description: 2-5 short lines, direct and personal, useful on its own, one clear call to action or link placeholder [link], no more than 2 hashtags, emojis only where they help. Under 700 characters.",
+	"youtube":   "Built for virality. Titles under 70 characters, main keyword first, one curiosity or benefit hook, optionally a number. The first 150 characters of the description contain the main keyword and a hook; description 800-1500 characters with a call to action, a [link] placeholder and a chapters list with timestamps (start with 0:00, then a sensible set of chapters for this kind of video) that the creator will adjust to the real video. Tags in tiers: 3 broad (high-volume), 5 niche (the exact topic), 6 long-tail (3-5 word searches people really type), 4 question tags (how/why/what), 3 trending-style tags for the topic; total under 450 characters, no misleading tags. 3 relevant hashtags. Reuse words and tags that already perform on this channel when they fit. Thumbnail ideas with 2-4 word overlay text.",
 	"instagram": "Caption first line is a hook under 125 characters, then value, then one call to action. 3-8 relevant hashtags mixing niche and mid-size. Under 2200 characters.",
-	"tiktok":    "Caption under 150 characters with a hook and 3-5 hashtags. Hooks must work in the first 3 seconds of video and on-screen text.",
+	"tiktok":    "TIKTOK only. Do not write for any other platform. titles: 5 on-screen text hooks of 3-8 words for the first second. Description (the caption): under 150 characters, a hook or question plus the main keywords in plain words (TikTok search reads captions), then 3-5 hashtags: one broad, two niche, one trend-style, and never #fyp spam walls. Hooks: 3 opening lines for the first 3 seconds of video. Ideas: 3 cover frame ideas. Notes: 3 things to test next.",
 	"x":         "Posts under 260 characters, one idea, strong first words, at most 2 hashtags, an invitation to reply.",
 	"linkedin":  "A hook in the first line (before the 'see more' cut), short paragraphs, a concrete lesson or story, a question at the end, 3 hashtags.",
 	"facebook":  "A conversational opener, 1-3 short paragraphs, a clear call to action, at most 3 hashtags.",
@@ -205,8 +208,8 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Add a topic, a title or a description first", 400)
 		return
 	}
-	if !takeBudget(uid, 25) {
-		http.Error(w, "Daily optimizer limit reached (25). Try again tomorrow.", 429)
+	if !takeBudget(uid, 60) {
+		http.Error(w, "Daily optimizer limit reached (60). Try again tomorrow.", 429)
 		return
 	}
 	n := 5
@@ -218,7 +221,7 @@ func (s *server) optimize(w http.ResponseWriter, r *http.Request) {
 		label = "short-form social video"
 	}
 	var real []string
-	if pl == "post" || pl == "youtube" || pl == "instagram" || pl == "tiktok" {
+	if pl == "post" || pl == "youtube" || pl == "instagram" || pl == "tiktok" || pl == "yt_short" || pl == "ig_reel" {
 		tctx, tcancel := context.WithTimeout(r.Context(), 12*time.Second)
 		real = ytTopTags(tctx, firstNonEmpty(title, in.Topic))
 		tcancel()

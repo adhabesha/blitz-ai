@@ -7,7 +7,7 @@ const TYPES={
 };
 const PN={youtube:"YouTube",facebook:"Facebook Page",instagram:"Instagram",tiktok:"TikTok",telegram:"Telegram"};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null,tt=null,ttInfo=null;
+let per={},auth,conn={},type="short",plats=new Set(),file=null,ui={},meta=null,tt=null,ttInfo=null;
 function verdict(p){
   if(p==="telegram"&&file){const mb=file.size/1048576;if(type==="image"&&mb>10)return{block:"photo over 10 MB"};if(type!=="image"&&mb>50)return{block:"video over 50 MB"};return{}}
   if(!meta)return{};
@@ -50,6 +50,8 @@ export function mountPublish(root,a){
       drawViral(o,r.sourceTags||[]);drawPlats();
       ui.msg.textContent="Review and edit the text before publishing."}
     catch(e){ui.msg.textContent=e.message}ui.ai.disabled=false};
+  ui.opt=h("button","bz-btn","Optimize separately for every selected platform");ui.opt.title="Writes a different title, caption, hashtags and tags for each platform you ticked. Nothing is copied from one platform to another.";
+  ui.opt.onclick=optimizeAll;ui.per=h("div","per-box");
   ui.hc=h("select");for(const[v,t]of[[5,"5 hashtags"],[10,"10 hashtags (recommended mix)"],[15,"15 hashtags"]]){const o=h("option",null,t);o.value=v;if(v===10)o.selected=true;ui.hc.appendChild(o)}
   ui.win=h("button","bz-btn ghost","Find winning examples and write the script");ui.win.onclick=findWinners;ui.winres=h("div","win-res");
   ui.viral=h("div","viral-box");ui.chk=h("div","viral-chk");
@@ -57,7 +59,7 @@ export function mountPublish(root,a){
   ui.plats=h("div","chips");ui.tt=h("div","tt-panel");ui.tt.hidden=true;
   ui.when=h("input");ui.when.type="datetime-local";ui.when.onchange=drawPlats;
   ui.priv=h("select");for(const v of["private","unlisted","public"]){const o=h("option",null,v==="private"?"private (safest)":v);o.value=v;ui.priv.appendChild(o)}
-  const lab=(t,el)=>{const l=h("label",null,t);l.appendChild(el);return l};
+  const lab=(t,el)=>{const l=h("label",null,t);l.style.display="block";l.style.marginTop="12px";l.appendChild(el);return l};
   const f=h("div","form");add(f,lab("Title",ui.title),lab("YouTube visibility",ui.priv),lab("Schedule (optional): ficx uploads at this time",ui.when));
   ui.go=h("button","bz-btn","Publish");ui.go.onclick=submit;
   const shareWA=async()=>{const t=((ui.title.value?ui.title.value+"\n\n":"")+ui.cap.value).trim();if(!t&&!file){ui.msg.textContent="Choose a file or write a caption first.";return false}
@@ -67,7 +69,7 @@ export function mountPublish(root,a){
   ui.waChk=document.createElement("input");ui.waChk.type="checkbox";const wl=h("label","pub-wa");wl.style.cssText="display:flex;gap:8px;align-items:center;margin:8px 0";add(wl,ui.waChk,h("span",null,"Also share to a WhatsApp group when I press Publish (not for scheduled posts: a person has to tap send in WhatsApp)"));
   ui.go.onclick=async()=>{if(ui.waChk.checked&&!ui.when.value)shareWA();submit()};
   ui.msg=h("p","bz-mut");ui.bar=h("div","pubbar");ui.barI=h("i");ui.bar.appendChild(ui.barI);ui.bar.hidden=true;ui.jobs=h("div","pub-jobs");ui.sched=h("div","pub-sched");
-  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,wl,ui.go,ui.wa,ui.bar,ui.msg,ui.jobs,ui.sched);
+  add(w,ui.seg,ui.hint,lab("File",ui.file),ui.prev,f,lab("Caption / description",ui.cap),lab("Topic for AI (optional)",ui.topic),lab("How many hashtags",ui.hc),ui.ai,ui.opt,ui.per,ui.win,ui.winres,ui.viral,ui.chk,h("h4",null,"Post to"),ui.plats,ui.tt,wl,ui.go,ui.wa,ui.bar,ui.msg,ui.jobs,ui.sched);
   drawType();
   setTimeout(()=>{refresh().catch(()=>{})},0); // also load connections right away, in case the tab was opened before this page finished loading
   return refresh;
@@ -110,7 +112,62 @@ function drawPlats(){
     ui.plats.appendChild(b);
     if(plats.has(p)&&v.note)ui.plats.appendChild(h("p","bz-mut pub-note",PN[p]+": "+v.note));
   }
-  drawTT();drawCheck();
+  drawTT();drawCheck();if(ui.per)drawPer();
+}
+
+
+/* ---------- Separate optimisation per platform ---------- */
+const PAPI=p=>p==="youtube"?(type==="short"?"yt_short":"youtube"):p==="instagram"?"ig_reel":p;
+const PLABEL={youtube:()=>type==="short"?"YouTube Short":"YouTube video",instagram:()=>"Instagram Reel",tiktok:()=>"TikTok",facebook:()=>"Facebook",telegram:()=>"Telegram"};
+async function optimizeAll(){
+  const list=[...plats];
+  if(!list.length){ui.msg.textContent="Tick the platforms you want to post to first, then optimize.";return}
+  const topic=(ui.topic.value||ui.title.value||ui.cap.value.split("\n")[0]||"").trim();
+  if(!topic){ui.msg.textContent="Type what the post is about in the Topic box first.";return}
+  ui.opt.disabled=true;ui.per.innerHTML="";
+  const hc=+ui.hc.value||10,fails=[];
+  for(const p of list){
+    ui.msg.textContent="Optimizing for "+PN[p]+" ("+(list.indexOf(p)+1)+" of "+list.length+")…";
+    try{
+      const hcp=p==="instagram"?Math.min(hc,8):p==="tiktok"?Math.min(hc,5):p==="telegram"?2:p==="facebook"?3:p==="youtube"?3:hc;
+      let r;
+      try{r=await api("POST","/api/optimize",{platform:PAPI(p),topic,hashtagCount:hcp})}
+      catch(e){await sleep(4000);r=await api("POST","/api/optimize",{platform:PAPI(p),topic,hashtagCount:hcp})}
+      const o=r.result||{},tags=(o.hashtags||[]).map(x=>x.startsWith("#")?x:"#"+x);
+      let cap=(o.description||"").trim();
+      const have=new Set((cap.match(/#[\p{L}\p{N}_]+/gu)||[]).map(x=>x.toLowerCase()));
+      const add2=tags.filter(x=>!have.has(x.toLowerCase()));
+      if(add2.length)cap+="\n\n"+add2.join(" ");
+      per[p]={title:(o.titles||[])[0]||"",titles:o.titles||[],caption:cap,tags:p==="youtube"?(o.tags||[]).join(", "):"",hooks:o.hooks||[]};
+    }catch(e){fails.push(PN[p]+": "+e.message)}
+    drawPer();
+  }
+  ui.opt.disabled=false;
+  ui.msg.textContent=fails.length?"Some platforms could not be optimized ("+fails.join(" | ").slice(0,300)+"). They will post with the general title and caption above unless you try again.":"Done. Each platform has its own text below. Edit anything, then publish.";
+}
+function drawPer(){
+  ui.per.innerHTML="";
+  const list=[...plats].filter(p=>per[p]);
+  if(!list.length)return;
+  ui.per.appendChild(h("h4",null,"Text written separately for each platform"));
+  for(const p of list){
+    const d=per[p],card=h("div","per-card");
+    card.appendChild(h("b",null,PLABEL[p]()));
+    const lab2=(t,el)=>{const l=h("label",null,t);l.style.display="block";l.style.marginTop="8px";l.appendChild(el);return l};
+    if(p!=="instagram"&&p!=="tiktok"){
+      const ti=h("input");ti.maxLength=100;ti.value=d.title;ti.oninput=()=>{d.title=ti.value};
+      card.appendChild(lab2(p==="telegram"?"Headline":"Title",ti));
+      if((d.titles||[]).length>1){const row=h("div","chips");for(const t of d.titles){const b=h("button","chip",t);b.onclick=()=>{d.title=t;ti.value=t};row.appendChild(b)}card.appendChild(row)}
+    }else if((d.titles||[]).length){
+      card.appendChild(h("p","bz-mut pub-note",(p==="instagram"?"Cover text ideas: ":"On-screen text ideas: ")+d.titles.slice(0,3).join("  |  ")));
+    }
+    const ca=h("textarea");ca.rows=p==="youtube"?7:5;ca.maxLength=p==="instagram"||p==="tiktok"?2200:5000;ca.value=d.caption;ca.oninput=()=>{d.caption=ca.value};
+    card.appendChild(lab2(p==="youtube"?"Description":"Caption",ca));
+    if(p==="youtube"){const tg=h("input");tg.value=d.tags;tg.oninput=()=>{d.tags=tg.value};card.appendChild(lab2("Tags (comma separated)",tg))}
+    if((d.hooks||[]).length)card.appendChild(h("p","bz-mut pub-note","Opening lines for the first seconds of the video: "+d.hooks.slice(0,3).join("  |  ")));
+    ui.per.appendChild(card);
+  }
+  ui.per.appendChild(h("p","bz-mut pub-note","Each platform posts with its own text only. Platforms you did not optimize use the general title and caption above."));
 }
 
 /* ---------- Winning examples + script / design brief (real YouTube data) ---------- */
@@ -294,6 +351,8 @@ async function submit(){
   if(plats.has("tiktok")){const e=ttCheck();if(e){ui.msg.textContent=e;return}}
   const fd=new FormData();
   fd.append("type",type);fd.append("title",ui.title.value);fd.append("caption",ui.cap.value);fd.append("privacy",ui.priv.value);fd.append("platforms",list.join(","));
+  for(const p of list){const d=per[p];if(!d)continue;
+    if(d.title)fd.append("title_"+p,d.title);if(d.caption)fd.append("caption_"+p,d.caption);if(d.tags)fd.append("tags_"+p,d.tags)}
   if(plats.has("tiktok")){
     fd.append("tt_privacy",tt.privacy);fd.append("tt_consent",tt.consent?"1":"0");
     for(const[k,v]of[["tt_comment",tt.comment],["tt_duet",tt.duet],["tt_stitch",tt.stitch],["tt_commercial",tt.commercial],["tt_your_brand",tt.yourBrand],["tt_branded",tt.branded]])fd.append(k,v?"1":"0");

@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,6 +27,100 @@ import (
 // reliable scheduling use a host with a persistent disk, or keep the server awake.
 
 const schedColl = "scheduled_posts"
+
+// Scheduled videos are also kept in Firestore (in 800 KB pieces) so a restart or a redeploy of the server, which
+// clears its disk, no longer loses them. The copy is put back on disk when the post is due and deleted afterwards.
+const mediaColl = "scheduled_media"
+const mediaChunk = 800 << 10
+const maxScheduledMedia = 150 << 20
+
+func (s *server) persistMedia(ctx context.Context, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if st.Size() > maxScheduledMedia {
+		return fmt.Errorf("this file is larger than 150 MB, the limit for scheduled posts")
+	}
+	base := s.db.Collection(mediaColl).Doc(filepath.Base(path))
+	buf := make([]byte, mediaChunk)
+	for i := 0; ; i++ {
+		n, rerr := io.ReadFull(f, buf)
+		if n > 0 {
+			if _, e := base.Collection("c").Doc(fmt.Sprintf("%05d", i)).Set(ctx, map[string]any{"b": append([]byte(nil), buf[:n]...)}); e != nil {
+				return e
+			}
+		}
+		if rerr == io.EOF || rerr == io.ErrUnexpectedEOF {
+			break
+		}
+		if rerr != nil {
+			return rerr
+		}
+	}
+	_, err = base.Set(ctx, map[string]any{"size": st.Size(), "created": time.Now().UTC()})
+	return err
+}
+
+// restoreMedia puts the stored copy back on disk when the file is missing.
+func (s *server) restoreMedia(ctx context.Context, path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	base := s.db.Collection(mediaColl).Doc(filepath.Base(path))
+	meta, err := base.Get(ctx)
+	if err != nil {
+		return err
+	}
+	want, _ := meta.Data()["size"].(int64)
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	out, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	it := base.Collection("c").OrderBy(firestore.DocumentID, firestore.Asc).Documents(ctx)
+	defer it.Stop()
+	var got int64
+	for {
+		d, e := it.Next()
+		if e == iterator.Done {
+			break
+		}
+		if e != nil {
+			out.Close()
+			os.Remove(path)
+			return e
+		}
+		b, _ := d.Data()["b"].([]byte)
+		n, _ := out.Write(b)
+		got += int64(n)
+	}
+	out.Close()
+	if want > 0 && got != want {
+		os.Remove(path)
+		return fmt.Errorf("stored copy incomplete (%d of %d bytes)", got, want)
+	}
+	return nil
+}
+
+func (s *server) dropMedia(ctx context.Context, path string) {
+	base := s.db.Collection(mediaColl).Doc(filepath.Base(path))
+	it := base.Collection("c").Documents(ctx)
+	for {
+		d, e := it.Next()
+		if e != nil {
+			break
+		}
+		d.Ref.Delete(ctx)
+	}
+	it.Stop()
+	base.Delete(ctx)
+}
 
 var reHex = regexp.MustCompile(`^[0-9a-f]{20}$`)
 
@@ -134,12 +231,13 @@ func (s *server) fireScheduled(ref *firestore.DocumentRef, data map[string]any, 
 		return
 	}
 	defer os.Remove(sp.Path)
+	defer s.dropMedia(ctx, sp.Path)
 	if time.Since(when) > 12*time.Hour {
 		finish("failed", failResults(data, "Missed: the server was not running within 12 hours of the scheduled time."))
 		return
 	}
-	if _, err := os.Stat(sp.Path); err != nil {
-		finish("failed", failResults(data, "The video file is gone (the server restarted and its storage was cleared). Upload and schedule it again. A host with a persistent disk (MEDIA_DIR) prevents this."))
+	if err := s.restoreMedia(ctx, sp.Path); err != nil {
+		finish("failed", failResults(data, "The video file could not be found (the server restarted and the saved copy could not be restored: "+trunc(err.Error(), 120)+"). Upload and schedule it again."))
 		return
 	}
 	var plats []string
@@ -255,6 +353,7 @@ func (s *server) scheduledCancel(w http.ResponseWriter, r *http.Request) {
 	var sp pubSpec
 	if json.Unmarshal([]byte(spec), &sp) == nil && sp.Path != "" {
 		os.Remove(sp.Path)
+		s.dropMedia(context.Background(), sp.Path)
 	}
 	w.Write([]byte(`{"ok":true}`))
 }

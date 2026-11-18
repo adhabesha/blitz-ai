@@ -8,3 +8,6 @@ A strip at the very top of every page switches how you work, instantly (each per
 - **Company workspace** – everything for one company: analyze, optimize and publish, ads, messaging, outbound, CRM (owners, CEOs, agencies)
 
 Nothing is set up twice. Connected accounts are shared by all modes. A company can reuse them ("Use the accounts I already connected") or have its own accounts. Companies created by an owner, admin or manager of a CRM workspace are shared with the team: owners, admins, managers and marketing members can work in them using the accounts the creator connected. CRM records are tagged with the company and filtered when one is active; "All companies" (Hybrid) shows everything. Lead-capture webhook URLs shown inside a company include `?c=<companyId>`.
+
+## Scheduled posts need the server awake
+Instagram, TikTok and Telegram posts are sent by the server at the scheduled time (Facebook and YouTube schedule natively). Scheduled videos (up to 150 MB) are stored in Firestore, so a restart or redeploy no longer loses them. On a free Render plan the server sleeps after ~15 minutes without visits, so add a free monitor (for example UptimeRobot) that opens `https://YOUR-APP.onrender.com/healthz` every 5 minutes to keep it awake.
