@@ -31,7 +31,7 @@ $("#gform").addEventListener("submit",async ev=>{
  try{
   const r=await fetch(API+"/api/public/grade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
   if(!r.ok)throw new Error((await r.text()).trim()||"Something went wrong");
-  const g=await r.json();grade=g;msg(m,"");renderGrade(g,res);
+  const g=await r.json();grade=g;if(window.fxTrack)fxTrack("website_check",{score:g.score});msg(m,"");renderGrade(g,res);
  }catch(e){msg(m,e.message,1)}
  b.disabled=false;b.textContent="Check my website"});
 function renderGrade(g,res){
@@ -56,7 +56,7 @@ $("#dform").addEventListener("submit",async ev=>{
  try{
   const r=await fetch(API+"/api/public/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok)throw new Error((await r.text()).trim()||"Something went wrong");
-  const x=await r.json();f.hidden=true;$("#dok").hidden=false;
+  const x=await r.json();f.hidden=true;$("#dok").hidden=false;if(window.fxTrack)fxTrack("lead",{focus:f.focus.value});
   const a=$("#dok-a");a.innerHTML="";
   if(x.booking){$("#dok-t").textContent="Pick a time that suits you now, or wait for our message.";a.innerHTML=`<a class="btn" href="${esc(x.booking)}" target="_blank" rel="noopener">Pick a time now</a>`}
   else $("#dok-t").textContent="We will message you shortly to agree a time for a 20-minute walkthrough. A confirmation is on its way to your inbox.";

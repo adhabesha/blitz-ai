@@ -198,7 +198,7 @@ const VIEWS={
       ["4","Messaging","Chats with human takeover, comment-to-DM and keyword automations.","","automations"],
       ["5","Outbound","Find prospects, run follow-up sequences, handle replies in the smart inbox.","","prospects"],
       ["6","CRM & revenue","Leads, deals, tasks and the revenue dashboard.",L.length+" leads \u00b7 "+D.length+" deals","dashboard"]];
-    const g=h("div","ws-steps");for(const[n,t,d,st,k]of steps){const c=h("button","ws-step");add(c,h("i",null,n),h("b",null,t),h("span",null,d),st?h("em",null,st):null);c.onclick=()=>nav(k);g.appendChild(c)}v.appendChild(g)},
+    const g=h("div","ws-steps");{const n=steps.length;g.style.setProperty("--cols",String(n<=3?n:n===4?2:(n===5||n===6||n===9)?3:4))}for(const[n,t,d,st,k]of steps){const c=h("button","ws-step");add(c,h("i",null,n),h("b",null,t),h("span",null,d),st?h("em",null,st):null);c.onclick=()=>nav(k);g.appendChild(c)}v.appendChild(g)},
   async leads(){await load("leads");setHead("Leads","Everyone who showed interest",[newBtn("leads")],lv("leads"));
     if(S.sub.leads==="kanban")return kanban("leads");
     grid("leads",["Lead","Company","Contact","Source","Status","Amount","Responsible","Created"],l=>[l.name,l.company,[l.email,l.phone].filter(Boolean).join(" · "),label(l.source),pill(l.status),l.value?money(l.value):"",(()=>{const sp=h("span");sp.append(avatar(l.ownerUid)," ",ownerName(l.ownerUid));return sp})(),date(l.createdAt)],{filter:{label:"All statuses",key:"status",opts:S.me.leadStatus}})},

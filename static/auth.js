@@ -27,11 +27,12 @@ $("a-go").onclick=async()=>{
       const c=await createUserWithEmailAndPassword(auth,email,pass);
       const n=$("i-name").value.trim();if(n)await updateProfile(c.user,{displayName:n});
       try{await sendEmailVerification(c.user)}catch(e){}
+      if(window.fxTrack)fxTrack("sign_up",{method:"email"});
     }else await signInWithEmailAndPassword(auth,email,pass);
   }catch(e){fail(e)}
   $("a-go").disabled=false;
 };
-$("a-google").onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){fail(e)}};
+$("a-google").onclick=async()=>{try{const r=await signInWithPopup(auth,new GoogleAuthProvider());if(r&&r._tokenResponse&&r._tokenResponse.isNewUser&&window.fxTrack)fxTrack("sign_up",{method:"google"})}catch(e){fail(e)}};
 $("a-forgot").onclick=async()=>{
   const email=$("i-email").value.trim();if(!email){msg("Type your email above first.");return}
   try{await sendPasswordResetEmail(auth,email);msg("Password reset email sent. Check your inbox.",true)}catch(e){fail(e)}

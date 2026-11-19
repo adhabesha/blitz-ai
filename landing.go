@@ -274,5 +274,24 @@ func (s *server) demoMails(name, email, company, website, phone, focus string, s
 
 // GET /api/public/config: what the landing page needs to show.
 func (s *server) publicConfig(w http.ResponseWriter, r *http.Request) {
-	jsonOut(w, map[string]any{"booking": strings.TrimSpace(env("DEMO_BOOKING_URL")), "whatsapp": reDigits.ReplaceAllString(env("DEMO_WHATSAPP"), ""), "starter": starterOn()})
+	jsonOut(w, map[string]any{"booking": strings.TrimSpace(env("DEMO_BOOKING_URL")), "whatsapp": reDigits.ReplaceAllString(env("DEMO_WHATSAPP"), ""), "starter": starterOn(),
+		"pixel": trackID(env("META_PIXEL_ID"), reTrackPixel), "ga4": trackID(env("GA4_ID"), reTrackGA), "gtm": trackID(env("GTM_ID"), reTrackGTM)})
+}
+
+var (
+	reTrackPixel = regexp.MustCompile(`^[0-9]{8,20}$`)
+	reTrackGA    = regexp.MustCompile(`^G-[A-Z0-9]{6,12}$`)
+	reTrackGTM   = regexp.MustCompile(`^GTM-[A-Z0-9]{4,10}$`)
+)
+
+// trackID returns the tracking ID only when it has exactly the expected shape, so a typo can never inject anything into the page.
+func trackID(v string, re *regexp.Regexp) string {
+	v = strings.ToUpper(strings.TrimSpace(v))
+	if re == reTrackPixel {
+		v = strings.TrimSpace(v)
+	}
+	if re.MatchString(v) {
+		return v
+	}
+	return ""
 }
