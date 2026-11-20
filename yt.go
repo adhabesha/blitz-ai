@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -123,9 +124,35 @@ type ytVid struct {
 	Dur, PerDay, Eng       float64
 	Tags                   []string
 	DescLen                int
+	Sh                     bool
 }
 
-func (v ytVid) short() bool { return v.Dur > 0 && v.Dur <= 180 }
+// short is true only for real YouTube Shorts: <= 3 min AND YouTube itself serves
+// the video at /shorts/ID. Length alone is wrong (horizontal videos under 3 min).
+func (v ytVid) short() bool { return v.Sh }
+
+var shortsClient = &http.Client{Timeout: 6 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+// isRealShort asks YouTube: /shorts/ID answers 200 for a Short and redirects (303) for a normal video.
+func isRealShort(ctx context.Context, id string, dur float64, hint bool) bool {
+	if dur <= 0 || dur > 180 {
+		return false
+	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, "https://www.youtube.com/shorts/"+id, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; ficx)")
+	resp, err := shortsClient.Do(req)
+	if err != nil {
+		return hint
+	}
+	resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusOK:
+		return true
+	case resp.StatusCode >= 300 && resp.StatusCode < 400:
+		return false
+	}
+	return hint
+}
 
 func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 	if env("YOUTUBE_API_KEY") == "" {
@@ -198,7 +225,8 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		if th == "" {
 			th = it.Snippet.Thumbnails["default"].URL
 		}
-		v := ytVid{ID: it.ID, Title: it.Snippet.Title, Thumb: th, Pub: t, Views: atof(it.Statistics.Views), Likes: atof(it.Statistics.Likes), Comments: atof(it.Statistics.Comments), Dur: parseDur(it.ContentDetails.Duration), Tags: it.Snippet.Tags, DescLen: utf8.RuneCountInString(it.Snippet.Description)}
+		hint := strings.Contains(strings.ToLower(it.Snippet.Title+" "+it.Snippet.Description+" "+strings.Join(it.Snippet.Tags, " ")), "#shorts")
+		v := ytVid{ID: it.ID, Sh: hint, Title: it.Snippet.Title, Thumb: th, Pub: t, Views: atof(it.Statistics.Views), Likes: atof(it.Statistics.Likes), Comments: atof(it.Statistics.Comments), Dur: parseDur(it.ContentDetails.Duration), Tags: it.Snippet.Tags, DescLen: utf8.RuneCountInString(it.Snippet.Description)}
 		age := math.Max(now.Sub(t).Hours()/24, 1)
 		v.PerDay = v.Views / age
 		if v.Views > 0 {
@@ -206,6 +234,22 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		}
 		vids = append(vids, v)
 	}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 8)
+	for i := range vids {
+		if vids[i].Dur <= 0 || vids[i].Dur > 180 {
+			vids[i].Sh = false
+			continue
+		}
+		wg.Add(1)
+		go func(v *ytVid) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			v.Sh = isRealShort(ctx, v.ID, v.Dur, v.Sh)
+		}(&vids[i])
+	}
+	wg.Wait()
 	sort.Slice(vids, func(i, j int) bool { return vids[i].Pub.After(vids[j].Pub) })
 	n := float64(len(vids))
 
@@ -329,7 +373,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		medK,
 		kpiFrom(engC, "Engagement rate", "Good \u2265 4%"),
 		kpiFrom(cadC, "Uploads per week", "Aim for 1+"),
-		{Label: "Short-form share", Value: fmt.Sprintf("%.0f%%", shorts/n*100), Note: "videos \u2264 3 min"},
+		{Label: "Short-form share", Value: fmt.Sprintf("%.0f%%", shorts/n*100), Note: "real YouTube Shorts"},
 	}
 	if subs >= 100 && !c.Statistics.Hidden {
 		r.KPIs = append(r.KPIs, kpiFrom(reachC, "Reach vs subscribers", "Good \u2265 15%"))
@@ -420,7 +464,7 @@ func (s *server) evalYouTube(ctx context.Context, in evalIn) (*Report, error) {
 		}
 		return Row{Cells: []string{label, commas(cnt), commas(vw), commas(a), fmt.Sprintf("%.2f%%", ae)}}
 	}
-	sl := Table{Title: "Short vs long summary", Columns: []string{"Type", "Videos", "Total views", "Avg views", "Avg engagement"}, Rows: []Row{avgRow("Long videos", lc, lv, le), avgRow("Short videos (\u2264 3 min)", sc, sv, se)}}
+	sl := Table{Title: "Short vs long summary", Columns: []string{"Type", "Videos", "Total views", "Avg views", "Avg engagement"}, Rows: []Row{avgRow("Long videos", lc, lv, le), avgRow("Short videos (YouTube Shorts)", sc, sv, se)}}
 	sla := Table{Title: "Short vs long videos analysis", Columns: []string{"Type", "Video", "Views", "Likes", "Comments", "Engagement"}}
 	for _, v := range byViews {
 		kind := "Long"
