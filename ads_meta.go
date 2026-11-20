@@ -62,7 +62,15 @@ func (s *server) adsAccounts(ctx context.Context, uid string) ([]adAcct, string,
 		var d struct {
 			Data []adAcct `json:"data"`
 		}
-		if err := getJSON(ctx, gv+"me/adaccounts?"+url.Values{"fields": {"id,name,account_status,currency,amount_spent"}, "limit": {"50"}, "access_token": {t.Access}}.Encode(), &d); err != nil {
+		err = getJSON(ctx, gv+"me/adaccounts?"+url.Values{"fields": {"id,name,account_status,currency,amount_spent"}, "limit": {"50"}, "access_token": {t.Access}}.Encode(), &d)
+		if err != nil || len(d.Data) == 0 {
+			// Facebook Login for Business tokens do not support me/adaccounts; the ad accounts
+			// the user shared are listed in the token's granular scopes instead.
+			if alt := adsViaGranular(ctx, t.Access); len(alt) > 0 {
+				return alt, t.Access, nil
+			}
+		}
+		if err != nil {
 			lastErr = err
 			continue
 		}
@@ -74,6 +82,41 @@ func (s *server) adsAccounts(ctx context.Context, uid string) ([]adAcct, string,
 		return nil, "", userErr("Could not read ad accounts: " + trunc(lastErr.Error(), 220))
 	}
 	return nil, "", userErr("No ad account found. In Meta Business settings create an ad account with a payment method, assign it to your ficx app, then reconnect Instagram.")
+}
+
+func adsViaGranular(ctx context.Context, tok string) []adAcct {
+	app := env("FACEBOOK_APP_ID") + "|" + env("FACEBOOK_APP_SECRET")
+	var dbg struct {
+		Data struct {
+			Granular []struct {
+				Scope string   `json:"scope"`
+				IDs   []string `json:"target_ids"`
+			} `json:"granular_scopes"`
+		} `json:"data"`
+	}
+	if getJSON(ctx, gv+"debug_token?"+url.Values{"input_token": {tok}, "access_token": {app}}.Encode(), &dbg) != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []adAcct
+	for _, g := range dbg.Data.Granular {
+		if g.Scope != "ads_management" && g.Scope != "ads_read" {
+			continue
+		}
+		for _, id := range g.IDs {
+			id = strings.TrimPrefix(id, "act_")
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			var a adAcct
+			if getJSON(ctx, gv+"act_"+id+"?"+url.Values{"fields": {"id,name,account_status,currency,amount_spent"}, "access_token": {tok}}.Encode(), &a) != nil || a.ID == "" {
+				a = adAcct{ID: "act_" + id, Name: "Ad account " + id}
+			}
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 func (s *server) adsAccountsHandler(w http.ResponseWriter, r *http.Request) {
